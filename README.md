@@ -18,9 +18,9 @@ AI 직원(NPC 에이전트)으로 이루어진 가상 회사에 신입으로 입
 ## 구조
 
 ```
-[브라우저: 픽셀 오피스 (Phaser 3) + React 오버레이]
+[브라우저: 픽셀 오피스 (Phaser 3) + React 오버레이, Vercel]
         │
-[백엔드 서버]  ← API 키는 서버에만
+[백엔드 서버: Node, Railway]  ← API 키는 서버 환경변수에만
         │
 [Claude API]  ← NPC / AI 비서 / 평가 에이전트, system prompt만 다름
 ```
