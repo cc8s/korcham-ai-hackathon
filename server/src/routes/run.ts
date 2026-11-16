@@ -263,6 +263,21 @@ const ReviewSchema = z.object({
 });
 export type Review = z.infer<typeof ReviewSchema>;
 
+// LLM_MOCK=1 용 규칙 검토: 제출물에 "반려" 또는 "12곳"/"12개" 가 있으면 반려, 아니면 승인
+export function reviewMock(turns: ChatTurn[]): Review {
+  const text = turns.at(-1)?.content ?? "";
+  const reject = /반려|12곳|12개/.test(text);
+  return {
+    decision: reject ? "reject" : "approve",
+    area: reject ? "거래처 초과" : null,
+    message: reject ? "[mock] 거래처가 왜 12개예요? 다시 보세요." : "[mock] 확인했습니다. 이 정도면 올려도 되겠네요.",
+    trap_caught: [
+      { id: "T1", caught: /중복/.test(text), evidence: /중복/.test(text) ? "중복" : "" },
+      { id: "T2", caught: !reject, evidence: reject ? "" : "거래처 10곳" },
+    ],
+  };
+}
+
 // POST /run/:rid/submit { verify_memo } → 팀장 검토 → 승인/반려
 runRouter.post("/run/:rid/submit", async (req, res) => {
   const ctx = resolve(req, res);
@@ -319,6 +334,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
       schema: ReviewSchema,
       maxTokens: config.maxTokens.review,
       effort: "high",
+      mock: reviewMock,
     });
     setSubmissionReview(subId, { ...review, usage });
     addMessage(run.id, sc.ownerNpcId, "user", `(제출 ${attempt}차) ${memo}`, { submission: attempt });

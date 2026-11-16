@@ -12,7 +12,11 @@ npm run dev              # tsx watch, :8787
 ```
 
 - `npm run typecheck` — tsc
-- `node test/smoke.mjs` — 서버를 자식 프로세스로 띄워 LLM 없는 경로 전부 확인 (키 불필요)
+- `npm test` — 아래 셋 순서대로. 전부 API 키 불필요
+  - `test:unit` — node:test. 시나리오 로더, 프롬프트 조립, DB
+  - `test:smoke` — 서버를 자식 프로세스로 띄워 LLM 없는 경로 + 더미 키 실패 처리
+  - `test:integration` — `LLM_MOCK=1`로 오디 상한, 힌트 단계, 제출 상태 머신, WS 이벤트
+- `LLM_MOCK=1 npm run dev` — Claude 없이 프론트 붙여 볼 때. 응답은 `[mock] ...`
 - `npm run build && npm start` — Railway용
 
 ## 구조
