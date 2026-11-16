@@ -1,0 +1,38 @@
+# 07 문서 9-1. PR 과 main push 마다: 키 유출 검사 → server typecheck → 단위 → 스모크 → 통합(LLM mock)
+# 실제 Claude 호출은 여기서 하지 않는다 (비용·비밀). web/ 이 생기면 job 추가.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: SEC-01 실제 API 키 문자열 차단
+        run: |
+          if git grep -nE 'sk-ant-[A-Za-z0-9_-]{30,}' -- . ; then
+            echo "::error::API 키로 보이는 문자열이 커밋에 있음"; exit 1
+          fi
+          echo "ok"
+
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run test:smoke
+      - run: npm run test:integration
