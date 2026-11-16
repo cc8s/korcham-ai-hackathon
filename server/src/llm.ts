@@ -1,0 +1,120 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import type { z } from "zod";
+import { config } from "./config.js";
+
+// API 키는 ANTHROPIC_API_KEY 환경변수에서만 읽음. 사용자는 키를 입력하지 않음 (01 문서 A안)
+export const client = new Anthropic({ maxRetries: 2 });
+
+export type SystemBlock = { text: string; cache: boolean };
+
+function toSystem(blocks: SystemBlock[]): Anthropic.TextBlockParam[] {
+  return blocks.map((b) => ({
+    type: "text",
+    text: b.text,
+    ...(b.cache ? { cache_control: { type: "ephemeral" as const } } : {}),
+  }));
+}
+
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+
+export interface Usage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+function usageOf(m: Anthropic.Message): Usage {
+  return {
+    input: m.usage.input_tokens,
+    output: m.usage.output_tokens,
+    cacheRead: m.usage.cache_read_input_tokens ?? 0,
+    cacheWrite: m.usage.cache_creation_input_tokens ?? 0,
+  };
+}
+
+// 비스트리밍 대화 (NPC). 짧은 응답 전용
+export async function chat(args: {
+  model: string;
+  system: SystemBlock[];
+  turns: ChatTurn[];
+  maxTokens: number;
+  effort?: "low" | "medium" | "high";
+}): Promise<{ text: string; usage: Usage; stopReason: string | null }> {
+  const res = await client.messages.create({
+    model: args.model,
+    max_tokens: args.maxTokens,
+    system: toSystem(args.system),
+    messages: args.turns,
+    ...(args.effort ? { output_config: { effort: args.effort } } : {}),
+  });
+  const text = res.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  return { text, usage: usageOf(res), stopReason: res.stop_reason };
+}
+
+// 스트리밍 대화 (오디). onText 로 델타를 흘리고 최종 메시지를 돌려줌
+export async function chatStream(args: {
+  model: string;
+  system: SystemBlock[];
+  turns: ChatTurn[];
+  maxTokens: number;
+  effort?: "low" | "medium" | "high";
+  onText: (delta: string) => void;
+  signal?: AbortSignal;
+}): Promise<{ text: string; usage: Usage; stopReason: string | null }> {
+  const stream = client.messages.stream(
+    {
+      model: args.model,
+      max_tokens: args.maxTokens,
+      system: toSystem(args.system),
+      messages: args.turns,
+      ...(args.effort ? { output_config: { effort: args.effort } } : {}),
+    },
+    { signal: args.signal },
+  );
+  stream.on("text", args.onText);
+  const final = await stream.finalMessage();
+  const text = final.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  return { text, usage: usageOf(final), stopReason: final.stop_reason };
+}
+
+// 구조화 출력 (팀장 검토, 평가). zod 스키마 강제
+export async function structured<T extends z.ZodType>(args: {
+  model: string;
+  system: SystemBlock[];
+  turns: ChatTurn[];
+  schema: T;
+  maxTokens: number;
+  effort?: "low" | "medium" | "high";
+}): Promise<{ parsed: z.infer<T>; usage: Usage }> {
+  const res = await client.messages.parse({
+    model: args.model,
+    max_tokens: args.maxTokens,
+    system: toSystem(args.system),
+    messages: args.turns,
+    output_config: {
+      format: zodOutputFormat(args.schema),
+      ...(args.effort ? { effort: args.effort } : {}),
+    },
+  });
+  if (res.parsed_output == null) {
+    throw new Error(`구조화 출력 파싱 실패 (stop_reason=${res.stop_reason})`);
+  }
+  return { parsed: res.parsed_output as z.infer<T>, usage: usageOf(res) };
+}
+
+// 사용자에게 보여 줄 수 있는 오류 분류 (04 문서 7절 예외 처리)
+export function describeLlmError(err: unknown): { status: number; message: string } {
+  if (err instanceof Anthropic.RateLimitError) return { status: 503, message: "잠깐만요, 다시 말해 줄래요?" };
+  if (err instanceof Anthropic.AuthenticationError) return { status: 500, message: "서버 설정 오류 (API 키)" };
+  if (err instanceof Anthropic.APIError) return { status: 502, message: "잠깐만요, 다시 말해 줄래요?" };
+  return { status: 500, message: "서버 오류" };
+}
+
+export const models = config.model;

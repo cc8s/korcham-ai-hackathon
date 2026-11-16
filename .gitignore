@@ -10,3 +10,8 @@ venv/
 .DS_Store
 Thumbs.db
 *.log
+
+# .env.example 은 커밋 (키 없음)
+!.env.example
+# SQLite 파일
+server/data/
