@@ -56,11 +56,13 @@ try {
   check("GET run counters", run.run.odi_calls_used === 1 && run.run.hint_level === 1 && run.run.closed === false);
 
   // S3 → S4 (반려 → 승인)
-  await api.putBasket(rid, "거래처 12곳 합계표");
-  const r1 = await api.submit(rid, "원본 행 수 확인했습니다");
-  check("S4 reject", r1.decision === "reject" && r1.reject_count === 1 && r1.closed === false, JSON.stringify(r1));
-  await api.putBasket(rid, "거래처 10곳 합계표, 중복 3건 제거");
-  const r2 = await api.submit(rid, "주문번호 중복 제거하고 거래처명 정규화했습니다");
+  // 01 은 구조화 제출: 칸 정의가 오고, 숫자는 서버 코드가 채점
+  check("S3 submission_fields", run.submission_fields?.length === 3 && run.submission_fields[0].id === "total_sales");
+  await api.putBasket(rid, "거래처 12곳 합계표, 비중 %");
+  const r1 = await api.submit(rid, "원본 행 수 확인했습니다", { total_sales: 584030000, customer_count: 12, min_customer_sales: 6870000 });
+  check("S4 reject", r1.decision === "reject" && r1.reject_count === 1 && r1.closed === false && r1.area === "총매출 불일치", JSON.stringify(r1));
+  await api.putBasket(rid, "거래처 10곳 합계표, 중복 3건 제거, 비중 차트");
+  const r2 = await api.submit(rid, "주문번호 중복 제거하고 거래처명 정규화했습니다", { total_sales: 580300000, customer_count: 10, min_customer_sales: 9480000 });
   check("S4 approve", r2.decision === "approve" && r2.state === "approved" && r2.closed === true, JSON.stringify(r2));
 
   // S5 (아직 501)
