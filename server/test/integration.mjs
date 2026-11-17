@@ -2,12 +2,12 @@
 // 실행: npm run test:integration   (07 문서 ODI-01/03/04, NPC-02/04, SUB-02/03/04/05, WS-01/02)
 import WebSocket from "ws";
 import { setTimeout as sleep } from "node:timers/promises";
-import { startServer, makeChecker } from "./_harness.mjs";
+import { startServer, makeChecker, testPort } from "./_harness.mjs";
 
 const { check, finish, fail } = makeChecker();
 let srv;
 try {
-  srv = await startServer({ port: 8791, dbName: "integration.db", env: { LLM_MOCK: "1" } });
+  srv = await startServer({ port: testPort(8791), dbName: "integration.db", env: { LLM_MOCK: "1" } });
   const { api, base } = srv;
   const health = await api("GET", "/health");
   const limits = health.json.limits; // {odiCalls, hints, rejects}

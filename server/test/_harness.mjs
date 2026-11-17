@@ -8,6 +8,9 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const serverDir = path.resolve(here, "..");
 
+// 여러 작업 트리에서 테스트를 동시에 돌릴 때 포트가 겹치지 않게: TEST_PORT_OFFSET=100 처럼 준다
+export const testPort = (n) => n + Number(process.env.TEST_PORT_OFFSET ?? 0);
+
 export async function startServer({ port, dbName, env = {} }) {
   const db = path.join(serverDir, "data", dbName);
   const base = `http://localhost:${port}`;

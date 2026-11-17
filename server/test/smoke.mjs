@@ -1,11 +1,11 @@
 // 스모크: LLM 없이 되는 경로 + 더미 키로 LLM 실패 처리. API 키 불필요.
 // 실행: npm run test:smoke   (07 문서 SES/SCN/NPC-01/SUB-01/ODI-02)
-import { startServer, makeChecker } from "./_harness.mjs";
+import { startServer, makeChecker, testPort } from "./_harness.mjs";
 
 const { check, finish, fail } = makeChecker();
 let srv;
 try {
-  srv = await startServer({ port: 8790, dbName: "smoke.db" });
+  srv = await startServer({ port: testPort(8790), dbName: "smoke.db" });
   const { api } = srv;
   check("server boots", true);
 

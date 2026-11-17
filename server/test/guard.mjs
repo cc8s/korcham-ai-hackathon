@@ -1,13 +1,13 @@
 // 비용 방어 통합: 낮은 상한으로 서버를 띄워 실제 HTTP 응답을 확인. API 키 불필요 (LLM_MOCK)
 // 실행: npm run test:guard   (07 문서 COST-01~05)
-import { startServer, makeChecker } from "./_harness.mjs";
+import { startServer, makeChecker, testPort } from "./_harness.mjs";
 
 const { check, finish, fail } = makeChecker();
 let srv;
 try {
   // 1) IP·세션·팀원 대화 상한
   srv = await startServer({
-    port: 8792,
+    port: testPort(8794),
     dbName: "guard.db",
     env: { LLM_MOCK: "1", SESSIONS_PER_IP_DAY: "2", RUNS_PER_IP_DAY: "3", RUNS_PER_SESSION_DAY: "2", NPC_CALLS_PER_RUN: "2" },
   });
@@ -36,7 +36,7 @@ try {
   await srv.stop();
 
   // 2) 하루 지출 상한 0 → 새 세션·업무 시작·LLM 호출 전부 503
-  srv = await startServer({ port: 8793, dbName: "guard2.db", env: { LLM_MOCK: "1", DAILY_BUDGET_USD: "0" } });
+  srv = await startServer({ port: testPort(8795), dbName: "guard2.db", env: { LLM_MOCK: "1", DAILY_BUDGET_USD: "0" } });
   ({ api } = srv);
   const s = await api("POST", "/session", { nickname: "라" });
   check("COST-04 지출 상한 도달 시 세션 503 + 안내", s.status === 503 && s.json?.code === "budget" && /내일/.test(s.json?.error), s.text);

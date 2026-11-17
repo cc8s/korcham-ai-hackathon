@@ -1,12 +1,12 @@
 // 프론트 API 클라이언트를 mock 서버에 붙여 S0→S5 흐름을 코드로 재현한다 (브라우저 없이).
 // 실행: npm run test:api   (web/ 에서). server 의 하네스를 재사용. API 키 불필요.
-import { startServer, makeChecker } from "../../server/test/_harness.mjs";
+import { startServer, makeChecker, testPort } from "../../server/test/_harness.mjs";
 import WebSocket from "../../server/node_modules/ws/index.js";
 
 // Node 20 에는 전역 WebSocket 이 없음 (22+ 부터). 브라우저와 같은 이름으로 주입
 if (typeof globalThis.WebSocket === "undefined") globalThis.WebSocket = WebSocket;
 
-const PORT = 8792;
+const PORT = testPort(8792);
 process.env.VITE_API_BASE = `http://localhost:${PORT}`;
 const { check, finish, fail } = makeChecker();
 let srv;
