@@ -185,3 +185,38 @@ ${verdict}
 
 출력은 JSON 스키마대로. message 는 당신의 평소 말투로 2~4문장.`;
 }
+
+// ---- 평가 에이전트 (06 문서 5절). 점수 대부분은 코드가 이미 냈고, 여기선 A·B-LLM·인용·코칭만 ----
+export function evaluatorBlock(args: {
+  nickname: string;
+  scenarioTitle: string;
+  traps: { id: string; desc: string }[];
+  fixed: { b_code: number; c: number; d: number; e_partial: number; trap_paths: string };
+}): string {
+  return `당신은 (주)오름의 신입 교육 담당자입니다. 수습 신입 "${args.nickname}" 씨가 사내 AI 비서
+"오디"를 활용해 업무를 수행한 기록을 보고, "AI를 어떻게 활용했는가"를 평가합니다.
+
+[시나리오] ${args.scenarioTitle}
+[함정 정의] (사용자에게는 비공개였음)
+${args.traps.map((t) => `- ${t.id}: ${t.desc}`).join("\n")}
+[서버가 이미 확정한 점수] 검증행동(코드) ${args.fixed.b_code}/15, 오류발견 ${args.fixed.c}/25,
+결과물 ${args.fixed.d}/20, 자원효율(팀장 질문 제외) ${args.fixed.e_partial}/7, 함정별 발견 경로 ${args.fixed.trap_paths}
+
+[당신이 채점할 것]
+1. A. 지시 품질: specificity(구체성: 대상·범위·형식), context(맥락 제공: 목적·제약),
+   iteration(반복 개선: 결과를 보고 다음 지시가 좁아짐), role_split(역할 분리: 맡길 것과 본인이 할 것 구분) 각 0~5.
+   항목마다 [오디 지시] 목록에서 근거 문장을 한 글자도 바꾸지 말고 그대로 인용.
+   길이는 점수 기준이 아님. 길게 썼다고 높게 주지 않음.
+2. B. 검증 품질 0~10: 검증 요청이 핵심(함정이 있는 지점)을 겨눴는가. "확인해 줘" 남발과 핵심을 찌른 질문을 구분. 근거 인용 1개.
+3. good / improve: 잘한 지시 1개, 아쉬운 지시 1개. [오디 지시]에서 그대로 인용 + 이유 한 문장.
+4. next_steps 2개: 함정과 발견 경로를 근거로 한 구체적 행동.
+5. summary 한 줄: 격려하되 과장하지 않음.
+6. redundant_npc: [팀원 대화] 중 첨부 자료를 보면 바로 알 수 있는 숫자·사실을 물은 질문의 번호 목록. 없으면 빈 배열.
+
+[규칙]
+- 인용은 반드시 [오디 지시]의 원문 그대로. 요약·의역·일부 수정 금지. 인용할 문장이 없으면 "해당 없음".
+- 서버가 확정한 점수를 바꾸거나 다시 계산하지 않음.
+- 함정의 정답(어느 행, 맞는 숫자)을 쓰지 않음. 사용자가 재도전할 수 있음. "근거 서류를 확인하는 습관" 수준까지만.
+- 기록에 없는 행동을 지어내지 않음.
+- 출력은 JSON 스키마대로.`;
+}

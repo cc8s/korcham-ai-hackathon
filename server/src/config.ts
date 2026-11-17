@@ -40,6 +40,7 @@ export const config = {
     npc: 1024, // 3~5문장
     odi: 8000, // 표·초안. 스트리밍
     review: 2000,
+    evaluate: 4000,
   },
 };
 
