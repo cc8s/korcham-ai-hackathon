@@ -45,6 +45,7 @@ AI 직원(NPC 에이전트)으로 이루어진 가상 회사에 신입으로 입
 
 ## 라이선스 / 출처
 
-- 아트 에셋: Kenney (CC0)
+- 아트 에셋: 자체 제작 픽셀 아트 (`web/tools/make_sprites.py` 로 생성, 외부 그림 에셋 없음)
+- 글꼴: Galmuri (SIL OFL 1.1)
 - 렌더링: Phaser 3 (MIT)
 - 개념 참고: [Paperclip](https://github.com/paperclipai/paperclip), [Pixel Agents](https://github.com/pablodelucca/pixel-agents) — 코드 미사용
