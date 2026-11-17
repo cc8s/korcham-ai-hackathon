@@ -12,8 +12,13 @@ import {
   setSubmissionReview,
   listSubmissions,
   getEvaluation,
+  addEvaluation,
   type RunRow,
 } from "../db.js";
+import { collectEvidence } from "../evaluation/evidence.js";
+import { scoreCode } from "../evaluation/score.js";
+import { runJudge, type Judge } from "../evaluation/judge.js";
+import { buildReport } from "../evaluation/report.js";
 import { getScenario, readAttachment, attachedDataBlock, attachmentOverview, type Scenario, type NpcId } from "../scenarios.js";
 import {
   COMPANY_COMMON,
@@ -537,25 +542,49 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
   });
 });
 
-// POST /run/:rid/evaluate → 평가 리포트. 06 문서 파이프라인. 다음 단계에서 구현
-runRouter.post("/run/:rid/evaluate", (req, res) => {
+// 같은 run 평가가 동시에 두 번 돌면 비용이 두 배라 막는다
+const evaluating = new Set<string>();
+
+// POST /run/:rid/evaluate → 평가 리포트 (06 문서 4절). 한 번 만들면 저장된 걸 돌려줌
+runRouter.post("/run/:rid/evaluate", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
-  if (!isClosed(ctx.run)) {
-    res.status(409).json({ error: "승인되거나 반려 상한에 도달해야 평가 가능", state: ctx.run.state });
+  const { run, sc, nickname } = ctx;
+  if (!isClosed(run)) {
+    res.status(409).json({ error: "승인되거나 반려 상한에 도달해야 평가 가능", state: run.state });
     return;
   }
-  const existing = getEvaluation(ctx.run.id);
+  const existing = getEvaluation(run.id);
   if (existing) {
     res.json(existing);
     return;
   }
-  res.status(501).json({
-    error: "평가 파이프라인 미구현",
-    inputs_ready: {
-      messages: listMessages(ctx.run.id).length,
-      data_views: listDataViews(ctx.run.id).length,
-      submissions: listSubmissions(ctx.run.id).length,
-    },
-  });
+  if (evaluating.has(run.id)) {
+    res.status(409).json({ error: "평가 중입니다. 잠시 뒤 다시 열어 주세요" });
+    return;
+  }
+  if (!checkBudget(res)) return;
+  evaluating.add(run.id);
+  try {
+    const { ev } = collectEvidence(run.id);
+    const code = scoreCode(ev, sc);
+    let judge: Judge | null = null;
+    try {
+      const out = await runJudge({ ev, sc, code, nickname });
+      for (const usage of out.usages) recordSpend({ runId: run.id, kind: "evaluate", model: models.main, usage });
+      judge = out.judge;
+    } catch (err) {
+      // 코드 점수는 이미 확정. 코칭 없이 부분 리포트만 보여 주고 저장하지 않는다 (다시 열면 재시도)
+      console.error("[evaluate]", describeLlmError(err).message, err);
+    }
+    const report = buildReport({ runId: run.id, sc, ev, code, judge });
+    if (judge) {
+      addEvaluation(run.id, report);
+      updateRun(run.id, { state: "evaluated" });
+      emit({ type: "evaluated", run_id: run.id });
+    }
+    res.json(report);
+  } finally {
+    evaluating.delete(run.id);
+  }
 });

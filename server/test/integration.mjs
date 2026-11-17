@@ -82,7 +82,22 @@ try {
   check("SUB-03 reject #3 closes", r3.json?.reject_count === 3 && r3.json?.closed === true, JSON.stringify(r3.json));
   check("SUB-02 submit after close 409", (await api("POST", `/run/${rid}/submit`, { verify_memo: "확인 메모 4차 입니다", fields: wrong })).status === 409);
   check("SUB-02 odi after close 409", (await api("POST", `/run/${rid}/odi`, { message: "x" })).status === 409);
-  check("evaluate after close reachable (501 until implemented)", (await api("POST", `/run/${rid}/evaluate`)).status === 501);
+  // EVL: 반려 3회로 닫힌 run 평가. LLM_MOCK 이라 코칭은 규칙 기반, 점수 구조만 본다
+  const ev1 = await api("POST", `/run/${rid}/evaluate`);
+  const rep = ev1.json;
+  const axisSum = rep && Object.values(rep.axes).reduce((s, a) => s + a.score, 0);
+  check("EVL-01 evaluate after close 200", ev1.status === 200 && ["S", "A", "B", "C"].includes(rep?.grade), JSON.stringify(rep)?.slice(0, 300));
+  check("EVL-02 total = round(sum of axes)", rep && rep.total === Math.round(axisSum), `total=${rep?.total} sum=${axisSum}`);
+  check("EVL-03 D: 3 rejects, not approved", rep?.axes.D_deliverable.approved === false && rep?.axes.D_deliverable.reject_count === 3);
+  // wrong 은 총매출만 맞고(T1 발견) 거래처 수·최소 매출이 틀림(T2 미발견)
+  const tr = Object.fromEntries((rep?.axes.C_traps.traps ?? []).map((t) => [t.id, t]));
+  check("EVL-04 T1 found via correct total, T2 none", tr.T1?.found === true && tr.T2?.found === false && tr.T2?.path === "none", JSON.stringify(tr));
+  check("EVL-05 quotes are from odi log or 해당 없음", rep?.axes.A_instruction.items.every((i) => i.quote === "해당 없음" || i.quote.length > 0));
+  check("EVL-06 report not partial in mock", rep?.partial === undefined);
+  const ev2 = await api("POST", `/run/${rid}/evaluate`);
+  check("EVL-07 second call returns saved report", ev2.status === 200 && JSON.stringify(ev2.json) === JSON.stringify(rep));
+  check("EVL-08 run state evaluated", (await api("GET", `/run/${rid}`)).json.run.state === "evaluated");
+  check("SUB-02 submit after evaluated 409", (await api("POST", `/run/${rid}/submit`, { verify_memo: "확인 메모 5차 입니다", fields: wrong })).status === 409);
 
   // SUB-04: 검토 JSON 저장 형태
   const subs = (await api("GET", `/run/${rid}`)).json.submissions;
