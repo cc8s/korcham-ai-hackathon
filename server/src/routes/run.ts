@@ -23,7 +23,10 @@ import {
   ODI_BASE,
   odiScenarioBlock,
   reviewerBlock,
+  reviewCommentBlock,
 } from "../prompts/index.js";
+import { publicFields, parseFields, grade, areaLine, type Grading } from "../grading.js";
+import { maskAnswers } from "../mask.js";
 import { chat, chatStream, structured, describeLlmError, models, type ChatTurn, type SystemBlock } from "../llm.js";
 import { config, limits } from "../config.js";
 import { emit } from "../events.js";
@@ -70,11 +73,14 @@ runRouter.get("/run/:rid", (req, res) => {
       closed: isClosed(run),
     },
     scenario: { id: sc.id, title: sc.prompts.title, owner_npc_id: sc.ownerNpcId },
+    // 구조화 제출 칸 (submission.json 있는 시나리오만). 정답·허용오차·함정은 빼고 보냄
+    submission_fields: sc.submission ? publicFields(sc.submission) : null,
     task_card: { ...sc.prompts.task_card, body: sc.prompts.task_card.body.replaceAll("{nickname}", nickname) },
     messages: listMessages(run.id).map((m) => ({ id: m.id, agent: m.agent, role: m.role, content: m.content, at: m.created_at })),
     submissions: listSubmissions(run.id).map((s) => ({
       attempt: s.attempt,
       verify_memo: s.verify_memo,
+      fields: s.fields_json ? JSON.parse(s.fields_json) : null,
       review: s.review_json ? JSON.parse(s.review_json) : null,
       at: s.created_at,
     })),
@@ -241,14 +247,16 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
       effort: "low",
     });
     recordSpend({ runId: run.id, kind: "npc", model, usage: out.usage });
+    // 정답 숫자 마스킹. 저장도 가린 문장으로 해서 새로고침 복구·다음 턴 이력에도 안 남게
+    const text = maskAnswers(out.text, sc.answerKey);
     addMessage(run.id, npc, "user", message, hintRequest ? { hint_request: true, hint_level: hintLevel } : undefined);
-    addMessage(run.id, npc, "assistant", out.text, { usage: out.usage });
+    addMessage(run.id, npc, "assistant", text, { usage: out.usage, ...(text !== out.text ? { masked: true } : {}) });
     const updated = updateRun(run.id, {
       ...(hintRequest ? { hint_level: hintLevel } : {}),
       ...(run.state === "assigned" ? { state: "working" as const } : {}),
     });
-    emit({ type: "npc.call.end", run_id: run.id, npc_id: npc, text: out.text.split(/(?<=[.!?。])\s/)[0] });
-    res.json({ npc, name: persona.name, text: out.text, hint_level: updated.hint_level, hint_limit: limits.hints });
+    emit({ type: "npc.call.end", run_id: run.id, npc_id: npc, text: text.split(/(?<=[.!?。])\s/)[0] });
+    res.json({ npc, name: persona.name, text, hint_level: updated.hint_level, hint_limit: limits.hints });
   } catch (err) {
     emit({ type: "npc.call.end", run_id: run.id, npc_id: npc });
     const e = describeLlmError(err);
@@ -288,7 +296,22 @@ export function reviewMock(turns: ChatTurn[]): Review {
   };
 }
 
-// POST /run/:rid/submit { verify_memo } → 팀장 검토 → 승인/반려
+// 구조화 제출 시나리오의 팀장 멘트 스키마. 판정은 코드가 하므로 message 만 받는다
+const CommentSchema = z.object({
+  message: z.string().describe("팀장 말투의 검토 코멘트 2~4문장. 정답 숫자 언급 금지"),
+});
+
+// 코드 판정을 받아 쓰는 멘트의 대체문. LLM_MOCK=1 과 LLM 실패 시 공용
+// mock 은 메모 앞부분을 인용해서, 메모에 쓴 정답 숫자가 마스킹되는지 테스트할 수 있게 함
+export function commentFallback(lines: string[], memo?: string): string {
+  const base = lines.length === 0 ? "확인했습니다. 숫자 맞네요. 이대로 올리죠." : lines.join(" ");
+  return memo === undefined ? base : `[mock] ${base} (메모: ${memo.slice(0, 60)})`;
+}
+
+type SubmitOutcome = { review: Record<string, unknown> & { decision: "approve" | "reject"; area: string | null; message: string }; wrongAreas?: string[] };
+
+// POST /run/:rid/submit { verify_memo, fields? } → 채점·검토 → 승인/반려
+// submission.json 이 있으면 fields 를 코드가 채점하고 팀장 LLM 은 멘트만. 없으면 기존 LLM 검토
 runRouter.post("/run/:rid/submit", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
@@ -302,6 +325,15 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     res.status(400).json({ error: "바구니가 비어 있음" });
     return;
   }
+  let values: Record<string, number> | undefined;
+  if (sc.submission) {
+    const parsed = parseFields(sc.submission, req.body?.fields);
+    if ("error" in parsed) {
+      res.status(400).json({ error: parsed.error, code: "fields" });
+      return;
+    }
+    values = parsed.values;
+  }
   if (isClosed(run) || run.state === "reviewing") {
     res.status(409).json({ error: "제출할 수 없는 상태", state: run.state });
     return;
@@ -309,71 +341,155 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
   if (!checkBudget(res)) return;
 
   const attempt = run.reject_count + 1;
-  const subId = addSubmission(run.id, attempt, run.basket_text, memo);
-  updateRun(run.id, { state: "reviewing" });
-  emit({ type: "submit", run_id: run.id, npc_id: sc.ownerNpcId });
-
   const persona = NPC_PERSONA[sc.ownerNpcId];
-  const system: SystemBlock[] = [
-    { text: `${COMPANY_COMMON}\n\n${persona.block}`, cache: false },
-    { text: `[현재 시나리오]\n${sc.prompts.scenario_context_for_npc}`, cache: true },
-    {
-      text: reviewerBlock({
-        approveIf: sc.prompts.review_rules.approve_if,
-        rejectArea: sc.prompts.review_rules.reject_area,
-        answerKey: sc.answerKey,
-        traps: sc.prompts.traps,
-        attempt,
-        rejectLimit: limits.rejects,
-      }),
-      cache: false,
-    },
-    { text: npcVolatileBlock(nickname), cache: false },
-  ];
-  const turns: ChatTurn[] = [
-    {
-      role: "user",
-      content: `[제출물]\n${run.basket_text}\n\n[검증 메모]\n${memo}`,
-    },
-  ];
+  let outcome: SubmitOutcome;
+  let subId: number;
 
-  try {
-    const { parsed: review, usage } = await structured({
-      model: models.main,
-      system,
-      turns,
-      schema: ReviewSchema,
-      maxTokens: config.maxTokens.review,
-      effort: "high",
-      mock: reviewMock,
+  if (sc.submission && values) {
+    // ---- 구조화 제출: 코드 채점 → 팀장은 멘트만 ----
+    const spec = sc.submission;
+    const vals = values;
+    const g: Grading = grade({
+      spec,
+      answerKey: sc.answerKey,
+      traps: sc.prompts.traps,
+      values,
+      basket: run.basket_text,
+      memo,
     });
-    recordSpend({ runId: run.id, kind: "review", model: models.main, usage });
-    setSubmissionReview(subId, { ...review, usage });
-    addMessage(run.id, sc.ownerNpcId, "user", `(제출 ${attempt}차) ${memo}`, { submission: attempt });
-    addMessage(run.id, sc.ownerNpcId, "assistant", review.message, { review: review.decision, area: review.area });
+    subId = addSubmission(run.id, attempt, run.basket_text, memo, values, g);
+    updateRun(run.id, { state: "reviewing" });
+    emit({ type: "submit", run_id: run.id, npc_id: sc.ownerNpcId });
 
-    let updated: RunRow;
-    if (review.decision === "approve") {
-      updated = updateRun(run.id, { state: "approved" });
-      emit({ type: "review.approve", run_id: run.id, npc_id: sc.ownerNpcId, text: review.message });
-    } else {
-      updated = updateRun(run.id, { state: "rejected", reject_count: run.reject_count + 1 });
-      emit({ type: "review.reject", run_id: run.id, npc_id: sc.ownerNpcId, text: review.message });
+    const wrongAreas = g.wrong_areas.map((area) => ({ area, line: areaLine(spec, sc.prompts, area) }));
+    // 정답이 들어 있는 scenario_context_for_npc·answer_key 는 넣지 않는다
+    const system: SystemBlock[] = [
+      { text: `${COMPANY_COMMON}\n\n${persona.block}`, cache: false },
+      {
+        text: reviewCommentBlock({
+          decision: g.decision,
+          wrongAreas,
+          taskTitle: sc.prompts.task_card.title,
+          deliverable: sc.prompts.task_card.deliverable,
+          attempt,
+          rejectLimit: limits.rejects,
+        }),
+        cache: false,
+      },
+      { text: npcVolatileBlock(nickname), cache: false },
+    ];
+    const fieldLines = spec.fields.map((f) => `- ${f.label}: ${f.id in vals ? vals[f.id].toLocaleString("ko-KR") + f.unit : "(빈칸)"}`);
+    const turns: ChatTurn[] = [
+      {
+        role: "user",
+        content: `[제출 칸]\n${fieldLines.join("\n")}\n\n[제출물]\n${run.basket_text.slice(0, 4000)}\n\n[검증 메모]\n${memo}`,
+      },
+    ];
+    let message: string;
+    let usage: unknown = null;
+    let fallback = false;
+    try {
+      const out = await structured({
+        model: models.main,
+        system,
+        turns,
+        schema: CommentSchema,
+        maxTokens: config.maxTokens.review,
+        effort: "medium",
+        mock: () => ({ message: commentFallback(wrongAreas.map((w) => w.line), memo) }),
+      });
+      recordSpend({ runId: run.id, kind: "review", model: models.main, usage: out.usage });
+      message = out.parsed.message;
+      usage = out.usage;
+    } catch {
+      // 판정은 이미 코드가 냈으므로 멘트만 대체문으로. 제출을 날리지 않는다
+      message = commentFallback(wrongAreas.map((w) => w.line));
+      fallback = true;
     }
-    res.json({
-      attempt,
-      decision: review.decision,
-      area: review.area,
-      message: review.message,
-      state: updated.state,
-      reject_count: updated.reject_count,
-      closed: isClosed(updated),
-    });
-  } catch (err) {
-    updateRun(run.id, { state: run.state }); // reviewing 해제. 제출 기록은 남음
-    const e = describeLlmError(err);
-    res.status(e.status).json({ error: e.message });
+    outcome = {
+      review: {
+        decision: g.decision,
+        area: g.area,
+        wrong_areas: g.wrong_areas,
+        message: maskAnswers(message, sc.answerKey),
+        trap_caught: g.trap_caught,
+        graded_by: "code",
+        ...(fallback ? { comment_fallback: true } : {}),
+        usage,
+      },
+      wrongAreas: g.wrong_areas,
+    };
+  } else {
+    // ---- 기존 경로 (submission.json 없는 시나리오): 팀장 LLM 이 판정까지 ----
+    subId = addSubmission(run.id, attempt, run.basket_text, memo);
+    updateRun(run.id, { state: "reviewing" });
+    emit({ type: "submit", run_id: run.id, npc_id: sc.ownerNpcId });
+
+    const system: SystemBlock[] = [
+      { text: `${COMPANY_COMMON}\n\n${persona.block}`, cache: false },
+      { text: `[현재 시나리오]\n${sc.prompts.scenario_context_for_npc}`, cache: true },
+      {
+        text: reviewerBlock({
+          approveIf: sc.prompts.review_rules.approve_if,
+          rejectArea: sc.prompts.review_rules.reject_area,
+          answerKey: sc.answerKey,
+          traps: sc.prompts.traps,
+          attempt,
+          rejectLimit: limits.rejects,
+        }),
+        cache: false,
+      },
+      { text: npcVolatileBlock(nickname), cache: false },
+    ];
+    const turns: ChatTurn[] = [
+      {
+        role: "user",
+        content: `[제출물]\n${run.basket_text}\n\n[검증 메모]\n${memo}`,
+      },
+    ];
+    try {
+      const { parsed: review, usage } = await structured({
+        model: models.main,
+        system,
+        turns,
+        schema: ReviewSchema,
+        maxTokens: config.maxTokens.review,
+        effort: "high",
+        mock: reviewMock,
+      });
+      recordSpend({ runId: run.id, kind: "review", model: models.main, usage });
+      outcome = { review: { ...review, message: maskAnswers(review.message, sc.answerKey), graded_by: "llm", usage } };
+    } catch (err) {
+      updateRun(run.id, { state: run.state }); // reviewing 해제. 제출 기록은 남음
+      const e = describeLlmError(err);
+      res.status(e.status).json({ error: e.message });
+      return;
+    }
   }
+
+  const { review } = outcome;
+  setSubmissionReview(subId, review);
+  addMessage(run.id, sc.ownerNpcId, "user", `(제출 ${attempt}차) ${memo}`, { submission: attempt });
+  addMessage(run.id, sc.ownerNpcId, "assistant", review.message, { review: review.decision, area: review.area });
+
+  let updated: RunRow;
+  if (review.decision === "approve") {
+    updated = updateRun(run.id, { state: "approved" });
+    emit({ type: "review.approve", run_id: run.id, npc_id: sc.ownerNpcId, text: review.message });
+  } else {
+    updated = updateRun(run.id, { state: "rejected", reject_count: run.reject_count + 1 });
+    emit({ type: "review.reject", run_id: run.id, npc_id: sc.ownerNpcId, text: review.message });
+  }
+  res.json({
+    attempt,
+    decision: review.decision,
+    area: review.area,
+    ...(outcome.wrongAreas ? { wrong_areas: outcome.wrongAreas } : {}),
+    message: review.message,
+    state: updated.state,
+    reject_count: updated.reject_count,
+    closed: isClosed(updated),
+  });
 });
 
 // POST /run/:rid/evaluate → 평가 리포트. 06 문서 파이프라인. 다음 단계에서 구현

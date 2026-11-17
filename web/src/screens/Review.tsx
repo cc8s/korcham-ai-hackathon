@@ -23,7 +23,7 @@ export function ReviewScreen(props: { result: SubmitResult; owner: NpcId; onRetr
         <blockquote className={`ws-callout ${approved ? "ok" : "warn"}`}>{result.message}</blockquote>
         {!approved && result.area && (
           <p>
-            틀린 영역: <b>{result.area}</b>
+            틀린 영역: <b>{(result.wrong_areas?.length ? result.wrong_areas : [result.area]).join(", ")}</b>
           </p>
         )}
         {approved ? (

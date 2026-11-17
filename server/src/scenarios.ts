@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "./config.js";
+import { validateSpec, type SubmissionSpec } from "./grading.js";
 
 // scenarios/{NN}_{slug}/prompts.json 의 형태. scenarios/README.md 참고
 export interface ScenarioPrompts {
@@ -33,6 +34,7 @@ export interface Scenario {
   prompts: ScenarioPrompts;
   answerKey: unknown; // 검토·평가 전용. 사용자에게 절대 노출 금지
   ownerNpcId: NpcId;
+  submission?: SubmissionSpec; // submission.json (선택). 있으면 구조화 제출 + 코드 채점
 }
 
 export type NpcId = "kang" | "park" | "jung" | "lee";
@@ -58,7 +60,13 @@ export function loadScenarios(): Map<string, Scenario> {
     const answerKey = JSON.parse(fs.readFileSync(path.join(dir, "answer_key.json"), "utf8"));
     const ownerNpcId = NPC_NAME_TO_ID[prompts.owner_npc];
     if (!ownerNpcId) throw new Error(`${e.name}: owner_npc '${prompts.owner_npc}' 를 모르는 NPC`);
-    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId });
+    const subPath = path.join(dir, "submission.json");
+    let submission: SubmissionSpec | undefined;
+    if (fs.existsSync(subPath)) {
+      submission = JSON.parse(fs.readFileSync(subPath, "utf8")) as SubmissionSpec;
+      validateSpec(submission, prompts, answerKey, `${e.name}/submission.json`);
+    }
+    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission });
   }
   if (cache.size === 0) throw new Error(`시나리오 폴더가 비어 있음: ${config.scenariosDir}`);
   return cache;

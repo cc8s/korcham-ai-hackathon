@@ -142,3 +142,28 @@ ${args.traps.map((t) => `- ${t.id}: ${t.desc} / 판정 기준: ${t.detect}`).joi
 출력은 JSON 스키마대로. message 는 당신의 평소 말투로 3~5문장.
 반려 시 area 는 위 반려 영역 이름 중 하나. 승인 시 area 는 null.`;
 }
+
+// ---- 팀장 검토 멘트 (구조화 제출 시나리오). 판정은 코드가 이미 함. 정답은 주지 않음 ----
+export function reviewCommentBlock(args: {
+  decision: "approve" | "reject";
+  wrongAreas: { area: string; line: string }[];
+  taskTitle: string;
+  deliverable: string;
+  attempt: number;
+  rejectLimit: number;
+}): string {
+  const verdict =
+    args.decision === "approve"
+      ? "판정: 승인. 제출한 숫자가 전부 맞았습니다."
+      : `판정: 반려. 틀린 영역과 그 영역에서 쓰는 말투:\n${args.wrongAreas.map((w) => `- ${w.area}: "${w.line}"`).join("\n")}`;
+  return `[검토 모드]
+업무: ${args.taskTitle} / 요구 형식: ${args.deliverable}
+지금은 ${args.attempt}번째 제출물입니다 (반려 상한 ${args.rejectLimit}회).
+판정은 이미 났습니다. 당신은 판정을 바꾸지 않고, 판정을 전하는 코멘트만 씁니다.
+당신도 정답 숫자는 모릅니다. 숫자를 추측하거나 "얼마 차이"를 말하지 않습니다.
+반려면 틀린 영역까지만 말하고 어느 행·어느 숫자인지는 말하지 않습니다.
+
+${verdict}
+
+출력은 JSON 스키마대로. message 는 당신의 평소 말투로 2~4문장.`;
+}

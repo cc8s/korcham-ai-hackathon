@@ -12,10 +12,12 @@ npm run dev              # tsx watch, :8787
 ```
 
 - `npm run typecheck` — tsc
-- `npm test` — 아래 셋 순서대로. 전부 API 키 불필요
-  - `test:unit` — node:test. 시나리오 로더, 프롬프트 조립, DB
+- `npm test` — 아래 순서대로. 전부 API 키 불필요
+  - `test:unit` — node:test. 시나리오 로더, 프롬프트 조립, DB, 비용 방어, 구조화 제출 채점, 정답 마스킹
   - `test:smoke` — 서버를 자식 프로세스로 띄워 LLM 없는 경로 + 더미 키 실패 처리
   - `test:integration` — `LLM_MOCK=1`로 오디 상한, 힌트 단계, 제출 상태 머신, WS 이벤트
+  - `test:submit` — `LLM_MOCK=1`로 구조화 제출(01·02 채점, 03 기존 경로)과 팀장·NPC 출력 마스킹
+  - `test:guard` — 비용 방어 상한
 - `LLM_MOCK=1 npm run dev` — Claude 없이 프론트 붙여 볼 때. 응답은 `[mock] ...`
 - `npm run build && npm start` — Railway용
 
@@ -25,7 +27,9 @@ npm run dev              # tsx watch, :8787
 |---|---|
 | `src/config.ts` | env, 모델 ID, `scenarios/_shared/constants.json`의 상한(오디 15, 힌트 3, 반려 3) |
 | `src/db.ts` | SQLite 스키마(04 문서 6절) + 쿼리 함수 |
-| `src/scenarios.ts` | `scenarios/` 폴더 로더. 첨부는 `task_card.attachments`에 있는 파일만 읽음 (경로 탈출 방지) |
+| `src/scenarios.ts` | `scenarios/` 폴더 로더. 첨부는 `task_card.attachments`에 있는 파일만 읽음 (경로 탈출 방지). `submission.json` 이 있으면 읽고 검사 |
+| `src/grading.ts` | 구조화 제출 칸 정의 검사·입력 해석·코드 채점 (승인/반려, 틀린 영역, trap_caught) |
+| `src/mask.ts` | LLM 출력에서 answer_key 숫자 마스킹 (팀장 검토 코멘트, NPC 대화) |
 | `src/prompts/index.ts` | 03 문서의 system prompt 블록. 고정 블록(캐시)과 가변 블록 분리 |
 | `src/llm.ts` | Anthropic SDK 래퍼: `chat`(NPC), `chatStream`(오디, SSE), `structured`(검토·평가, zod) |
 | `src/events.ts` | `/ws/{run_id}` 픽셀 이벤트 브로드캐스트 |
@@ -40,12 +44,12 @@ npm run dev              # tsx watch, :8787
 | POST | `/session` | `{nickname}` 1~20자 |
 | GET | `/session/{id}` | 시나리오별 진행 상태 (S6) |
 | POST | `/scenario/{sid}/start` | `{session_id}` → run, 업무 카드 |
-| GET | `/run/{rid}` | 복구용 전체 상태 |
+| GET | `/run/{rid}` | 복구용 전체 상태. `submission_fields`: 칸 `{id, label, type, unit, required}[]` 또는 null (정답·허용오차 없음). 제출 이력에 `fields` |
 | GET | `/run/{rid}/data/{file}?sort=1&search=1` | 첨부 원문. 열람 기록 |
 | PUT | `/run/{rid}/basket` | `{text}` 결과물 바구니 |
 | POST | `/run/{rid}/odi` | `{message}` → SSE `delta`/`done`/`error`. 상한 초과 429 |
-| POST | `/run/{rid}/npc/{kang\|park\|jung\|lee}` | `{message, hint_request?}`. 힌트는 lee만, 상한 초과 429 |
-| POST | `/run/{rid}/submit` | `{verify_memo}` 10자 이상 → 팀장 검토(구조화 출력) → approve/reject |
+| POST | `/run/{rid}/npc/{kang\|park\|jung\|lee}` | `{message, hint_request?}`. 힌트는 lee만, 상한 초과 429. 응답의 정답 숫자는 ○○○ |
+| POST | `/run/{rid}/submit` | `{verify_memo, fields?}` 메모 10자 이상. 칸 있는 시나리오는 `fields: {칸 id: 숫자 또는 "580,300,000원"}` 필수 칸 전부, 아니면 400 `code: fields` → approve/reject. 응답 `{attempt, decision, area, wrong_areas?, message, state, reject_count, closed}` |
 | POST | `/run/{rid}/evaluate` | 승인 또는 반려 3회 후. **미구현(501)** — 06 문서 파이프라인 다음 단계 |
 | WS | `/ws/{rid}` | `{type, run_id, npc_id?, text?}` |
 
@@ -54,7 +58,10 @@ npm run dev              # tsx watch, :8787
 - 오디: system = [기본 규칙] + [첨부 데이터 + 심어진 믿음 (cache_control)]. 대화 이력은 DB의 agent=odi 메시지. 성공한 호출만 횟수 차감.
 - 대화 이력 캐시: 모든 호출에서 마지막 턴에 cache_control 을 붙여, 다음 호출은 이전 대화를 캐시에서 읽는다.
 - NPC: system = [공통 + 페르소나] + [시나리오 컨텍스트 (cache)] + [대화 상대·힌트 단계]. 이하늘은 공개된 단계까지의 힌트만 프롬프트에 들어감.
-- 검토: 담당 팀장 페르소나 + answer_key + 함정 정의 → zod 스키마 `{decision, area, message, trap_caught[]}`.
+- 검토 (구조화 제출, `submission.json` 있는 01·02): **판정은 코드.** 칸마다 answer_key 의 `answer.path` 값과 비교(허용오차 `tolerance`, 지금 전부 0). 승인 = 필수 칸 전부 정답 + `text_checks`(01 비중·차트, 02 분개 존재 여부) 통과. 틀린 칸의 `reject_area` 를 모아 `wrong_areas`, 첫 번째가 `area`. `derived` 칸(02 납부세액)은 다른 칸이 다 맞을 때만 자기 영역을 보고. trap_caught = 그 함정을 `proves` 하는 칸이 전부 정답. 그다음 담당 팀장 LLM 을 한 번 불러 멘트만 받는다 (zod `{message}`). 이 호출에는 answer_key·`scenario_context_for_npc`(정답이 적혀 있음)를 넣지 않고 판정·틀린 영역 이름·영역 말투만 준다. 호출이 실패하면 영역 말투 문장으로 대체하고 판정은 그대로 반영 (`comment_fallback`). submission 행에 `fields_json`(입력값), `grading_json`(칸별 정답 여부, 정답 값은 저장 안 함), `review_json`(`graded_by: "code"`).
+- 검토 (나머지 시나리오): 담당 팀장 페르소나 + answer_key + 함정 정의 → zod 스키마 `{decision, area, message, trap_caught[]}` (`graded_by: "llm"`).
+- 정답 마스킹 (`mask.ts`): 팀장 검토 코멘트와 NPC 대화 응답에서 그 시나리오 answer_key 의 숫자 잎 중 1만 이상을 찾아 ○○○ 로 바꾼다. 쉼표 유무, `원`, `만원`, `억 … 만` 표기를 같은 값으로 본다. 1만 미만은 10곳·124행·2026년·% 같은 일상 숫자와 겹쳐서 제외 (그래서 03 의 두세 자리 발주량은 가리지 못함). 저장도 가린 문장으로. 오디 출력에는 적용하지 않음.
+- `LLM_MOCK=1`: 구조화 제출 멘트는 영역 말투 + 검증 메모 앞부분 인용(마스킹 테스트용), 기존 검토는 "반려/12곳/12개" 규칙.
 - 모델: 오디·검토는 `MODEL_MAIN`(기본 `claude-opus-5-5`), 팀장 대화는 `MODEL_NPC`, 이하늘은 `MODEL_MENTOR`(둘 다 기본 `claude-haiku-5-5`).
 
 ## 비용 방어 (`src/guard.ts`)

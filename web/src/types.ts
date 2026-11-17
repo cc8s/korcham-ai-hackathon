@@ -45,8 +45,19 @@ export interface Message {
 export interface Review {
   decision: "approve" | "reject";
   area: string | null;
+  wrong_areas?: string[]; // 구조화 제출만
   message: string;
   trap_caught: { id: string; caught: boolean; evidence: string }[];
+  graded_by?: "code" | "llm";
+}
+
+// 구조화 제출 칸 (submission.json 있는 시나리오만). 정답은 서버에만 있음
+export interface SubmissionField {
+  id: string;
+  label: string;
+  type: "integer" | "number";
+  unit: string;
+  required: boolean;
 }
 
 export interface RunInfo {
@@ -61,9 +72,10 @@ export interface RunInfo {
     closed: boolean;
   };
   scenario: { id: string; title: string; owner_npc_id: NpcId };
+  submission_fields: SubmissionField[] | null;
   task_card: TaskCard;
   messages: Message[];
-  submissions: { attempt: number; verify_memo: string; review: Review | null; at: string }[];
+  submissions: { attempt: number; verify_memo: string; fields: Record<string, number> | null; review: Review | null; at: string }[];
   evaluation: Report | null;
 }
 
@@ -71,6 +83,7 @@ export interface SubmitResult {
   attempt: number;
   decision: "approve" | "reject";
   area: string | null;
+  wrong_areas?: string[];
   message: string;
   state: RunState;
   reject_count: number;

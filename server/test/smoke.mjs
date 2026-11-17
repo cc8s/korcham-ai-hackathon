@@ -59,6 +59,20 @@ try {
   check("GET session shows run state", sess.json?.scenarios?.find((x) => x.id === "01")?.run?.state === "assigned");
   check("SES-02 hides hints/traps", !JSON.stringify(sess.json).includes("hints") && !JSON.stringify(sess.json).includes("traps"));
   check("SES-03 unknown session 404", (await api("GET", "/session/nope")).status === 404);
+
+  // SUB-15: 구조화 제출은 팀장 멘트 호출이 실패해도(더미 키) 코드 판정으로 반려 처리, 멘트는 대체문
+  const rid2 = (await api("POST", "/scenario/01/start", { session_id: sid })).json.run_id;
+  await api("PUT", `/run/${rid2}/basket`, { text: "거래처별 합계표, 비중 %" });
+  const sub = await api("POST", `/run/${rid2}/submit`, {
+    verify_memo: "원본 대조했습니다 (smoke)",
+    fields: { total_sales: 584030000, customer_count: 10, min_customer_sales: 9480000 },
+  });
+  const sub2 = (await api("GET", `/run/${rid2}`)).json.submissions[0];
+  check(
+    "SUB-15 comment LLM fails -> fallback, code decision kept",
+    sub.status === 200 && sub.json?.decision === "reject" && sub.json?.area === "총매출 불일치" && sub.json?.reject_count === 1 && sub2.review.comment_fallback === true,
+    JSON.stringify(sub.json),
+  );
 } catch (e) {
   console.error(e);
   fail();
