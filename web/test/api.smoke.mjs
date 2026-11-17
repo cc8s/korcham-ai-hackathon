@@ -1,0 +1,85 @@
+// 프론트 API 클라이언트를 mock 서버에 붙여 S0→S5 흐름을 코드로 재현한다 (브라우저 없이).
+// 실행: npm run test:api   (web/ 에서). server 의 하네스를 재사용. API 키 불필요.
+import { startServer, makeChecker } from "../../server/test/_harness.mjs";
+import WebSocket from "../../server/node_modules/ws/index.js";
+
+// Node 20 에는 전역 WebSocket 이 없음 (22+ 부터). 브라우저와 같은 이름으로 주입
+if (typeof globalThis.WebSocket === "undefined") globalThis.WebSocket = WebSocket;
+
+const PORT = 8792;
+process.env.VITE_API_BASE = `http://localhost:${PORT}`;
+const { check, finish, fail } = makeChecker();
+let srv;
+try {
+  srv = await startServer({ port: PORT, dbName: "web-api.db", env: { LLM_MOCK: "1" } });
+  const { api, odiStream, connectEvents, ApiError } = await import("../src/api.ts");
+
+  // S0
+  const s = await api.createSession("프론트");
+  check("S0 createSession", typeof s.session_id === "string" && s.nickname === "프론트");
+  await api.createSession("   ").then(
+    () => check("S0 빈 닉네임은 서버 400", false),
+    (e) => check("S0 ApiError 에 status/message", e instanceof ApiError && e.status === 400 && e.message.includes("닉네임")),
+  );
+
+  // S6
+  const info = await api.getSession(s.session_id);
+  check("S6 getSession 5 scenarios, run null", info.scenarios.length === 5 && info.scenarios.every((x) => x.run === null));
+  const st = await api.startScenario("01", s.session_id);
+  check("S6 startScenario task_card", st.task_card.body.includes("프론트 씨") && st.scenario.owner_npc_id === "park");
+  const rid = st.run_id;
+
+  // WS
+  const events = [];
+  const off = connectEvents(rid, (ev) => events.push(ev));
+
+  // S2 P4 데이터
+  const d = await api.getData(rid, "data/sales_2026_10.csv");
+  check("P4 getData", d.text.startsWith("주문번호"));
+  await api.getData(rid, "data/sales_2026_10.csv", { sort: true });
+
+  // S2 P2 오디 스트리밍 파서
+  let acc = "";
+  const done = await odiStream(rid, "거래처별 합계표 만들어 줘", (t) => (acc += t));
+  check("P2 odiStream deltas accumulate", acc.startsWith("[mock] 거래처별"), acc);
+  check("P2 odiStream done payload", done.odi_calls_used === 1 && done.odi_calls_limit === 15 && done.truncated === false, JSON.stringify(done));
+
+  // P3 NPC + 힌트
+  const h = await api.npc(rid, "lee", "힌트 좀 주세요.", true);
+  check("P3 hint level 1", h.hint_level === 1 && h.name === "이하늘");
+  const q = await api.npc(rid, "park", "마감 언제예요?");
+  check("P3 npc chat", q.text.startsWith("[mock]"));
+
+  // 복구: getRun 에 이력 전부
+  const run = await api.getRun(rid);
+  check("GET run restores messages", run.messages.filter((m) => m.agent === "odi").length === 2 && run.messages.filter((m) => m.agent === "lee").length === 2);
+  check("GET run counters", run.run.odi_calls_used === 1 && run.run.hint_level === 1 && run.run.closed === false);
+
+  // S3 → S4 (반려 → 승인)
+  await api.putBasket(rid, "거래처 12곳 합계표");
+  const r1 = await api.submit(rid, "원본 행 수 확인했습니다");
+  check("S4 reject", r1.decision === "reject" && r1.reject_count === 1 && r1.closed === false, JSON.stringify(r1));
+  await api.putBasket(rid, "거래처 10곳 합계표, 중복 3건 제거");
+  const r2 = await api.submit(rid, "주문번호 중복 제거하고 거래처명 정규화했습니다");
+  check("S4 approve", r2.decision === "approve" && r2.state === "approved" && r2.closed === true, JSON.stringify(r2));
+
+  // S5 (아직 501)
+  await api.evaluate(rid).then(
+    () => check("S5 evaluate (구현되면 이 줄 갱신)", true),
+    (e) => check("S5 evaluate 501 → ApiError", e instanceof ApiError && e.status === 501),
+  );
+
+  await new Promise((r) => setTimeout(r, 300));
+  off();
+  const types = events.map((e) => e.type);
+  check("WS events arrived", types.includes("odi.call.end") && types.includes("review.reject") && types.includes("review.approve"), types.join(","));
+
+  const info2 = await api.getSession(s.session_id);
+  check("S6 shows approved", info2.scenarios.find((x) => x.id === "01").run.state === "approved");
+} catch (e) {
+  console.error(e);
+  fail();
+} finally {
+  if (srv) await srv.stop();
+}
+finish("web api");

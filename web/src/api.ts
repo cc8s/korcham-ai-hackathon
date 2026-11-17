@@ -1,0 +1,127 @@
+import type { NpcId, PixelEvent, RunInfo, SessionInfo, SubmitResult, TaskCard, ScenarioSummary, Report } from "./types";
+
+// 서버 주소. 로컬은 server/.env 의 PORT, 배포는 Railway 도메인 (VITE_API_BASE)
+// import.meta.env 는 Vite 가 넣어 줌. 테스트(tsx)에서는 process.env 로 대체
+const envBase: string | undefined =
+  (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_API_BASE ??
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.VITE_API_BASE;
+export const API_BASE = envBase?.replace(/\/$/, "") ?? "http://localhost:8787";
+const WS_BASE = API_BASE.replace(/^http/, "ws");
+
+export class ApiError extends Error {
+  status: number;
+  body?: unknown;
+  constructor(status: number, message: string, body?: unknown) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(API_BASE + path, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let json: unknown = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    /* 비 JSON */
+  }
+  if (!res.ok) {
+    const msg = (json as { error?: string } | null)?.error ?? `HTTP ${res.status}`;
+    throw new ApiError(res.status, msg, json);
+  }
+  return json as T;
+}
+
+export const api = {
+  createSession: (nickname: string) => req<{ session_id: string; nickname: string }>("POST", "/session", { nickname }),
+  getSession: (id: string) => req<SessionInfo>("GET", `/session/${id}`),
+  startScenario: (sid: string, session_id: string) =>
+    req<{ run_id: string; state: string; scenario: ScenarioSummary; task_card: TaskCard }>("POST", `/scenario/${sid}/start`, { session_id }),
+  getRun: (rid: string) => req<RunInfo>("GET", `/run/${rid}`),
+  getData: (rid: string, file: string, flags: { sort?: boolean; search?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (flags.sort) q.set("sort", "1");
+    if (flags.search) q.set("search", "1");
+    const qs = q.toString();
+    return req<{ file: string; text: string }>("GET", `/run/${rid}/data/${file}${qs ? "?" + qs : ""}`);
+  },
+  putBasket: (rid: string, text: string) => req<{ ok: true }>("PUT", `/run/${rid}/basket`, { text }),
+  npc: (rid: string, npc: NpcId, message: string, hint_request = false) =>
+    req<{ npc: NpcId; name: string; text: string; hint_level: number; hint_limit: number }>("POST", `/run/${rid}/npc/${npc}`, {
+      message,
+      hint_request,
+    }),
+  submit: (rid: string, verify_memo: string) => req<SubmitResult>("POST", `/run/${rid}/submit`, { verify_memo }),
+  evaluate: (rid: string) => req<Report>("POST", `/run/${rid}/evaluate`),
+};
+
+// 오디 SSE. delta 마다 onDelta, 끝나면 done 페이로드 반환. error 이벤트는 throw
+export async function odiStream(
+  rid: string,
+  message: string,
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<{ odi_calls_used: number; odi_calls_limit: number; truncated: boolean }> {
+  const res = await fetch(`${API_BASE}/run/${rid}/odi`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiError(res.status, j?.error ?? `HTTP ${res.status}`, j);
+  }
+  const reader = res.body!.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let done: { odi_calls_used: number; odi_calls_limit: number; truncated: boolean } | null = null;
+  for (;;) {
+    const { value, done: end } = await reader.read();
+    if (end) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const ev = /^event: (\w+)$/m.exec(chunk)?.[1];
+      const dataLine = chunk.split("\n").find((l) => l.startsWith("data: "));
+      if (!ev || !dataLine) continue;
+      const data = JSON.parse(dataLine.slice(6));
+      if (ev === "delta") onDelta(data.text);
+      else if (ev === "done") done = data;
+      else if (ev === "error") throw new ApiError(data.status ?? 500, data.message ?? "오디 오류");
+    }
+  }
+  if (!done) throw new ApiError(0, "응답이 끊겼습니다");
+  return done;
+}
+
+export function connectEvents(rid: string, onEvent: (ev: PixelEvent) => void): () => void {
+  let ws: WebSocket | null = null;
+  let closed = false;
+  const open = () => {
+    ws = new WebSocket(`${WS_BASE}/ws/${rid}`);
+    ws.onmessage = (m) => {
+      try {
+        onEvent(JSON.parse(m.data));
+      } catch {
+        /* ignore */
+      }
+    };
+    ws.onclose = () => {
+      if (!closed) setTimeout(open, 2000);
+    };
+  };
+  open();
+  return () => {
+    closed = true;
+    ws?.close();
+  };
+}
