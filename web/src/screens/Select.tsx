@@ -41,8 +41,9 @@ export function Select(props: {
     try {
       const r = await api.startScenario(sid, props.sessionId);
       props.onStart(r.run_id);
-    } catch {
-      setErr("시작 실패. 다시 눌러 주세요");
+    } catch (e) {
+      // 하루 이용 한도·체험 분량 소진은 서버 문구를 그대로 보여 준다
+      setErr(e instanceof ApiError && e.status !== 500 ? e.message : "시작 실패. 다시 눌러 주세요");
       setBusy(null);
     }
   };

@@ -27,6 +27,7 @@ import {
 import { chat, chatStream, structured, describeLlmError, models, type ChatTurn, type SystemBlock } from "../llm.js";
 import { config, limits } from "../config.js";
 import { emit } from "../events.js";
+import { checkBudget, recordSpend, npcCallsForRun, trimTurns } from "../guard.js";
 
 export const runRouter = Router();
 
@@ -130,12 +131,13 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
     res.status(429).json({ error: `오디 호출 상한 ${limits.odiCalls}회 소진`, odi_calls_used: run.odi_calls_used });
     return;
   }
+  if (!checkBudget(res)) return;
 
   const system: SystemBlock[] = [
     { text: ODI_BASE, cache: false },
     { text: odiScenarioBlock(attachedDataBlock(sc), sc.prompts.planted_belief_for_odi), cache: true },
   ];
-  const turns = [...toTurns(run.id, "odi"), { role: "user" as const, content: message }];
+  const turns = trimTurns([...toTurns(run.id, "odi"), { role: "user" as const, content: message }], config.guard.odiHistoryChars);
 
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache");
@@ -160,6 +162,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
       onText: (d) => send("delta", { text: d }),
       signal: ac.signal,
     });
+    recordSpend({ runId: run.id, kind: "odi", model: models.main, usage: out.usage });
     // 성공한 호출만 차감. 실패는 차감 안 함 (04 문서 7절)
     addMessage(run.id, "odi", "user", message);
     addMessage(run.id, "odi", "assistant", out.text, { usage: out.usage, stop_reason: out.stopReason });
@@ -206,6 +209,11 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     return;
   }
   if (hintRequest && !message) message = "힌트 좀 주세요.";
+  if (npcCallsForRun(run.id) >= config.guard.npcCallsPerRun) {
+    res.status(429).json({ error: "오늘은 팀원들이 바빠요. 지금까지 확인한 내용으로 마무리해 보세요.", code: "npc_calls" });
+    return;
+  }
+  if (!checkBudget(res)) return;
 
   // 힌트 요청이면 단계를 먼저 올리고, 그 단계까지의 힌트만 프롬프트에 공개
   const hintLevel = hintRequest ? run.hint_level + 1 : run.hint_level;
@@ -220,17 +228,19 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   } else {
     system.push({ text: npcVolatileBlock(nickname), cache: false });
   }
-  const turns = [...toTurns(run.id, npc), { role: "user" as const, content: message }];
+  const turns = trimTurns([...toTurns(run.id, npc), { role: "user" as const, content: message }], config.guard.npcHistoryChars);
+  const model = npc === "lee" ? models.mentor : models.npc;
 
   emit({ type: "npc.call.begin", run_id: run.id, npc_id: npc });
   try {
     const out = await chat({
-      model: npc === "lee" ? models.mentor : models.main,
+      model,
       system,
       turns,
       maxTokens: config.maxTokens.npc,
       effort: "low",
     });
+    recordSpend({ runId: run.id, kind: "npc", model, usage: out.usage });
     addMessage(run.id, npc, "user", message, hintRequest ? { hint_request: true, hint_level: hintLevel } : undefined);
     addMessage(run.id, npc, "assistant", out.text, { usage: out.usage });
     const updated = updateRun(run.id, {
@@ -296,6 +306,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     res.status(409).json({ error: "제출할 수 없는 상태", state: run.state });
     return;
   }
+  if (!checkBudget(res)) return;
 
   const attempt = run.reject_count + 1;
   const subId = addSubmission(run.id, attempt, run.basket_text, memo);
@@ -336,6 +347,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
       effort: "high",
       mock: reviewMock,
     });
+    recordSpend({ runId: run.id, kind: "review", model: models.main, usage });
     setSubmissionReview(subId, { ...review, usage });
     addMessage(run.id, sc.ownerNpcId, "user", `(제출 ${attempt}차) ${memo}`, { submission: attempt });
     addMessage(run.id, sc.ownerNpcId, "assistant", review.message, { review: review.decision, area: review.area });

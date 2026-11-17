@@ -26,6 +26,17 @@ function toSystem(blocks: SystemBlock[]): Anthropic.TextBlockParam[] {
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
+// 대화 이력 캐시: 마지막 턴에 캐시 지점을 둔다. 다음 호출은 여기까지를 캐시에서 읽어서
+// 이력이 길어져도 입력 비용이 크게 늘지 않는다 (캐시 읽기는 Opus 5.5 기준 입력가의 0.05배).
+// 시스템 프롬프트의 캐시 지점(최대 2개)과 합쳐 4개 제한 안쪽
+function toMessages(turns: ChatTurn[]): Anthropic.MessageParam[] {
+  return turns.map((t, i) =>
+    i === turns.length - 1
+      ? { role: t.role, content: [{ type: "text" as const, text: t.content, cache_control: { type: "ephemeral" as const } }] }
+      : { role: t.role, content: t.content },
+  );
+}
+
 export interface Usage {
   input: number;
   output: number;
@@ -54,7 +65,7 @@ export async function chat(args: {
     model: args.model,
     max_tokens: args.maxTokens,
     system: toSystem(args.system),
-    messages: args.turns,
+    messages: toMessages(args.turns),
     ...(args.effort ? { output_config: { effort: args.effort } } : {}),
   });
   const text = res.content
@@ -84,7 +95,7 @@ export async function chatStream(args: {
       model: args.model,
       max_tokens: args.maxTokens,
       system: toSystem(args.system),
-      messages: args.turns,
+      messages: toMessages(args.turns),
       ...(args.effort ? { output_config: { effort: args.effort } } : {}),
     },
     { signal: args.signal },
@@ -114,7 +125,7 @@ export async function structured<T extends z.ZodType>(args: {
     model: args.model,
     max_tokens: args.maxTokens,
     system: toSystem(args.system),
-    messages: args.turns,
+    messages: toMessages(args.turns),
     output_config: {
       format: zodOutputFormat(args.schema),
       ...(args.effort ? { effort: args.effort } : {}),

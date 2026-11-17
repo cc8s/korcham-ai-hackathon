@@ -63,6 +63,11 @@ CREATE TABLE IF NOT EXISTS evaluation (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `);
+// 비용 방어(guard.ts)용 ip 열. 예전 DB 에도 붙도록 없으면 추가
+for (const table of ["session", "run"]) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === "ip")) db.exec(`ALTER TABLE ${table} ADD COLUMN ip TEXT`);
+}
 
 export type RunState =
   | "assigned"
@@ -117,9 +122,10 @@ export interface SubmissionRow {
 }
 
 // ---- session ----
-export function createSession(nickname: string): SessionRow {
+// ip 는 비용 방어용 하루 횟수 집계에만 쓴다 (guard.ts)
+export function createSession(nickname: string, ip: string | null = null): SessionRow {
   const id = randomUUID();
-  db.prepare("INSERT INTO session (id, nickname) VALUES (?, ?)").run(id, nickname);
+  db.prepare("INSERT INTO session (id, nickname, ip) VALUES (?, ?, ?)").run(id, nickname, ip);
   return getSession(id)!;
 }
 export function getSession(id: string): SessionRow | undefined {
@@ -132,12 +138,13 @@ export function listRunsForSession(sessionId: string): RunRow[] {
 }
 
 // ---- run ----
-export function createRun(sessionId: string, scenarioId: string): RunRow {
+export function createRun(sessionId: string, scenarioId: string, ip: string | null = null): RunRow {
   const id = randomUUID();
-  db.prepare("INSERT INTO run (id, session_id, scenario_id) VALUES (?, ?, ?)").run(
+  db.prepare("INSERT INTO run (id, session_id, scenario_id, ip) VALUES (?, ?, ?, ?)").run(
     id,
     sessionId,
     scenarioId,
+    ip,
   );
   return getRun(id)!;
 }

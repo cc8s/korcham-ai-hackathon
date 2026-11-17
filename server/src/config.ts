@@ -20,8 +20,21 @@ export const config = {
   dbPath: path.resolve(serverRoot, env("DB_PATH", "./data/oreum.db")),
   scenariosDir: path.resolve(serverRoot, env("SCENARIOS_DIR", "../scenarios")),
   model: {
-    main: env("MODEL_MAIN", "claude-opus-5-5"), // 팀장·오디·검토·평가
-    mentor: env("MODEL_MENTOR", "claude-opus-5-5"), // 이하늘. 비용 줄이려면 claude-haiku-5-5
+    main: env("MODEL_MAIN", "claude-opus-5-5"), // 오디·팀장 검토·평가
+    npc: env("MODEL_NPC", "claude-haiku-5-5"), // 팀장 잡담·질문 응답. 짧고 빨라야 해서 Haiku
+    mentor: env("MODEL_MENTOR", "claude-haiku-5-5"), // 이하늘 힌트
+  },
+  // 공개 링크 비용 방어 (src/guard.ts). 날짜는 한국 시간
+  guard: {
+    dailyBudgetUsd: Number(env("DAILY_BUDGET_USD", "20")), // 서버 전체 하루 지출 상한 (추정 단가 기준)
+    sessionsPerIpDay: Number(env("SESSIONS_PER_IP_DAY", "10")),
+    runsPerIpDay: Number(env("RUNS_PER_IP_DAY", "10")),
+    runsPerSessionDay: Number(env("RUNS_PER_SESSION_DAY", "6")),
+    npcCallsPerRun: Number(env("NPC_CALLS_PER_RUN", "30")),
+    odiHistoryChars: Number(env("ODI_HISTORY_CHARS", "60000")),
+    npcHistoryChars: Number(env("NPC_HISTORY_CHARS", "16000")),
+    // 프록시 뒤(Railway)에서 실제 클라이언트 IP 를 읽기 위한 express trust proxy 값 (홉 수)
+    trustProxy: Number(env("TRUST_PROXY", "1")),
   },
   maxTokens: {
     npc: 1024, // 3~5문장

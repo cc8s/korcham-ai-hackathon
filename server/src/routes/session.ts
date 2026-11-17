@@ -2,6 +2,10 @@ import { Router } from "express";
 import { createSession, getSession, listRunsForSession, createRun } from "../db.js";
 import { loadScenarios, getScenario, publicScenarioSummary } from "../scenarios.js";
 import { emit } from "../events.js";
+import { config } from "../config.js";
+import { checkBudget, clientIp, sessionsFromIpToday, runsFromIpToday, runsForSessionToday } from "../guard.js";
+
+const DAILY_LIMIT_MESSAGE = "오늘 이용할 수 있는 횟수를 모두 썼어요. 내일 다시 와 주세요. (매일 0시 초기화)";
 
 export const sessionRouter = Router();
 
@@ -13,7 +17,13 @@ sessionRouter.post("/session", (req, res) => {
     res.status(400).json({ error: "닉네임은 1~20자" });
     return;
   }
-  const s = createSession(raw);
+  if (!checkBudget(res)) return;
+  const ip = clientIp(req);
+  if (sessionsFromIpToday(ip) >= config.guard.sessionsPerIpDay) {
+    res.status(429).json({ error: DAILY_LIMIT_MESSAGE, code: "ip_sessions" });
+    return;
+  }
+  const s = createSession(raw, ip);
   res.json({ session_id: s.id, nickname: s.nickname });
 });
 
@@ -49,7 +59,14 @@ sessionRouter.post("/scenario/:sid/start", (req, res) => {
     res.status(400).json({ error: "session_id 필요" });
     return;
   }
-  const run = createRun(s.id, sc.id);
+  // 새 업무 시작이 비용이 드는 단위라 여기서 하루 상한을 건다
+  if (!checkBudget(res)) return;
+  const ip = clientIp(req);
+  if (runsFromIpToday(ip) >= config.guard.runsPerIpDay || runsForSessionToday(s.id) >= config.guard.runsPerSessionDay) {
+    res.status(429).json({ error: DAILY_LIMIT_MESSAGE, code: "daily_runs" });
+    return;
+  }
+  const run = createRun(s.id, sc.id, ip);
   const card = sc.prompts.task_card;
   const body = card.body.replaceAll("{nickname}", s.nickname);
   emit({ type: "scenario.start", run_id: run.id, npc_id: sc.ownerNpcId, text: body.split(/(?<=[.!?。])\s/)[0] });

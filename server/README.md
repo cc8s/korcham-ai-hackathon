@@ -52,12 +52,31 @@ npm run dev              # tsx watch, :8787
 ## LLM 호출 설계
 
 - 오디: system = [기본 규칙] + [첨부 데이터 + 심어진 믿음 (cache_control)]. 대화 이력은 DB의 agent=odi 메시지. 성공한 호출만 횟수 차감.
+- 대화 이력 캐시: 모든 호출에서 마지막 턴에 cache_control 을 붙여, 다음 호출은 이전 대화를 캐시에서 읽는다.
 - NPC: system = [공통 + 페르소나] + [시나리오 컨텍스트 (cache)] + [대화 상대·힌트 단계]. 이하늘은 공개된 단계까지의 힌트만 프롬프트에 들어감.
 - 검토: 담당 팀장 페르소나 + answer_key + 함정 정의 → zod 스키마 `{decision, area, message, trap_caught[]}`.
-- 모델: 전부 `claude-opus-5-5`. 이하늘만 `MODEL_MENTOR`로 교체 가능.
+- 모델: 오디·검토는 `MODEL_MAIN`(기본 `claude-opus-5-5`), 팀장 대화는 `MODEL_NPC`, 이하늘은 `MODEL_MENTOR`(둘 다 기본 `claude-haiku-5-5`).
+
+## 비용 방어 (`src/guard.ts`)
+
+공개 링크가 마감(11/23)부터 본선(12/7)까지 열려 있어야 해서 넣었다. 날짜는 한국 시간, 매일 0시 초기화. 숫자는 전부 환경변수(`.env.example`).
+
+| 장치 | 기본값 | 걸리면 |
+|---|---|---|
+| 서버 전체 하루 지출 상한 `DAILY_BUDGET_USD` | $20 | 새 세션·업무 시작·오디·팀원·제출 전부 503 `code: budget`, "오늘 준비한 체험 분량이 모두 소진됐어요" |
+| IP당 하루 세션 `SESSIONS_PER_IP_DAY` | 10 | 429 `ip_sessions` |
+| IP당·세션당 하루 업무 시작 `RUNS_PER_IP_DAY`·`RUNS_PER_SESSION_DAY` | 10·6 | 429 `daily_runs` |
+| run당 팀원 대화 `NPC_CALLS_PER_RUN` | 30 | 429 `npc_calls` (오디 15회·힌트 3회·반려 3회는 기존 상한) |
+| 대화 이력 길이 `ODI_HISTORY_CHARS`·`NPC_HISTORY_CHARS` | 6만·1.6만 자 | 오래된 주고받기부터 버림. 상한의 40% 단위로 잘라 이력 캐시가 매번 깨지지 않게 |
+
+- 지출은 호출마다 `spend` 테이블에 기록(모델, 토큰 4종, 추정 달러). 단가는 `guard.ts` 의 표(2026-11 claude-api 스킬 문서 기준)이고 실제 청구는 Console 에서 확인.
+- 1회 실측 비용: `SELECT run_id, SUM(usd) FROM spend GROUP BY run_id` 로 run 별 합계를 본다 (소개서용).
+- `/health` 의 `open` 은 오늘 상한 안인지 여부만 알려 준다 (액수는 비공개).
+- **배포 후 확인**: 휴대폰(LTE)과 PC 에서 각각 `/health` 를 열어 `your_ip` 가 서로 다르고 실제 공인 IP 인지 본다. 둘이 같으면 프록시 IP 를 읽는 중이므로 `TRUST_PROXY` 를 2 로 올린다. 그대로 두면 IP 한도가 전체 사용자에게 한꺼번에 걸린다.
+- 상한은 호출 직전에 확인하므로 동시에 들어온 호출 몇 개만큼은 넘을 수 있다.
 
 ## 배포 (Railway)
 
 - Node 20+. `npm run build` → `npm start`.
-- 환경변수: `ANTHROPIC_API_KEY`, `PORT`(Railway가 줌), `CORS_ORIGIN`(Vercel 도메인), `DB_PATH`(volume 경로, 예 `/data/oreum.db`), `SCENARIOS_DIR`(레포 루트 기준 `../scenarios`이므로 모노레포 루트에서 빌드하거나 scenarios를 함께 배포)
+- 환경변수: `ANTHROPIC_API_KEY`, `PORT`(Railway가 줌), 비용 방어 값(위 표, 기본값으로 충분하면 생략), `CORS_ORIGIN`(Vercel 도메인), `DB_PATH`(volume 경로, 예 `/data/oreum.db`), `SCENARIOS_DIR`(레포 루트 기준 `../scenarios`이므로 모노레포 루트에서 빌드하거나 scenarios를 함께 배포)
 - better-sqlite3는 12.x 고정 (13.x는 Node 22 이상만 지원, Node 20에서 세그폴트)
