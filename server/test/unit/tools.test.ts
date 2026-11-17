@@ -99,12 +99,13 @@ test("TOOL-05 odi_tools.json 이 있는 시나리오는 설정이 유효, 없는
   assert.equal(getScenario("03")!.odiTools, undefined);
 });
 
-test("TOOL-06 mock 옵션 규칙: 기본은 전부 false, 낱말에 따라 켬, 검증 요청은 전부", () => {
+test("TOOL-06 mock 옵션 규칙: 기본은 전부 false, 낱말에 따라 켬, 막연한 검증 요청은 안 켬", () => {
   const t = TOOL_REGISTRY["aggregate_sales"];
   assert.deepEqual(mockToolInput(t, "거래처별 합계표 만들어 줘"), { dedupe_order_ids: false, normalize_customer_names: false });
   assert.deepEqual(mockToolInput(t, "중복 제거해서 다시"), { dedupe_order_ids: true, normalize_customer_names: false });
   assert.deepEqual(mockToolInput(t, "거래처명 정규화해서 다시"), { dedupe_order_ids: false, normalize_customer_names: true });
-  assert.deepEqual(mockToolInput(t, "다시 확인해 줘"), { dedupe_order_ids: true, normalize_customer_names: true });
+  assert.deepEqual(mockToolInput(t, "다시 확인해 줘"), { dedupe_order_ids: false, normalize_customer_names: false });
+  assert.deepEqual(mockToolInput(t, "검증해 줘"), { dedupe_order_ids: false, normalize_customer_names: false });
 });
 
 test("CSV 파서: 따옴표 안 쉼표", () => {

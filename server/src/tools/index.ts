@@ -79,15 +79,15 @@ export function odiToolsFor(sc: Scenario): OdiToolset | null {
 }
 
 // LLM_MOCK=1 용: 사용자 메시지의 낱말로 옵션을 정한다 (실제 오디가 하라고 프롬프트에 적은 규칙의 축소판)
-// "다시 확인/검증" 처럼 특정하지 않은 재확인 요청은 모든 옵션을 켠다
+// "다시 확인/검증" 처럼 무엇을 볼지 특정하지 않은 요청은 옵션을 켜지 않는다.
+// 실제 오디는 이때 기준을 되묻는다 (막연한 지시만으로 함정이 다 풀리지 않게. 2026-11-17 결정)
 export function mockToolInput(tool: AnyOdiTool, userText: string): Record<string, unknown> {
-  const all = /검증|다시\s*확인|재확인|검산/.test(userText);
   const want: Record<string, RegExp> = {
     dedupe_order_ids: /중복/,
     normalize_customer_names: /정규화|이름\s*정리|표기|띄어쓰기|공백/,
-    recheck_vat_rate: /10\s*%|검산|부가세\s*확인/,
+    recheck_vat_rate: /10\s*%|부가세\s*확인/,
     use_import_declarations: /신고필증|근거/,
   };
   const defaults = tool.parse({});
-  return Object.fromEntries(Object.keys(defaults).map((k) => [k, all || (want[k]?.test(userText) ?? false)]));
+  return Object.fromEntries(Object.keys(defaults).map((k) => [k, want[k]?.test(userText) ?? false]));
 }
