@@ -122,6 +122,7 @@ p {
 
 /* controls */
 .btn {
+  white-space: nowrap;
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--line);
