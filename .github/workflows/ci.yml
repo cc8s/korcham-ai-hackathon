@@ -1,4 +1,4 @@
-# 07 문서 9-1. PR 과 main push 마다: 키 유출 검사 → server typecheck → 단위 → 스모크 → 통합·구조화 제출(LLM mock)
+# 07 문서 9-1. PR 과 main push 마다: 키 유출 검사 → server typecheck → 단위 → 스모크 → 통합·구조화 제출(LLM mock) → 비용 방어 → 오디 도구
 # 실제 Claude 호출은 여기서 하지 않는다 (비용·비밀). web 은 typecheck + build 만 (07 문서 결정 5).
 name: ci
 
@@ -38,6 +38,7 @@ jobs:
       - run: npm run test:integration
       - run: npm run test:submit
       - run: npm run test:guard
+      - run: npm run test:odi-tools
 
   web:
     runs-on: ubuntu-latest

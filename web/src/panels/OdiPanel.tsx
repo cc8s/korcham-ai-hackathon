@@ -26,6 +26,8 @@ export function OdiPanel(props: {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState<string | null>(null);
   const [pendingText, setPendingText] = useState("");
+  // 오디가 계산 도구를 부른 뒤 다음 글이 오기 전까지 "계산 중" 표시. 옵션 값은 보여 주지 않음 (함정 노출)
+  const [calculating, setCalculating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
   const bottom = useRef<HTMLDivElement>(null);
@@ -44,10 +46,17 @@ export function OdiPanel(props: {
     setStreaming("");
     let acc = "";
     try {
-      const done = await odiStream(props.runId, text, (d) => {
-        acc += d;
-        setStreaming(acc);
-      });
+      const done = await odiStream(
+        props.runId,
+        text,
+        (d) => {
+          acc += d;
+          setStreaming(acc);
+          setCalculating(false);
+        },
+        undefined,
+        () => setCalculating(true),
+      );
       const now = new Date().toISOString();
       props.onSent(
         [
@@ -62,6 +71,7 @@ export function OdiPanel(props: {
       setInput(text);
     } finally {
       setStreaming(null);
+      setCalculating(false);
     }
   };
 
@@ -128,7 +138,14 @@ export function OdiPanel(props: {
                 <div className="ws-msg-meta">
                   <b>오디</b>
                 </div>
-                <div className="ws-md">{streaming ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{streaming}</ReactMarkdown> : <span className="ws-typing">답변 작성 중…</span>}</div>
+                <div className="ws-md">
+                  {streaming && <ReactMarkdown remarkPlugins={[remarkGfm]}>{streaming}</ReactMarkdown>}
+                  {calculating ? (
+                    <span className="ws-typing">첨부 데이터 계산 중…</span>
+                  ) : (
+                    !streaming && <span className="ws-typing">답변 작성 중…</span>
+                  )}
+                </div>
               </div>
             </div>
           </>

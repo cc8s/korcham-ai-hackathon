@@ -1,7 +1,7 @@
 // NPC-03, ODI-05: 프롬프트 조립 규칙. 실행: npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mentorHintsBlock, odiScenarioBlock, npcVolatileBlock, reviewerBlock, NPC_PERSONA, COMPANY_COMMON } from "../../src/prompts/index.ts";
+import { mentorHintsBlock, odiScenarioBlock, odiToolScenarioBlock, npcVolatileBlock, reviewerBlock, NPC_PERSONA, COMPANY_COMMON } from "../../src/prompts/index.ts";
 
 const hints = ["힌트 하나", "힌트 둘", "힌트 셋"];
 
@@ -25,6 +25,17 @@ test("ODI-05 시나리오 블록에 데이터와 심어진 믿음, 검증 시 �
   assert.ok(b.includes("### data/x.csv"));
   assert.ok(b.includes("공백 차이는 다른 거래처"));
   assert.ok(b.includes("명시적으로 검증"));
+});
+
+test("TOOL-07 도구 시나리오 블록: 개요만, 숨은 규칙·함정 설명 없음, 도구 계산·옵션 원칙 포함", () => {
+  const b = odiToolScenarioBlock("- data/x.csv: 데이터 3행, 열: a,b");
+  assert.ok(b.includes("- data/x.csv: 데이터 3행"));
+  assert.ok(b.includes("계산 도구"));
+  assert.ok(b.includes("명시적으로 요청했을 때만"));
+  for (const banned of ["기본 동작 규칙", "공개하지 않음", "중복", "띄어쓰기", "```"]) assert.ok(!b.includes(banned), banned);
+  // include_raw_data=true 면 원문도 들어감
+  const raw = ["### data/x.csv", "```", "a,b", "```"].join("\n");
+  assert.ok(odiToolScenarioBlock("- x", raw).includes("### data/x.csv"));
 });
 
 test("가변 블록: 닉네임과 힌트 단계", () => {

@@ -1,0 +1,6 @@
+{
+  "tools": [
+    { "name": "aggregate_sales", "sources": { "sales": "data/sales_2026_10.csv" } }
+  ],
+  "include_raw_data": false
+}

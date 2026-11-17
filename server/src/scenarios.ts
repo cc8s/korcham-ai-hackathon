@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "./config.js";
 import { validateSpec, type SubmissionSpec } from "./grading.js";
+import { parseCsv } from "./tools/csv.js";
 
 // scenarios/{NN}_{slug}/prompts.json 의 형태. scenarios/README.md 참고
 export interface ScenarioPrompts {
@@ -27,6 +28,14 @@ export interface ScenarioPrompts {
   mail_npc_reply_rule?: string; // 04 무역영어만
 }
 
+// scenarios/{NN}_{slug}/odi_tools.json (선택). 있으면 오디가 계산 도구를 쓰고, 함정은 도구 기본값이 담당.
+// 없으면 예전처럼 planted_belief_for_odi 를 프롬프트에 넣는다. scenarios/README.md 참고
+export interface OdiToolsConfig {
+  tools: { name: string; sources: Record<string, string> }[];
+  // true 면 첨부 원문도 오디 컨텍스트에 넣는다 (기본 false: 숫자는 도구로만)
+  include_raw_data?: boolean;
+}
+
 export interface Scenario {
   id: string; // "01"
   dir: string; // 절대 경로
@@ -35,6 +44,7 @@ export interface Scenario {
   answerKey: unknown; // 검토·평가 전용. 사용자에게 절대 노출 금지
   ownerNpcId: NpcId;
   submission?: SubmissionSpec; // submission.json (선택). 있으면 구조화 제출 + 코드 채점
+  odiTools?: OdiToolsConfig;
 }
 
 export type NpcId = "kang" | "park" | "jung" | "lee";
@@ -66,7 +76,9 @@ export function loadScenarios(): Map<string, Scenario> {
       submission = JSON.parse(fs.readFileSync(subPath, "utf8")) as SubmissionSpec;
       validateSpec(submission, prompts, answerKey, `${e.name}/submission.json`);
     }
-    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission });
+    const toolsFile = path.join(dir, "odi_tools.json");
+    const odiTools = fs.existsSync(toolsFile) ? (JSON.parse(fs.readFileSync(toolsFile, "utf8")) as OdiToolsConfig) : undefined;
+    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission, ...(odiTools ? { odiTools } : {}) });
   }
   if (cache.size === 0) throw new Error(`시나리오 폴더가 비어 있음: ${config.scenariosDir}`);
   return cache;
@@ -103,4 +115,14 @@ export function attachedDataBlock(s: Scenario): string {
   return s.prompts.task_card.attachments
     .map((rel) => `### ${rel}\n\`\`\`\n${readAttachment(s, rel).trim()}\n\`\`\``)
     .join("\n\n");
+}
+
+// 도구 시나리오용 첨부 개요: 원문 대신 파일명·열·행 수만 (숫자는 도구로만 얻게)
+export function attachmentOverview(s: Scenario): string {
+  return s.prompts.task_card.attachments
+    .map((rel) => {
+      const { header, rows } = parseCsv(readAttachment(s, rel));
+      return `- ${rel}: 데이터 ${rows.length}행, 열: ${header.join(",")}`;
+    })
+    .join("\n");
 }
