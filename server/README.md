@@ -12,10 +12,12 @@ npm run dev              # tsx watch, :8787
 ```
 
 - `npm run typecheck` — tsc
-- `npm test` — 아래 셋 순서대로. 전부 API 키 불필요
+- `npm test` — 아래 순서대로. 전부 API 키 불필요
   - `test:unit` — node:test. 시나리오 로더, 프롬프트 조립, DB
   - `test:smoke` — 서버를 자식 프로세스로 띄워 LLM 없는 경로 + 더미 키 실패 처리
   - `test:integration` — `LLM_MOCK=1`로 오디 상한, 힌트 단계, 제출 상태 머신, WS 이벤트
+  - `test:guard` — 비용 방어
+  - `test:odi-tools` — `LLM_MOCK=1`로 오디 계산 도구 호출 기록(옵션·숫자 변화), SSE, 요청별 지출
 - `LLM_MOCK=1 npm run dev` — Claude 없이 프론트 붙여 볼 때. 응답은 `[mock] ...`
 - `npm run build && npm start` — Railway용
 
@@ -27,7 +29,8 @@ npm run dev              # tsx watch, :8787
 | `src/db.ts` | SQLite 스키마(04 문서 6절) + 쿼리 함수 |
 | `src/scenarios.ts` | `scenarios/` 폴더 로더. 첨부는 `task_card.attachments`에 있는 파일만 읽음 (경로 탈출 방지) |
 | `src/prompts/index.ts` | 03 문서의 system prompt 블록. 고정 블록(캐시)과 가변 블록 분리 |
-| `src/llm.ts` | Anthropic SDK 래퍼: `chat`(NPC), `chatStream`(오디, SSE), `structured`(검토·평가, zod) |
+| `src/llm.ts` | Anthropic SDK 래퍼: `chat`(NPC), `chatStream`(오디, SSE), `chatStreamTools`(도구 시나리오 오디, 도구 루프 + SSE), `structured`(검토·평가, zod) |
+| `src/tools/` | 오디 계산 도구. `sales.ts`(01 `aggregate_sales`), `vat.ts`(02 `vat_summary`), `index.ts`(등록·실행·호출 기록, mock 옵션 규칙) |
 | `src/events.ts` | `/ws/{run_id}` 픽셀 이벤트 브로드캐스트 |
 | `src/routes/session.ts` | 세션, 시나리오 선택, 시작 |
 | `src/routes/run.ts` | 데이터 뷰어, 바구니, 오디, NPC, 제출/검토, 평가(미구현) |
@@ -43,7 +46,7 @@ npm run dev              # tsx watch, :8787
 | GET | `/run/{rid}` | 복구용 전체 상태 |
 | GET | `/run/{rid}/data/{file}?sort=1&search=1` | 첨부 원문. 열람 기록 |
 | PUT | `/run/{rid}/basket` | `{text}` 결과물 바구니 |
-| POST | `/run/{rid}/odi` | `{message}` → SSE `delta`/`done`/`error`. 상한 초과 429 |
+| POST | `/run/{rid}/odi` | `{message}` → SSE `delta`/`done`/`error` (+ 도구 시나리오는 `tool` `{phase:"start"}`, 옵션 값 없음). 상한 초과 429 |
 | POST | `/run/{rid}/npc/{kang\|park\|jung\|lee}` | `{message, hint_request?}`. 힌트는 lee만, 상한 초과 429 |
 | POST | `/run/{rid}/submit` | `{verify_memo}` 10자 이상 → 팀장 검토(구조화 출력) → approve/reject |
 | POST | `/run/{rid}/evaluate` | 승인 또는 반려 3회 후. **미구현(501)** — 06 문서 파이프라인 다음 단계 |
@@ -51,7 +54,14 @@ npm run dev              # tsx watch, :8787
 
 ## LLM 호출 설계
 
-- 오디: system = [기본 규칙] + [첨부 데이터 + 심어진 믿음 (cache_control)]. 대화 이력은 DB의 agent=odi 메시지. 성공한 호출만 횟수 차감.
+- 오디 (프롬프트 방식, 03~05): system = [기본 규칙] + [첨부 데이터 + 심어진 믿음 (cache_control)]. 대화 이력은 DB의 agent=odi 메시지. 성공한 호출만 횟수 차감.
+- 오디 (도구 방식, `odi_tools.json` 이 있는 01·02): system = [기본 규칙] + [첨부 개요(파일명·열·행 수) + 계산 원칙 (cache_control)], tools = 시나리오 도구(이름순 고정, 캐시 맨 앞).
+  - 함정은 도구 기본값(전부 false)에 있다. 오디는 사용자가 요청할 때만 옵션을 켠다. 숫자는 서버가 CSV에서 결정적으로 계산
+  - 도구 루프는 서버에서 돈다: 스트리밍 요청 → `tool_use` 면 도구 실행 → `tool_result` 붙여 다시 요청. 텍스트 델타는 매 요청 그대로 SSE `delta`. 도구 라운드 상한 3, 넘으면 마지막 요청은 `tool_choice: none`(Opus 5.5 는 강제 `any`/`tool` 가 400)
+  - 루프 안에서는 assistant 응답을 thinking 블록까지 바꾸지 않고 다시 보낸다. 턴이 끝나면 DB 에는 글만 저장 → 다음 턴 이력은 글뿐
+  - 사용자 한 턴 = 오디 1회 차감. 지출은 API 요청마다 `recordSpend` (한 턴에 2~4행)
+  - 도구 호출 기록은 오디 답변 메시지의 `meta.tool_calls[]`: `{name, input, changed_flags, defaults_changed, summary, differs_from_default, is_error}` + `meta.api_requests`. 평가가 "교정 옵션으로 다시 계산했고 숫자가 바뀌었나"를 발견 증거로 쓴다
+  - `LLM_MOCK=1`: 도구를 진짜로 한 번 실행. 옵션은 사용자 메시지 낱말로(중복→dedupe, 정규화·이름 정리→normalize, 신고필증·근거→declarations, 10%·검산→recheck, 검증·다시 확인→전부)
 - 대화 이력 캐시: 모든 호출에서 마지막 턴에 cache_control 을 붙여, 다음 호출은 이전 대화를 캐시에서 읽는다.
 - NPC: system = [공통 + 페르소나] + [시나리오 컨텍스트 (cache)] + [대화 상대·힌트 단계]. 이하늘은 공개된 단계까지의 힌트만 프롬프트에 들어감.
 - 검토: 담당 팀장 페르소나 + answer_key + 함정 정의 → zod 스키마 `{decision, area, message, trap_caught[]}`.
