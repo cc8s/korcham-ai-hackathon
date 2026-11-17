@@ -103,6 +103,8 @@ export interface Report {
   scenario: { id: string; title: string; cert: string };
   total: number;
   grade: "S" | "A" | "B" | "C";
+  grade_note?: string; // 등급 상한이 걸린 이유 (AI 결과를 고치게 한 기록 없음 → B)
+  partial?: boolean; // 평가 에이전트 실패로 코드 점수만. 다시 열면 재시도
   summary: string;
   axes: {
     A_instruction: { score: number; max: number; items: { name: string; score: number; quote: string }[] };

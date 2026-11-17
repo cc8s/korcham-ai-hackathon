@@ -15,7 +15,7 @@ const PATH_LABEL: Record<string, string> = {
 // S5 평가 리포트. report 가 주어지면(샘플) 그대로, 아니면 runId 로 평가 호출
 export function ReportScreen(props: { runId: string | null; report: Report | null; onDone: () => void }) {
   const [report, setReport] = useState<Report | null>(props.report);
-  const [state, setState] = useState<"loading" | "ready" | "pending" | "error">(props.report ? "ready" : "loading");
+  const [state, setState] = useState<"loading" | "ready" | "error">(props.report ? "ready" : "loading");
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
@@ -27,13 +27,8 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
         setState("ready");
       })
       .catch((e) => {
-        if (e instanceof ApiError && e.status === 501) {
-          setState("pending");
-          setMsg("평가 파이프라인은 다음 단계에서 열립니다. 플레이 기록은 저장돼 있어요.");
-        } else {
-          setState("error");
-          setMsg(e instanceof ApiError ? e.message : "평가 실패");
-        }
+        setState("error");
+        setMsg(e instanceof ApiError ? e.message : "평가 실패");
       });
   }, [props.runId, props.report]);
 
@@ -82,8 +77,15 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
               {report.total} <small>/ 100</small>
             </div>
             <p>{report.summary}</p>
+            {report.grade_note && <p className="ws-note">{report.grade_note}</p>}
           </div>
         </section>
+        {report.partial && (
+          <section className="ws-card">
+            <span className="ws-tag warn">부분 리포트</span>
+            <p className="ws-lead">지시 품질(A)과 코칭 문장은 아직 없어요. 배치표에서 다시 열면 다시 시도합니다.</p>
+          </section>
+        )}
 
         <section className="ws-card">
           <h3>축별 점수</h3>

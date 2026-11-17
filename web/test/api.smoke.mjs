@@ -65,11 +65,10 @@ try {
   const r2 = await api.submit(rid, "주문번호 중복 제거하고 거래처명 정규화했습니다", { total_sales: 580300000, customer_count: 10, min_customer_sales: 9480000 });
   check("S4 approve", r2.decision === "approve" && r2.state === "approved" && r2.closed === true, JSON.stringify(r2));
 
-  // S5 (아직 501)
-  await api.evaluate(rid).then(
-    () => check("S5 evaluate (구현되면 이 줄 갱신)", true),
-    (e) => check("S5 evaluate 501 → ApiError", e instanceof ApiError && e.status === 501),
-  );
+  // S5 평가 리포트 (LLM_MOCK 서버라 코칭은 규칙 기반)
+  const rep = await api.evaluate(rid);
+  check("S5 evaluate report", ["S", "A", "B", "C"].includes(rep.grade) && rep.axes.D_deliverable.approved === true && rep.axes.C_traps.traps.length === 2, JSON.stringify(rep).slice(0, 300));
+  check("S5 resources", rep.resources.rejects === "1/3" && typeof rep.resources.duration_min === "number");
 
   await new Promise((r) => setTimeout(r, 300));
   off();
@@ -77,7 +76,7 @@ try {
   check("WS events arrived", types.includes("odi.call.end") && types.includes("review.reject") && types.includes("review.approve"), types.join(","));
 
   const info2 = await api.getSession(s.session_id);
-  check("S6 shows approved", info2.scenarios.find((x) => x.id === "01").run.state === "approved");
+  check("S6 shows evaluated after report", info2.scenarios.find((x) => x.id === "01").run.state === "evaluated");
 } catch (e) {
   console.error(e);
   fail();
