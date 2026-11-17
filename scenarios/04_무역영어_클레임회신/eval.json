@@ -1,0 +1,15 @@
+{
+  "traps": {
+    "T1": {
+      "keywords": "18 ?ea|18개|검정 ?보고서|수량.{0,6}(다르|차이|틀)|24 ?ea"
+    },
+    "T2": {
+      "keywords": "FOB|보험|위험 ?이전|적재|ICC"
+    }
+  },
+  "memo_files": {
+    "검정 ?보고서|survey": "survey_report",
+    "계약": "contract_summary",
+    "메모": "internal_memo"
+  }
+}

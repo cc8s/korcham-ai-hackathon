@@ -1,0 +1,15 @@
+{
+  "traps": {
+    "T1": {
+      "keywords": "UTC|협정 ?세계시|LH ?276|시각 ?기준|기준 ?열"
+    },
+    "T2": {
+      "keywords": "서머 ?타임|썸머 ?타임|DST|CEST|CET|8시간|-8|시차"
+    }
+  },
+  "memo_files": {
+    "항공편|항공": "flights",
+    "녹취": "meeting_transcript",
+    "일정": "itinerary"
+  }
+}

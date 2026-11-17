@@ -1,0 +1,20 @@
+{
+  "traps": {
+    "T1": {
+      "keywords": "10 ?%|공급가액의? ?10|광고비|부가세.{0,8}(검산|맞는지|다시)|자릿수",
+      "tool_flags": [
+        "recheck_vat_rate"
+      ]
+    },
+    "T2": {
+      "keywords": "신고필증|수입신고|근거|과세가격|관세",
+      "tool_flags": [
+        "use_import_declarations"
+      ]
+    }
+  },
+  "memo_files": {
+    "신고필증": "import_declarations",
+    "거래 ?내역": "transactions"
+  }
+}

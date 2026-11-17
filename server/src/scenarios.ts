@@ -36,6 +36,21 @@ export interface OdiToolsConfig {
   include_raw_data?: boolean;
 }
 
+// scenarios/{NN}_{slug}/eval.json. 평가(06 문서) 중 시나리오마다 다른 판정 재료
+export interface EvalConfig {
+  traps: Record<
+    string,
+    {
+      // 이 함정을 발견했다고 볼 수 있는 표현 (정규식). 발견 "시점"만 정한다. 발견 여부는 제출 숫자·검토가 정함
+      keywords: string;
+      // 이 함정을 바로잡는 오디 계산 도구 옵션. 켜서 숫자가 바뀐 턴도 발견 시점 후보
+      tool_flags?: string[];
+    }
+  >;
+  // 검증 메모에서 "이 단어 + 원본/대조/파일" 이면 그 첨부를 실제로 열었어야 함 (값은 첨부 경로의 일부)
+  memo_files?: Record<string, string>;
+}
+
 export interface Scenario {
   id: string; // "01"
   dir: string; // 절대 경로
@@ -45,6 +60,7 @@ export interface Scenario {
   ownerNpcId: NpcId;
   submission?: SubmissionSpec; // submission.json (선택). 있으면 구조화 제출 + 코드 채점
   odiTools?: OdiToolsConfig;
+  evalCfg: EvalConfig;
 }
 
 export type NpcId = "kang" | "park" | "jung" | "lee";
@@ -78,7 +94,14 @@ export function loadScenarios(): Map<string, Scenario> {
     }
     const toolsFile = path.join(dir, "odi_tools.json");
     const odiTools = fs.existsSync(toolsFile) ? (JSON.parse(fs.readFileSync(toolsFile, "utf8")) as OdiToolsConfig) : undefined;
-    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission, ...(odiTools ? { odiTools } : {}) });
+    const evalFile = path.join(dir, "eval.json");
+    if (!fs.existsSync(evalFile)) throw new Error(`${e.name}: eval.json 없음 (평가 판정 재료)`);
+    const evalCfg = JSON.parse(fs.readFileSync(evalFile, "utf8")) as EvalConfig;
+    for (const t of prompts.traps) {
+      if (!evalCfg.traps[t.id]) throw new Error(`${e.name}/eval.json: 함정 ${t.id} 정의 없음`);
+      new RegExp(evalCfg.traps[t.id].keywords); // 정규식이 틀리면 기동 시 실패
+    }
+    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission, evalCfg, ...(odiTools ? { odiTools } : {}) });
   }
   if (cache.size === 0) throw new Error(`시나리오 폴더가 비어 있음: ${config.scenariosDir}`);
   return cache;

@@ -1,0 +1,14 @@
+{
+  "traps": {
+    "T1": {
+      "keywords": "단위|box|박스|12입|입수|환산"
+    },
+    "T2": {
+      "keywords": "전년|작년|시즌|계절|동월|성수기|입고 ?전|소진"
+    }
+  },
+  "memo_files": {
+    "재고": "inventory",
+    "판매량|판매 ?실적": "monthly_sales"
+  }
+}

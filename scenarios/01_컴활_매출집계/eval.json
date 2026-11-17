@@ -1,0 +1,17 @@
+{
+  "traps": {
+    "T1": {
+      "keywords": "중복|두 번|겹치|주문번호(가|를)? ?(같|겹)",
+      "tool_flags": [
+        "dedupe_order_ids"
+      ]
+    },
+    "T2": {
+      "keywords": "띄어쓰기|공백|정규화|표기|같은 거래처|이름.{0,6}(정리|합|통일)|10곳|10개",
+      "tool_flags": [
+        "normalize_customer_names"
+      ]
+    }
+  },
+  "memo_files": {}
+}
