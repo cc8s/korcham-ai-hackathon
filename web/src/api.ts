@@ -62,11 +62,13 @@ export const api = {
 };
 
 // 오디 SSE. delta 마다 onDelta, 끝나면 done 페이로드 반환. error 이벤트는 throw
+// tool 이벤트는 오디가 계산 도구를 부르기 시작했다는 신호뿐 (옵션 값은 오지 않음). 모르는 이벤트는 무시
 export async function odiStream(
   rid: string,
   message: string,
   onDelta: (text: string) => void,
   signal?: AbortSignal,
+  onTool?: () => void,
 ): Promise<{ odi_calls_used: number; odi_calls_limit: number; truncated: boolean }> {
   const res = await fetch(`${API_BASE}/run/${rid}/odi`, {
     method: "POST",
@@ -95,6 +97,7 @@ export async function odiStream(
       if (!ev || !dataLine) continue;
       const data = JSON.parse(dataLine.slice(6));
       if (ev === "delta") onDelta(data.text);
+      else if (ev === "tool") onTool?.();
       else if (ev === "done") done = data;
       else if (ev === "error") throw new ApiError(data.status ?? 500, data.message ?? "오디 오류");
     }
