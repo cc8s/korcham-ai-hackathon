@@ -34,9 +34,9 @@ try {
   });
   ws.on("message", (m) => events.push(JSON.parse(m.toString())));
 
-  // ODI-03: SSE 순서 delta... → done
+  // ODI-03: SSE 순서 delta... → done. 01 은 계산 도구 시나리오라 "계산 중" 표시용 tool 이벤트가 섞일 수 있음 (odi_tools.mjs)
   const first = await api("POST", `/run/${rid}/odi`, { message: "거래처별 합계표 만들어 줘" });
-  const evNames = [...first.text.matchAll(/^event: (\w+)$/gm)].map((m) => m[1]);
+  const evNames = [...first.text.matchAll(/^event: (\w+)$/gm)].map((m) => m[1]).filter((e) => e !== "tool");
   check("ODI-03 SSE delta then done", evNames.length >= 2 && evNames.at(-1) === "done" && evNames.slice(0, -1).every((e) => e === "delta"), evNames.join(","));
   const doneLine = first.text.split("\n").find((l, i, arr) => arr[i - 1] === "event: done");
   const done = JSON.parse(doneLine.replace(/^data: /, ""));

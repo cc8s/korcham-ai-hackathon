@@ -14,7 +14,7 @@ import {
   getEvaluation,
   type RunRow,
 } from "../db.js";
-import { getScenario, readAttachment, attachedDataBlock, type Scenario, type NpcId } from "../scenarios.js";
+import { getScenario, readAttachment, attachedDataBlock, attachmentOverview, type Scenario, type NpcId } from "../scenarios.js";
 import {
   COMPANY_COMMON,
   NPC_PERSONA,
@@ -22,14 +22,19 @@ import {
   mentorHintsBlock,
   ODI_BASE,
   odiScenarioBlock,
+  odiToolScenarioBlock,
   reviewerBlock,
 } from "../prompts/index.js";
-import { chat, chatStream, structured, describeLlmError, models, type ChatTurn, type SystemBlock } from "../llm.js";
+import { chat, chatStream, chatStreamTools, structured, describeLlmError, models, type ChatTurn, type SystemBlock, type Usage } from "../llm.js";
 import { config, limits } from "../config.js";
 import { emit } from "../events.js";
 import { checkBudget, recordSpend, npcCallsForRun, trimTurns } from "../guard.js";
+import { odiToolsFor, mockToolInput, TOOL_REGISTRY, type OdiToolLog } from "../tools/index.js";
 
 export const runRouter = Router();
+
+// 오디 한 턴 안의 도구 라운드 상한. 01·02 는 한 번 부르면 충분하고, 옵션을 바꿔 비교해도 2~3번
+const ODI_MAX_TOOL_ROUNDS = 3;
 
 const NPC_IDS: NpcId[] = ["kang", "park", "jung", "lee"];
 
@@ -133,9 +138,14 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
   }
   if (!checkBudget(res)) return;
 
+  // 도구 시나리오(odi_tools.json 있음)는 함정이 도구 기본값에 있으므로 planted_belief 를 넣지 않는다
+  const toolset = odiToolsFor(sc);
+  const scenarioBlock = toolset
+    ? odiToolScenarioBlock(attachmentOverview(sc), sc.odiTools?.include_raw_data ? attachedDataBlock(sc) : undefined)
+    : odiScenarioBlock(attachedDataBlock(sc), sc.prompts.planted_belief_for_odi);
   const system: SystemBlock[] = [
     { text: ODI_BASE, cache: false },
-    { text: odiScenarioBlock(attachedDataBlock(sc), sc.prompts.planted_belief_for_odi), cache: true },
+    { text: scenarioBlock, cache: true },
   ];
   const turns = trimTurns([...toTurns(run.id, "odi"), { role: "user" as const, content: message }], config.guard.odiHistoryChars);
 
@@ -153,19 +163,54 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
 
   emit({ type: "odi.call.begin", run_id: run.id });
   try {
-    const out = await chatStream({
-      model: models.main,
-      system,
-      turns,
-      maxTokens: config.maxTokens.odi,
-      effort: "medium",
-      onText: (d) => send("delta", { text: d }),
-      signal: ac.signal,
-    });
-    recordSpend({ runId: run.id, kind: "odi", model: models.main, usage: out.usage });
-    // 성공한 호출만 차감. 실패는 차감 안 함 (04 문서 7절)
+    // 도구 호출 기록. 평가에서 "교정 옵션으로 다시 계산했고 숫자가 바뀌었나"를 발견 증거로 쓴다
+    const toolCalls: OdiToolLog[] = [];
+    let requests = 1;
+    let out: { text: string; usage: Usage; stopReason: string | null };
+    if (toolset) {
+      const r = await chatStreamTools({
+        model: models.main,
+        system,
+        turns,
+        tools: toolset.defs,
+        runTool: (name, input) => {
+          const t = toolset.run(name, input);
+          toolCalls.push(t.log);
+          return t;
+        },
+        maxToolRounds: ODI_MAX_TOOL_ROUNDS,
+        maxTokens: config.maxTokens.odi,
+        effort: "medium",
+        onText: (d) => send("delta", { text: d }),
+        // 옵션 값은 보내지 않는다 (사용자에게 함정을 알려 주는 셈이라). "계산 중" 표시용 신호만
+        onToolStart: () => send("tool", { phase: "start" }),
+        // API 요청마다 지출 기록 (한 턴에 여러 번일 수 있음)
+        onUsage: (u) => recordSpend({ runId: run.id, kind: "odi", model: models.main, usage: u }),
+        signal: ac.signal,
+        mockInput: (name, text) => mockToolInput(TOOL_REGISTRY[name], text),
+      });
+      out = r;
+      requests = r.requests;
+    } else {
+      out = await chatStream({
+        model: models.main,
+        system,
+        turns,
+        maxTokens: config.maxTokens.odi,
+        effort: "medium",
+        onText: (d) => send("delta", { text: d }),
+        signal: ac.signal,
+      });
+      recordSpend({ runId: run.id, kind: "odi", model: models.main, usage: out.usage });
+    }
+    // 성공한 호출만 차감. 실패는 차감 안 함 (04 문서 7절). 도구 루프 전체가 1회
+    // 이력은 글만 저장 (다음 턴에 도구 블록·thinking 은 다시 보내지 않음)
     addMessage(run.id, "odi", "user", message);
-    addMessage(run.id, "odi", "assistant", out.text, { usage: out.usage, stop_reason: out.stopReason });
+    addMessage(run.id, "odi", "assistant", out.text, {
+      usage: out.usage,
+      stop_reason: out.stopReason,
+      ...(toolset ? { tool_calls: toolCalls, api_requests: requests } : {}),
+    });
     const updated = updateRun(run.id, {
       odi_calls_used: run.odi_calls_used + 1,
       ...(run.state === "assigned" ? { state: "working" as const } : {}),

@@ -109,6 +109,119 @@ export async function chatStream(args: {
   return { text, usage: usageOf(final), stopReason: final.stop_reason };
 }
 
+const addUsage = (a: Usage, b: Usage): Usage => ({
+  input: a.input + b.input,
+  output: a.output + b.output,
+  cacheRead: a.cacheRead + b.cacheRead,
+  cacheWrite: a.cacheWrite + b.cacheWrite,
+});
+
+// 스트리밍 + 계산 도구 루프 (도구 시나리오의 오디). 사용자 한 턴 = 오디 1회 차감이지만 API 요청은 여러 번일 수 있다.
+// - 도구는 서버에서 실행(client tool). 텍스트 델타는 매 요청마다 그대로 onText 로 흘린다
+// - 요청이 끝날 때마다 onUsage → 호출부가 recordSpend. 중간에 실패해도 이미 쓴 요청은 지출에 남는다
+// - 도구 라운드는 maxToolRounds 까지. 넘으면 마지막 요청은 tool_choice none 으로 글 답변만 받는다
+//   (Opus 5.5 는 tool_choice any/tool 강제가 400. auto·none 만 가능)
+// - 루프 안에서는 assistant 응답(thinking 블록 포함)을 바꾸지 않고 그대로 다시 보낸다 (preserved thinking).
+//   턴이 끝나면 DB 에는 글만 저장하므로 다음 턴 이력에는 thinking·도구 블록이 없다 (재전송하지 않으니 검사 대상도 없음)
+export type ToolRunner = (name: string, input: unknown) => { content: string; isError: boolean };
+
+export async function chatStreamTools(args: {
+  model: string;
+  system: SystemBlock[];
+  turns: ChatTurn[];
+  tools: Anthropic.Tool[];
+  runTool: ToolRunner;
+  maxToolRounds: number;
+  maxTokens: number;
+  effort?: "low" | "medium" | "high";
+  onText: (delta: string) => void;
+  onToolStart?: () => void;
+  onUsage: (u: Usage) => void;
+  signal?: AbortSignal;
+  // LLM_MOCK=1 일 때 가짜 도구 호출의 입력을 정함 (도구 이름, 사용자 마지막 메시지)
+  mockInput: (toolName: string, userText: string) => Record<string, unknown>;
+}): Promise<{ text: string; usage: Usage; stopReason: string | null; requests: number }> {
+  if (MOCK) return mockToolTurn(args);
+
+  const messages: Anthropic.MessageParam[] = toMessages(args.turns);
+  let text = "";
+  let usage: Usage = { ...mockUsage };
+  let stopReason: string | null = null;
+  let requests = 0;
+  for (let round = 0; ; round++) {
+    const lastRound = round >= args.maxToolRounds;
+    const stream = client.messages.stream(
+      {
+        model: args.model,
+        max_tokens: args.maxTokens,
+        system: toSystem(args.system),
+        messages,
+        tools: args.tools,
+        ...(lastRound ? { tool_choice: { type: "none" as const } } : {}),
+        ...(args.effort ? { output_config: { effort: args.effort } } : {}),
+      },
+      { signal: args.signal },
+    );
+    let firstDelta = true;
+    stream.on("text", (d) => {
+      // 도구 전후로 글이 나뉘면 한 답변처럼 이어지게 빈 줄 하나
+      if (firstDelta && text && !text.endsWith("\n\n")) {
+        text += "\n\n";
+        args.onText("\n\n");
+      }
+      firstDelta = false;
+      text += d;
+      args.onText(d);
+    });
+    stream.on("streamEvent", (ev) => {
+      if (ev.type === "content_block_start" && ev.content_block.type === "tool_use") args.onToolStart?.();
+    });
+    const final = await stream.finalMessage();
+    requests++;
+    const u = usageOf(final);
+    usage = addUsage(usage, u);
+    args.onUsage(u);
+    stopReason = final.stop_reason;
+
+    const uses = final.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+    // end_turn·max_tokens·refusal 등은 여기서 끝. max_tokens 로 잘린 tool_use 는 실행하지 않는다
+    if (final.stop_reason !== "tool_use" || uses.length === 0 || lastRound) break;
+
+    messages.push({ role: "assistant", content: final.content });
+    messages.push({
+      role: "user",
+      content: uses.map((b) => {
+        const r = args.runTool(b.name, b.input);
+        return { type: "tool_result" as const, tool_use_id: b.id, content: r.content, ...(r.isError ? { is_error: true } : {}) };
+      }),
+    });
+  }
+  return { text, usage, stopReason, requests };
+}
+
+// mock: 요청 2번(도구 호출 → 답변)을 흉내. 도구는 진짜로 실행하고 결과의 숫자 칸만 글로 보여 준다
+function mockToolTurn(args: Parameters<typeof chatStreamTools>[0]): { text: string; usage: Usage; stopReason: string; requests: number } {
+  const last = args.turns.at(-1)?.content ?? "";
+  const tool = args.tools[0];
+  args.onToolStart?.();
+  const r = args.runTool(tool.name, args.mockInput(tool.name, last));
+  args.onUsage(mockUsage);
+  let tail = "";
+  try {
+    const obj = JSON.parse(r.content) as Record<string, unknown>;
+    tail = Object.entries(obj)
+      .filter(([, v]) => typeof v === "number")
+      .map(([k, v]) => `${k}: ${(v as number).toLocaleString("ko-KR")}`)
+      .join(", ");
+  } catch {
+    /* 오류 결과 */
+  }
+  const text = `[mock] ${last.slice(0, 60)}${tail ? `\n\n${tail}` : ""}`;
+  for (const piece of text.match(/.{1,8}/gs) ?? []) args.onText(piece);
+  args.onUsage(mockUsage);
+  return { text, usage: mockUsage, stopReason: "end_turn", requests: 2 };
+}
+
 // 구조화 출력 (팀장 검토, 평가). zod 스키마 강제
 export async function structured<T extends z.ZodType>(args: {
   model: string;
