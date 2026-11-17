@@ -19,45 +19,57 @@ export function Onboarding({ nickname, onDone }: { nickname: string; onDone: () 
       title: "사규 한 줄",
       body: (
         <>
-          <p>3개월 전 사내 AI 비서 <b>오디(ODI)</b>를 도입했습니다. 표, 계산, 초안, 뭐든 시킬 수 있어요.</p>
-          <blockquote>"AI가 만든 결과물의 검증 책임은 담당자에게 있다."</blockquote>
+          <p>
+            3개월 전 사내 AI 비서 <b>오디(ODI)</b>를 도입했습니다. 표, 계산, 초안, 뭐든 시킬 수 있어요.
+          </p>
+          <blockquote className="ws-callout">"AI가 만든 결과물의 검증 책임은 담당자에게 있다."</blockquote>
           <p>오디는 유능하지만 가끔 자신 있게 틀립니다. 팀장님은 오디가 아니라 {nickname} 씨를 봅니다.</p>
         </>
       ),
     },
     {
-      title: "조작법",
+      title: "사용법",
       body: (
         <ul>
-          <li>사무실의 <b>캐릭터를 클릭</b>하면 대화. 팀장에게 질문, 이하늘 선배에게 힌트.</li>
-          <li>하단 바의 <b>[오디]</b>에서 일을 시키고, 쓸 만한 답은 <b>결과물로 담기</b>.</li>
-          <li><b>[첨부 데이터]</b>에서 원본을 직접 봅니다. 다운로드는 없어요.</li>
-          <li><b>[제출]</b>할 때 "무엇을 어떻게 확인했는지" 검증 메모를 씁니다.</li>
+          <li>
+            왼쪽 <b>팀원 목록</b>에서 이름을 누르면 대화. 팀장에게 질문, 이하늘 선배에게 힌트.
+          </li>
+          <li>
+            왼쪽 메뉴의 <b>오디</b>에서 일을 시키고, 쓸 만한 답은 <b>결과물로 담기</b>.
+          </li>
+          <li>
+            <b>첨부 데이터</b>에서 원본을 직접 봅니다. 다운로드는 없어요.
+          </li>
+          <li>
+            <b>제출하기</b>를 누르면 "무엇을 어떻게 확인했는지" 검증 메모를 씁니다.
+          </li>
         </ul>
       ),
     },
   ];
   const s = slides[i];
   return (
-    <div className="screen center">
-      <div className="card narrow">
-        <p className="tiny muted">
-          {i + 1} / {slides.length}
-        </p>
-        <h2>{s.title}</h2>
-        <div className="prose">{s.body}</div>
-        <div className="row end">
+    <div className="ws ws-center">
+      <div className="ws-card ws-narrow">
+        <div className="ws-progress" aria-label={`${i + 1} / ${slides.length}`}>
+          {slides.map((_, k) => (
+            <i key={k} className={k <= i ? "on" : ""} />
+          ))}
+        </div>
+        <h2 className="ws-title">{s.title}</h2>
+        <div className="ws-body">{s.body}</div>
+        <div className="ws-actions">
           {i > 0 && (
-            <button className="btn" onClick={() => setI(i - 1)}>
+            <button className="ws-btn" onClick={() => setI(i - 1)}>
               이전
             </button>
           )}
           {i < slides.length - 1 ? (
-            <button className="btn primary" onClick={() => setI(i + 1)}>
+            <button className="ws-btn primary" onClick={() => setI(i + 1)}>
               다음
             </button>
           ) : (
-            <button className="btn primary" onClick={onDone}>
+            <button className="ws-btn primary" onClick={onDone}>
               배치표 보기
             </button>
           )}

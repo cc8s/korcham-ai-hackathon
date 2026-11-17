@@ -26,17 +26,17 @@ export function Enter({ onEnter }: { onEnter: (s: { id: string; nickname: string
   };
 
   return (
-    <div className="screen center">
-      <div className="card narrow">
-        <h1>(주)오름</h1>
-        <p className="muted">
-          주방·생활용품 수입 유통 회사. 오늘부터 수습 신입입니다.
-          <br />
-          사내 AI 비서 "오디"와 함께 팀장님 과제를 해결하고, AI를 어떻게 썼는지 리포트를 받습니다.
+    <div className="ws ws-center">
+      <div className="ws-card ws-narrow">
+        <span className="ws-brand-mark lg">오름</span>
+        <h1 className="ws-title">(주)오름</h1>
+        <p className="ws-lead">
+          주방·생활용품 수입 유통 회사. 오늘부터 수습 신입입니다. 사내 AI 비서 "오디"와 함께 팀장님 과제를 해결하고, AI를 어떻게 썼는지 리포트를 받습니다.
         </p>
-        <label className="field">
+        <label className="ws-field">
           <span>사원증에 쓸 이름 (닉네임)</span>
           <input
+            className="ws-input"
             value={nick}
             maxLength={8}
             placeholder="2~8자"
@@ -45,11 +45,11 @@ export function Enter({ onEnter }: { onEnter: (s: { id: string; nickname: string
             autoFocus
           />
         </label>
-        {err && <p className="error">{err}</p>}
-        <button className="btn primary" disabled={busy} onClick={go}>
-          {busy ? "출입증 발급 중..." : "입사하기"}
+        {err && <p className="ws-notice flat">{err}</p>}
+        <button className="ws-btn primary block lg" disabled={busy} onClick={go}>
+          {busy ? "출입증 발급 중…" : "입사하기"}
         </button>
-        <p className="tiny muted">실명·연락처는 받지 않습니다. 입력한 닉네임은 세계관 안에서만 쓰입니다.</p>
+        <p className="ws-fine">실명·연락처는 받지 않습니다. 입력한 닉네임은 세계관 안에서만 쓰입니다.</p>
       </div>
     </div>
   );

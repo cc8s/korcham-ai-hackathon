@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
+import { Icon } from "../ui/kit";
 
-const colName = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + (i % 26)));
 const isNum = (v: string) => v !== "" && !isNaN(Number(v.replace(/,/g, "")));
 
-// P4 첨부 데이터 뷰어. 스프레드시트 프로그램처럼 보여 준다: CSV 는 시트(정렬·찾기), 그 외는 문서.
+// P4 첨부 데이터 뷰어. CSV 는 표(정렬·찾기), 그 외는 문서로 보여 준다.
 // 열람·정렬·검색 사용을 서버에 기록. 다운로드·편집 없음
 export function DataViewer(props: { runId: string; files: string[]; initial: string | null }) {
   const [file, setFile] = useState(props.initial ?? props.files[0]);
@@ -14,7 +14,6 @@ export function DataViewer(props: { runId: string; files: string[]; initial: str
   const [sortDesc, setSortDesc] = useState(false);
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState<{ sort: boolean; search: boolean }>({ sort: false, search: false });
-  const [sel, setSel] = useState<{ r: number; c: number } | null>(null);
 
   useEffect(() => {
     if (props.initial) setFile(props.initial);
@@ -24,7 +23,6 @@ export function DataViewer(props: { runId: string; files: string[]; initial: str
     setLoading(true);
     setSortCol(null);
     setQuery("");
-    setSel(null);
     setFlagged({ sort: false, search: false });
     api
       .getData(props.runId, file)
@@ -68,8 +66,6 @@ export function DataViewer(props: { runId: string; files: string[]; initial: str
   }, [rows, query, sortCol, sortDesc]);
 
   const short = (f: string) => f.replace(/^(data|_shared)\//, "");
-  // 선택 칸: r=0 은 제목 행, r>=1 은 화면에 보이는 본문 행
-  const selValue = sel ? (sel.r === 0 ? header[sel.c] : body[sel.r - 1]?.[sel.c]) ?? "" : "";
   const sortBy = (i: number) => {
     markSort();
     if (sortCol === i) setSortDesc(!sortDesc);
@@ -80,57 +76,47 @@ export function DataViewer(props: { runId: string; files: string[]; initial: str
   };
 
   return (
-    <div className="panel-body app xl">
-      <div className="xl-title">
-        <span className="xl-logo">X</span>
-        <span className="xl-fname">{short(file)}</span>
-        <span className="xl-ro">읽기 전용</span>
+    <div className="ws-panel-body">
+      <div className="ws-tabs">
+        {props.files.map((f) => (
+          <button key={f} className={`ws-tab ${f === file ? "active" : ""}`} onClick={() => setFile(f)}>
+            {short(f)}
+          </button>
+        ))}
       </div>
 
       {loading ? (
-        <p className="xl-empty">여는 중...</p>
+        <p className="ws-empty">여는 중…</p>
       ) : isCsv ? (
         <>
-          <div className="xl-bar">
-            <span className="xl-namebox">{sel ? `${colName(sel.c)}${sel.r + 1}` : ""}</span>
-            <span className="xl-fx">fx</span>
-            <span className="xl-formula">{selValue}</span>
-            <input
-              className="xl-find"
-              placeholder="찾기"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSel(null);
-                if (e.target.value) markSearch();
-              }}
-            />
+          <div className="ws-toolbar">
+            <label className="ws-search">
+              <Icon name="search" />
+              <input
+                placeholder="찾기"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (e.target.value) markSearch();
+                }}
+              />
+            </label>
+            <span>
+              {query ? `${rows.length - 1}개 중 ${body.length}개 행` : `${body.length}개 행`}
+              {sortCol !== null ? ` · ${header[sortCol]} ${sortDesc ? "내림차순" : "오름차순"}` : " · 열 제목을 눌러 정렬"}
+            </span>
+            <span className="ws-tag">읽기 전용</span>
           </div>
-          <div className="xl-grid">
+          <div className="ws-grid">
             <table>
               <thead>
-                <tr className="xl-cols">
-                  <th className="xl-corner" />
-                  {header.map((_, i) => (
-                    <th key={i} className={sel?.c === i ? "hot" : ""}>
-                      {colName(i)}
-                    </th>
-                  ))}
-                </tr>
-                <tr className="xl-head">
-                  <th className={`xl-rownum ${sel?.r === 0 ? "hot" : ""}`}>1</th>
+                <tr>
+                  <th className="ws-num" />
                   {header.map((h, i) => (
-                    <th key={i} className={sel?.r === 0 && sel.c === i ? "sel" : ""} onClick={() => setSel({ r: 0, c: i })}>
-                      <span>{h}</span>
-                      <button
-                        className={`xl-filter ${sortCol === i ? "on" : ""}`}
-                        title="정렬"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          sortBy(i);
-                        }}
-                      >
-                        {sortCol === i ? (sortDesc ? "▼" : "▲") : "▾"}
+                    <th key={i} className={sortCol === i ? "on" : ""}>
+                      <button onClick={() => sortBy(i)} title="정렬">
+                        {h}
+                        <i>{sortCol === i ? (sortDesc ? "▼" : "▲") : "↕"}</i>
                       </button>
                     </th>
                   ))}
@@ -139,13 +125,9 @@ export function DataViewer(props: { runId: string; files: string[]; initial: str
               <tbody>
                 {body.map((r, i) => (
                   <tr key={i}>
-                    <th className={`xl-rownum ${sel?.r === i + 1 ? "hot" : ""}`}>{i + 2}</th>
+                    <td className="ws-num">{i + 1}</td>
                     {r.map((c, j) => (
-                      <td
-                        key={j}
-                        className={`${isNum(c) ? "n" : ""} ${sel?.r === i + 1 && sel.c === j ? "sel" : ""}`}
-                        onClick={() => setSel({ r: i + 1, c: j })}
-                      >
+                      <td key={j} className={isNum(c) ? "n" : ""}>
                         {c}
                       </td>
                     ))}
@@ -156,31 +138,10 @@ export function DataViewer(props: { runId: string; files: string[]; initial: str
           </div>
         </>
       ) : (
-        <div className="xl-docwrap">
-          <pre className="xl-doc">{text}</pre>
+        <div className="ws-scroll">
+          <pre className="ws-pre">{text}</pre>
         </div>
       )}
-
-      <div className="xl-sheets">
-        {props.files.map((f) => (
-          <button key={f} className={`xl-sheet ${f === file ? "active" : ""}`} onClick={() => setFile(f)}>
-            {short(f)}
-          </button>
-        ))}
-      </div>
-      <div className="xl-status">
-        {isCsv && !loading ? (
-          <>
-            <span>
-              {query ? `${rows.length - 1}개 중 ${body.length}개 행` : `${body.length}개 행`}
-              {sortCol !== null ? ` · ${header[sortCol]} ${sortDesc ? "내림차순" : "오름차순"}` : ""}
-            </span>
-            <span>열 제목의 ▾ 로 정렬</span>
-          </>
-        ) : (
-          <span>문서</span>
-        )}
-      </div>
     </div>
   );
 }

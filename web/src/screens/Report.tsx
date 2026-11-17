@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import type { Report } from "../types";
+import { Icon } from "../ui/kit";
 
 const PATH_LABEL: Record<string, string> = {
   self: "스스로",
@@ -38,11 +39,11 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
 
   if (state !== "ready" || !report) {
     return (
-      <div className="screen center">
-        <div className="card narrow">
-          <h2>AI 활용 역량 리포트</h2>
-          <p className="muted">{state === "loading" ? "교육 담당자가 기록을 읽는 중..." : msg}</p>
-          <button className="btn" onClick={props.onDone}>
+      <div className="ws ws-center">
+        <div className="ws-card ws-narrow">
+          <h2 className="ws-title">AI 활용 역량 리포트</h2>
+          <p className="ws-lead">{state === "loading" ? "교육 담당자가 기록을 읽는 중…" : msg}</p>
+          <button className="ws-btn" onClick={props.onDone}>
             배치표로
           </button>
         </div>
@@ -60,97 +61,104 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
   ];
 
   return (
-    <div className="screen">
-      <header className="topbar">
+    <div className="ws ws-col">
+      <header className="ws-top">
         <b>AI 활용 역량 리포트</b>
-        <span className="muted">
+        <small>
           {report.scenario.cert} · {report.scenario.title}
-        </span>
-        <span className="grow" />
-        {props.report && <span className="tag">샘플</span>}
-        <button className="btn small" onClick={props.onDone}>
+        </small>
+        {props.report && <span className="ws-tag info">샘플</span>}
+        <span className="ws-grow" />
+        <button className="ws-btn" onClick={props.onDone}>
           배치표로
         </button>
       </header>
 
-      <div className="report">
-        <section className="card hero">
-          <div className="grade">{report.grade}</div>
+      <div className="ws-page slim">
+        <section className="ws-card ws-hero">
+          <div className="ws-grade">{report.grade}</div>
           <div>
-            <div className="total">
-              {report.total} <span className="muted">/ 100</span>
+            <div className="ws-total">
+              {report.total} <small>/ 100</small>
             </div>
             <p>{report.summary}</p>
           </div>
         </section>
 
-        <section className="card">
+        <section className="ws-card">
           <h3>축별 점수</h3>
           {bars.map((b) => (
-            <div className="bar-row" key={b.name}>
+            <div className="ws-score" key={b.name}>
               <span>{b.name}</span>
-              <div className="bar">
-                <div className="fill" style={{ width: `${(b.score / b.max) * 100}%` }} />
+              <div className="ws-bar">
+                <i style={{ width: `${(b.score / b.max) * 100}%` }} />
               </div>
-              <span className="num">
+              <em>
                 {b.score}/{b.max}
-              </span>
+              </em>
             </div>
           ))}
         </section>
 
-        <section className="card">
+        <section className="ws-card">
           <h3>함정 발견</h3>
-          <div className="row wrap">
+          <div className="ws-traps">
             {a.C_traps.traps.map((t) => (
-              <div className={`trap ${t.found ? "found" : "missed"}`} key={t.id}>
-                <b>{t.id}</b> {t.desc}
-                <div className="tiny">{t.found ? `발견 · ${PATH_LABEL[t.path] ?? t.path}` : "미발견"} · {t.score}점</div>
+              <div className="ws-trap" key={t.id}>
+                <div className="ws-trap-top">
+                  <span>{t.id}</span>
+                  <span className={`ws-tag ${t.found ? "accent" : "warn"}`}>{t.found ? `발견 · ${PATH_LABEL[t.path] ?? t.path}` : "미발견"}</span>
+                  <em>{t.score}점</em>
+                </div>
+                {t.desc}
               </div>
             ))}
           </div>
         </section>
 
-        <section className="card">
+        <section className="ws-card">
           <h3>오디에게 한 지시</h3>
-          <div className="quote good">
-            <span className="tag">잘한 지시</span>
+          <div className="ws-quote">
+            <span className="ws-tag accent">잘한 지시</span>
             <blockquote>{report.highlights.good.quote}</blockquote>
-            <p className="tiny">{report.highlights.good.why}</p>
+            <p>{report.highlights.good.why}</p>
           </div>
-          <div className="quote improve">
-            <span className="tag">아쉬운 지시</span>
+          <div className="ws-quote">
+            <span className="ws-tag warn">아쉬운 지시</span>
             <blockquote>{report.highlights.improve.quote}</blockquote>
-            <p className="tiny">{report.highlights.improve.why}</p>
+            <p>{report.highlights.improve.why}</p>
           </div>
-          <table className="mini">
+          <table className="ws-table">
             <tbody>
               {a.A_instruction.items.map((it) => (
                 <tr key={it.name}>
                   <td>{it.name}</td>
-                  <td className="num">{it.score}/5</td>
-                  <td className="muted">{it.quote}</td>
+                  <td>{it.score}/5</td>
+                  <td>{it.quote}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
 
-        <section className="card">
+        <section className="ws-card">
           <h3>다음에 해 볼 것</h3>
-          <ul className="checks">
+          <ul className="ws-checks">
             {report.next_steps.map((s, i) => (
-              <li key={i}>{s}</li>
+              <li key={i}>
+                <Icon name="check" />
+                <span>{s}</span>
+              </li>
             ))}
           </ul>
         </section>
 
-        <footer className="resources">
-          <span>오디 {report.resources.odi_calls}</span>
-          <span>힌트 {report.resources.hints}</span>
-          <span>반려 {report.resources.rejects}</span>
-          <span>{report.resources.duration_min}분</span>
-        </footer>
+        <div className="ws-chips">
+          <span className="ws-tag">오디 {report.resources.odi_calls}</span>
+          <span className="ws-tag">힌트 {report.resources.hints}</span>
+          <span className="ws-tag">반려 {report.resources.rejects}</span>
+          <span className="ws-tag">{report.resources.duration_min}분</span>
+        </div>
       </div>
     </div>
   );

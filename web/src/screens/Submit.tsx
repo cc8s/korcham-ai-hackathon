@@ -45,33 +45,38 @@ export function SubmitScreen(props: {
   };
 
   return (
-    <div className="screen">
-      <header className="topbar">
-        <button className="btn small ghost" onClick={props.onBack} disabled={busy}>
+    <div className="ws ws-col">
+      <header className="ws-top">
+        <button className="ws-btn" onClick={props.onBack} disabled={busy}>
           ← 사무실
         </button>
         <b>팀장 검토 요청</b>
       </header>
-      <div className="two-col">
-        <section className="card">
-          <h3>결과물</h3>
-          <p className="tiny muted">요구 형식: {deliverable}</p>
-          <textarea rows={18} value={basket} onChange={(e) => setBasket(e.target.value)} placeholder="오디 답변을 담거나 직접 작성" />
-        </section>
-        <section className="card">
-          <h3>검증 메모 (필수)</h3>
-          <p className="tiny muted">무엇을, 어떻게 확인했는지. 팀장과 평가 담당자가 봅니다. 실제 열람·대화 기록과 대조됩니다.</p>
-          <textarea
-            rows={8}
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="예) 원본 124행과 주문번호 개수를 비교해 중복 3건을 찾았고, 오디에게 거래처명 정규화를 다시 시켰습니다."
-          />
-          {err && <p className="error">{err}</p>}
-          <button className="btn primary" disabled={busy} onClick={submit}>
-            {busy ? "팀장님이 보는 중..." : "제출"}
-          </button>
-        </section>
+      <div className="ws-page">
+        <div className="ws-cols lean">
+          <section className="ws-card">
+            <h3>결과물</h3>
+            <p className="ws-fine">요구 형식: {deliverable}</p>
+            <textarea className="ws-textarea" rows={20} value={basket} onChange={(e) => setBasket(e.target.value)} placeholder="오디 답변을 담거나 직접 작성" />
+          </section>
+          <section className="ws-card">
+            <h3>검증 메모 (필수)</h3>
+            <p className="ws-fine">무엇을, 어떻게 확인했는지. 팀장과 평가 담당자가 봅니다. 실제 열람·대화 기록과 대조됩니다.</p>
+            <div className="ws-stack">
+              <textarea
+                className="ws-textarea"
+                rows={8}
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="예) 원본 124행과 주문번호 개수를 비교해 중복 3건을 찾았고, 오디에게 거래처명 정규화를 다시 시켰습니다."
+              />
+              {err && <p className="ws-notice flat">{err}</p>}
+              <button className="ws-btn primary block lg" disabled={busy} onClick={submit}>
+                {busy ? "팀장님이 보는 중…" : "제출"}
+              </button>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
