@@ -1,0 +1,68 @@
+{
+  "_설명": "구조화 제출 칸. 서버가 숫자를 answer_key 와 대조해 승인/반려와 함정 발견(trap_caught)을 정한다. 팀장 LLM 은 멘트만 쓴다. 칸 정의는 scenarios/README.md 참고",
+  "fields": [
+    {
+      "id": "output_vat",
+      "label": "매출세액",
+      "type": "integer",
+      "unit": "원",
+      "required": true,
+      "answer": { "path": "매출세액" },
+      "tolerance": 0,
+      "reject_area": "매출 불일치",
+      "proves": [],
+      "why": "함정 없음. 세금계산서 10건 부가세 합. 납부세액 계산의 출발점이라 따로 받는다"
+    },
+    {
+      "id": "input_vat_expense",
+      "label": "매입세액 (경비)",
+      "type": "integer",
+      "unit": "원",
+      "required": true,
+      "answer": { "path": "매입세액_경비(정정후)" },
+      "tolerance": 0,
+      "reject_area": "경비 불일치",
+      "proves": ["T1"],
+      "why": "광고비 부가세를 30,000 그대로 쓰면 1,499,000, 300,000 으로 정정하면 1,769,000 → T1 만 가른다"
+    },
+    {
+      "id": "input_vat_import",
+      "label": "매입세액 (수입, 신고필증)",
+      "type": "integer",
+      "unit": "원",
+      "required": true,
+      "answer": { "path": "매입세액_수입(신고필증)" },
+      "tolerance": 0,
+      "reject_area": "수입 불일치",
+      "proves": ["T2"],
+      "why": "오디 기본값은 송장×환율×10% = 3,021,700, 신고필증 기준은 3,459,242 → T2 만 가른다. 경비/수입을 따로 받으니 approve_if '구분 기재'도 칸 구조로 충족"
+    },
+    {
+      "id": "payable_vat",
+      "label": "납부세액",
+      "type": "integer",
+      "unit": "원",
+      "required": true,
+      "answer": { "path": "납부세액" },
+      "tolerance": 0,
+      "reject_area": "납부세액 계산",
+      "proves": [],
+      "derived": true,
+      "why": "approve_if '납부세액 == answer_key.납부세액'. 위 세 칸에서 계산되므로 위 칸이 틀리면 그쪽 영역만 보고, 위 칸이 다 맞는데 이 칸만 틀리면 '납부세액 계산'"
+    }
+  ],
+  "text_checks": [
+    {
+      "id": "journal",
+      "label": "분개",
+      "target": "basket",
+      "pattern": "분개|차변|대변|\\(차\\)|\\(대\\)",
+      "reject_area": "분개 없음",
+      "why": "README 반려 기준 '분개 없음'과 업무 카드 ④. 결과물에 분개가 있는지만 본다 (분개 내용의 정답 여부는 보지 않음)"
+    }
+  ],
+  "extra_reject_area": {
+    "매출 불일치": "매출세액부터 안 맞습니다. 세금계산서 공급가액 합계를 다시 보세요.",
+    "납부세액 계산": "세액 집계는 맞는데 납부세액이 안 맞습니다. 빼는 계산 다시 해 보세요."
+  }
+}

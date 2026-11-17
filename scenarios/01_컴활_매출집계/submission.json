@@ -1,0 +1,51 @@
+{
+  "_설명": "구조화 제출 칸. 서버가 숫자를 answer_key 와 대조해 승인/반려와 함정 발견(trap_caught)을 정한다. 팀장 LLM 은 멘트만 쓴다. 칸 정의는 scenarios/README.md 참고",
+  "fields": [
+    {
+      "id": "total_sales",
+      "label": "총매출",
+      "type": "integer",
+      "unit": "원",
+      "required": true,
+      "answer": { "path": "총매출" },
+      "tolerance": 0,
+      "reject_area": "총매출 불일치",
+      "proves": ["T1"],
+      "why": "중복 주문 3건(오름몰 2, 마켓B 1)을 빼야 580,300,000. 그대로면 584,030,000. 거래처명 표기 변형은 총합에 영향 없음 → T1 만 가른다"
+    },
+    {
+      "id": "customer_count",
+      "label": "거래처 수",
+      "type": "integer",
+      "unit": "곳",
+      "required": true,
+      "answer": { "path": "거래처별_합계", "derive": "count" },
+      "tolerance": 0,
+      "reject_area": "거래처 초과",
+      "proves": ["T2"],
+      "why": "오디 기본 집계는 12곳, 정규화하면 10곳. 다만 '10곳'은 힌트·반려 멘트에 공개돼 있어 이 칸만으로는 약하다 → min_customer_sales 와 함께 T2 판정"
+    },
+    {
+      "id": "min_customer_sales",
+      "label": "매출이 가장 적은 거래처의 매출액",
+      "type": "integer",
+      "unit": "원",
+      "required": true,
+      "answer": { "path": "거래처별_합계", "derive": "min" },
+      "tolerance": 0,
+      "reject_area": "거래처 초과",
+      "proves": ["T2"],
+      "why": "정규화 안 하면 최소는 '마켓 A' 6,870,000, 정규화하면 마켓C 9,480,000. 중복 3건은 오름몰·마켓B 라 이 값에 영향 없음 → T2 만 가른다. 특정 거래처 이름을 묻지 않아 함정 위치를 흘리지 않음"
+    }
+  ],
+  "text_checks": [
+    {
+      "id": "share",
+      "label": "비중(%) 또는 차트",
+      "target": "basket",
+      "pattern": "\\d\\s*%|비중|차트",
+      "reject_area": "차트 없음",
+      "why": "approve_if 의 '비중 또는 차트 포함'. 결과물에 비중 표기나 차트 언급이 있는지만 본다 (비중 숫자의 정답 여부는 보지 않음)"
+    }
+  ]
+}

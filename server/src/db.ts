@@ -68,6 +68,13 @@ for (const table of ["session", "run"]) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
   if (!cols.some((c) => c.name === "ip")) db.exec(`ALTER TABLE ${table} ADD COLUMN ip TEXT`);
 }
+// 구조화 제출(grading.ts)용 열. fields_json = 입력한 칸 값, grading_json = 코드 채점 결과
+{
+  const cols = db.prepare(`PRAGMA table_info(submission)`).all() as { name: string }[];
+  for (const col of ["fields_json", "grading_json"]) {
+    if (!cols.some((c) => c.name === col)) db.exec(`ALTER TABLE submission ADD COLUMN ${col} TEXT`);
+  }
+}
 
 export type RunState =
   | "assigned"
@@ -118,6 +125,8 @@ export interface SubmissionRow {
   basket_text: string;
   verify_memo: string;
   review_json: string | null;
+  fields_json: string | null;
+  grading_json: string | null;
   created_at: string;
 }
 
@@ -199,10 +208,26 @@ export function listDataViews(runId: string): DataViewRow[] {
 }
 
 // ---- submission ----
-export function addSubmission(runId: string, attempt: number, basketText: string, verifyMemo: string): number {
+export function addSubmission(
+  runId: string,
+  attempt: number,
+  basketText: string,
+  verifyMemo: string,
+  fields?: Record<string, number>,
+  grading?: unknown,
+): number {
   const r = db
-    .prepare("INSERT INTO submission (run_id, attempt, basket_text, verify_memo) VALUES (?, ?, ?, ?)")
-    .run(runId, attempt, basketText, verifyMemo);
+    .prepare(
+      "INSERT INTO submission (run_id, attempt, basket_text, verify_memo, fields_json, grading_json) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .run(
+      runId,
+      attempt,
+      basketText,
+      verifyMemo,
+      fields ? JSON.stringify(fields) : null,
+      grading ? JSON.stringify(grading) : null,
+    );
   return Number(r.lastInsertRowid);
 }
 export function setSubmissionReview(id: number, review: unknown): void {

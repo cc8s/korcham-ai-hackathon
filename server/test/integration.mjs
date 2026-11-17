@@ -68,17 +68,19 @@ try {
   // SUB-01: 빈 바구니 400
   check("SUB-01 empty basket 400", (await api("POST", `/run/${rid}/submit`, { verify_memo: "원본 행 수 확인했습니다" })).status === 400);
 
-  // SUB-03: 반려 1·2회 → 계속 작업 가능, 3회 → closed. mock 은 "12곳" 포함 시 반려
-  await api("PUT", `/run/${rid}/basket`, { text: "거래처 12곳 합계표" });
+  // SUB-03: 반려 1·2회 → 계속 작업 가능, 3회 → closed. 01 은 구조화 제출: 거래처 12곳 값이면 코드가 반려
+  // (구조화 제출 자체의 결정 테이블·마스킹은 test/submit.mjs)
+  const wrong = { total_sales: 580300000, customer_count: 12, min_customer_sales: 6870000 };
+  await api("PUT", `/run/${rid}/basket`, { text: "거래처 12곳 합계표, 비중 %" });
   for (let n = 1; n <= 2; n++) {
-    const r = await api("POST", `/run/${rid}/submit`, { verify_memo: `확인 메모 ${n}차 입니다` });
+    const r = await api("POST", `/run/${rid}/submit`, { verify_memo: `확인 메모 ${n}차 입니다`, fields: wrong });
     check(`SUB-03 reject #${n}`, r.json?.decision === "reject" && r.json?.reject_count === n && r.json?.closed === false, JSON.stringify(r.json));
   }
   check("SUB-03 after 2 rejects odi still blocked only by cap (429 not 409)", (await api("POST", `/run/${rid}/odi`, { message: "x" })).status === 429);
   check("SUB-03 npc still allowed after reject", (await api("POST", `/run/${rid}/npc/park`, { message: "뭐가 문제예요?" })).status === 200);
-  const r3 = await api("POST", `/run/${rid}/submit`, { verify_memo: "확인 메모 3차 입니다" });
+  const r3 = await api("POST", `/run/${rid}/submit`, { verify_memo: "확인 메모 3차 입니다", fields: wrong });
   check("SUB-03 reject #3 closes", r3.json?.reject_count === 3 && r3.json?.closed === true, JSON.stringify(r3.json));
-  check("SUB-02 submit after close 409", (await api("POST", `/run/${rid}/submit`, { verify_memo: "확인 메모 4차 입니다" })).status === 409);
+  check("SUB-02 submit after close 409", (await api("POST", `/run/${rid}/submit`, { verify_memo: "확인 메모 4차 입니다", fields: wrong })).status === 409);
   check("SUB-02 odi after close 409", (await api("POST", `/run/${rid}/odi`, { message: "x" })).status === 409);
   check("evaluate after close reachable (501 until implemented)", (await api("POST", `/run/${rid}/evaluate`)).status === 501);
 
@@ -88,8 +90,11 @@ try {
 
   // 승인 경로: 새 run
   const rid2 = (await api("POST", "/scenario/01/start", { session_id: sid })).json.run_id;
-  await api("PUT", `/run/${rid2}/basket`, { text: "거래처 10곳 합계표. 중복 3건 제거" });
-  const ok = await api("POST", `/run/${rid2}/submit`, { verify_memo: "원본 대조하고 중복 제거했습니다" });
+  await api("PUT", `/run/${rid2}/basket`, { text: "거래처 10곳 합계표. 중복 3건 제거, 비중 차트" });
+  const ok = await api("POST", `/run/${rid2}/submit`, {
+    verify_memo: "원본 대조하고 중복 제거했습니다",
+    fields: { total_sales: 580300000, customer_count: 10, min_customer_sales: 9480000 },
+  });
   check("SUB-03 approve path", ok.json?.decision === "approve" && ok.json?.state === "approved" && ok.json?.closed === true, JSON.stringify(ok.json));
   check("SUB-02 approved run rejects odi 409", (await api("POST", `/run/${rid2}/odi`, { message: "x" })).status === 409);
   check("session shows latest run per scenario", (await api("GET", `/session/${sid}`)).json.scenarios.find((x) => x.id === "01").run.state === "approved");
