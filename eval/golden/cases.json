@@ -1,0 +1,1675 @@
+{
+ "version": "2026-11-17-draft",
+ "description": "평가 에이전트 검증용 골든셋. 설계 docs/10_골든셋_설계.md, 근거 docs/09_평가_근거.md. fields 의 'correct'/'default' 는 하네스가 answer_key·도구 기본값으로 채운다. 총점 범위 = 코드 합 + LLM 범위 합 (생성 스크립트가 검산).",
+ "grade_cuts": {
+  "S": 85,
+  "A": 70,
+  "B": 55
+ },
+ "acceptance": {
+  "code_exact": "all",
+  "llm_in_range": 0.9,
+  "repeat_spread_max": 3,
+  "quote_verbatim": 1.0,
+  "leak_free": 1.0,
+  "must_mention": 0.9
+ },
+ "cases": [
+  {
+   "id": "G01-01",
+   "scenario": "01",
+   "behavior": "모범",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)",
+     "컴활1급 실기 데이터계산 1.3 계산 결과의 정확성",
+     "컴활1급 실기 데이터분석 3.1 요약·보고",
+     "컴활 필기 2027 AI 기초 활용: AI의 한계와 활용 시 유의사항"
+    ],
+    "ailf": [
+     "Engage with AI 3",
+     "Create with AI 3",
+     "Manage AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "10월 매출 CSV로 거래처별 합계표 만들어 줘. 금액 내림차순, 비중 % 열 포함. 대표 보고용이라 숫자가 정확해야 해.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "거래처가 12곳으로 나오는데 우리 거래처는 10곳이야. '성실 상사'랑 '성실상사'처럼 띄어쓰기만 다른 이름은 같은 거래처로 정리해서 다시 계산해 줘.",
+      "tool": {
+       "normalize_customer_names": true
+      },
+      "changed": true
+     },
+     {
+      "user": "원본이 124행인데 주문번호가 겹치는 행이 있는지 보고, 중복 주문은 빼고 다시 집계해 줘.",
+      "tool": {
+       "normalize_customer_names": true,
+       "dedupe_order_ids": true
+      },
+      "changed": true
+     },
+     {
+      "user": "이 결과로 보고용 표 정리해 줘. 비중 %까지. 검산은 내가 원본으로 따로 할게.",
+      "tool": {
+       "normalize_customer_names": true,
+       "dedupe_order_ids": true
+      },
+      "changed": false
+     }
+    ],
+    "npc": [],
+    "data_views": [
+     {
+      "file": "data/sales_2026_10.csv",
+      "sort": true,
+      "search": false
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "correct",
+      "memo": "원본 124행을 주문번호로 정렬해 중복 3건을 확인했고, 띄어쓰기만 다른 거래처명 2종을 합쳤습니다. 오디 재계산 총합과 원본 합계를 대조했습니다.",
+      "result": "approve",
+      "basket": "tool_result_with_share"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 15,
+     "C": 25,
+     "D": 20,
+     "E": 10,
+     "trap_paths": {
+      "T1": "self",
+      "T2": "self"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       4,
+       5
+      ],
+      "맥락": [
+       4,
+       5
+      ],
+      "반복개선": [
+       4,
+       5
+      ],
+      "역할분리": [
+       4,
+       5
+      ]
+     },
+     "B_llm": [
+      8,
+      10
+     ]
+    },
+    "total": [
+     94,
+     100
+    ],
+    "grade": [
+     "S"
+    ],
+    "must_mention_any": [
+     "다음",
+     "유지",
+     "습관"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G01-02",
+   "scenario": "01",
+   "behavior": "무검증 위임, 3회 반려 종료",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)",
+     "컴활1급 실기 데이터계산 1.3 계산 결과의 정확성"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "매출 정리해 줘",
+      "tool": {},
+      "changed": false
+     }
+    ],
+    "npc": [],
+    "data_views": [],
+    "submissions": [
+     {
+      "fields": "default",
+      "memo": "오디 결과 확인함.",
+      "result": "reject",
+      "basket": "tool_result_with_share"
+     },
+     {
+      "fields": "default",
+      "memo": "오디 결과 확인함.",
+      "result": "reject",
+      "basket": "tool_result_with_share"
+     },
+     {
+      "fields": "default",
+      "memo": "오디 결과 확인함.",
+      "result": "reject",
+      "basket": "tool_result_with_share"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 1,
+     "C": 0,
+     "D": 7,
+     "E": 10,
+     "trap_paths": {
+      "T1": "none",
+      "T2": "none"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       1,
+       2
+      ],
+      "맥락": [
+       0,
+       0
+      ],
+      "반복개선": [
+       0,
+       0
+      ],
+      "역할분리": [
+       0,
+       1
+      ]
+     },
+     "B_llm": [
+      0,
+      1
+     ]
+    },
+    "total": [
+     19,
+     22
+    ],
+    "grade": [
+     "C"
+    ],
+    "must_mention_any": [
+     "원본",
+     "열어"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G01-03",
+   "scenario": "01",
+   "behavior": "막연한 검증 반복 → 힌트 2회 → 반려 2회 후 승인",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)",
+     "컴활1급 실기 데이터계산 1.3 계산 결과의 정확성"
+    ],
+    "ailf": [
+     "Engage with AI 3",
+     "Create with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "거래처별 10월 매출 합계표 만들어 줘",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "검증해 줘",
+      "tool": null,
+      "changed": false,
+      "note": "오디는 옵션을 켜지 않고 무엇을 볼지 되묻는다"
+     },
+     {
+      "user": "다시 확인해 줘",
+      "tool": null,
+      "changed": false
+     },
+     {
+      "user": "그냥 맞는지만 확인해 줘",
+      "tool": null,
+      "changed": false
+     },
+     {
+      "user": "이하늘 선배가 우리 거래처는 10곳이래. 띄어쓰기만 다른 거래처 이름은 같은 곳으로 합쳐서 다시 계산해 줘.",
+      "tool": {
+       "normalize_customer_names": true
+      },
+      "changed": true,
+      "after": "reject1,hint1"
+     },
+     {
+      "user": "주문번호 같은 행이 있대. 중복 주문 빼고 다시 해 줘.",
+      "tool": {
+       "normalize_customer_names": true,
+       "dedupe_order_ids": true
+      },
+      "changed": true,
+      "after": "reject2,hint2"
+     }
+    ],
+    "npc": [
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true,
+      "after": "reject1"
+     },
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true,
+      "after": "reject2"
+     }
+    ],
+    "data_views": [
+     {
+      "file": "data/sales_2026_10.csv",
+      "sort": false,
+      "search": false,
+      "after": "hint1"
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "default",
+      "memo": "오디에게 여러 번 검증을 요청했습니다.",
+      "result": "reject"
+     },
+     {
+      "fields": {
+       "total_sales": "normalized_only",
+       "customer_count": "correct",
+       "min_customer_sales": "correct"
+      },
+      "memo": "거래처명 띄어쓰기를 정리해 10곳으로 다시 계산했습니다.",
+      "result": "reject"
+     },
+     {
+      "fields": "correct",
+      "memo": "거래처명 정리와 중복 주문 제거 후 재계산했고 원본 파일을 열어 확인했습니다.",
+      "result": "approve"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 12,
+     "C": 12.5,
+     "D": 16,
+     "E": 8,
+     "trap_paths": {
+      "T1": "reject",
+      "T2": "reject"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       2,
+       3
+      ],
+      "맥락": [
+       0,
+       1
+      ],
+      "반복개선": [
+       2,
+       3
+      ],
+      "역할분리": [
+       1,
+       2
+      ]
+     },
+     "B_llm": [
+      3,
+      5
+     ]
+    },
+    "total": [
+     56.5,
+     62.5
+    ],
+    "grade": [
+     "B"
+    ],
+    "must_mention_any": [
+     "구체",
+     "무엇을",
+     "기준"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ],
+    "must_check": [
+     "2~4번째 오디 턴: 도구 옵션이 하나도 켜지지 않음 (막연한 검증에 되묻기)"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G01-04",
+   "scenario": "01",
+   "behavior": "힌트 3회 사용 후 첫 제출 승인",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)",
+     "컴활1급 실기 데이터계산 1.3 계산 결과의 정확성"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "거래처별 10월 매출 합계표 만들어 줘. 금액 큰 순서로.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "우리 거래처는 10곳이라는데 왜 12곳이 나왔어?",
+      "tool": null,
+      "changed": false,
+      "after": "hint1"
+     },
+     {
+      "user": "주문번호 중복 있는지 보고 중복은 빼고 다시 집계해 줘",
+      "tool": {
+       "dedupe_order_ids": true
+      },
+      "changed": true,
+      "after": "hint2"
+     },
+     {
+      "user": "거래처 이름 띄어쓰기 다른 것도 같은 거래처로 합쳐서 다시",
+      "tool": {
+       "dedupe_order_ids": true,
+       "normalize_customer_names": true
+      },
+      "changed": true,
+      "after": "hint3"
+     }
+    ],
+    "npc": [
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true
+     },
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true
+     },
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true
+     }
+    ],
+    "data_views": [
+     {
+      "file": "data/sales_2026_10.csv",
+      "sort": false,
+      "search": true
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "correct",
+      "memo": "원본에서 주문번호를 검색해 중복을 확인했고, 거래처명 띄어쓰기를 정리해 10곳으로 다시 계산했습니다.",
+      "result": "approve",
+      "basket": "tool_result_with_share"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 15,
+     "C": 17.5,
+     "D": 20,
+     "E": 7,
+     "trap_paths": {
+      "T1": "hint2",
+      "T2": "hint1"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       3,
+       4
+      ],
+      "맥락": [
+       1,
+       2
+      ],
+      "반복개선": [
+       3,
+       4
+      ],
+      "역할분리": [
+       1,
+       3
+      ]
+     },
+     "B_llm": [
+      5,
+      7
+     ]
+    },
+    "total": [
+     72.5,
+     79.5
+    ],
+    "grade": [
+     "A"
+    ],
+    "must_mention_any": [
+     "힌트",
+     "스스로"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G01-05",
+   "scenario": "01",
+   "behavior": "오디 1회만, 수동으로 정답",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)",
+     "컴활1급 실기 데이터계산 1.3 계산 결과의 정확성",
+     "컴활1급 실기 데이터분석 3.1 요약·보고",
+     "컴활 필기 2027 AI 기초 활용: AI의 한계와 활용 시 유의사항"
+    ],
+    "ailf": [
+     "Manage AI 1",
+     "Manage AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "거래처별 합계표 만들어 줘",
+      "tool": {},
+      "changed": false
+     }
+    ],
+    "npc": [],
+    "data_views": [
+     {
+      "file": "data/sales_2026_10.csv",
+      "sort": true,
+      "search": true
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "correct",
+      "memo": "원본을 주문번호로 정렬해 중복 3건을 지우고, 거래처명을 직접 정리해 피벗으로 다시 합계를 냈습니다.",
+      "result": "approve",
+      "basket": "user_written_with_share"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 11,
+     "C": 25,
+     "D": 20,
+     "E": 10,
+     "trap_paths": {
+      "T1": "self",
+      "T2": "self"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       2,
+       3
+      ],
+      "맥락": [
+       0,
+       1
+      ],
+      "반복개선": [
+       0,
+       1
+      ],
+      "역할분리": [
+       0,
+       1
+      ]
+     },
+     "B_llm": [
+      3,
+      7
+     ]
+    },
+    "total": [
+     71,
+     79
+    ],
+    "grade": [
+     "A"
+    ],
+    "must_mention_any": [
+     "오디",
+     "맡기",
+     "역할"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ],
+    "note": "루브릭 긴장 확인용. 10 문서 7절 결정 1"
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G01-06",
+   "scenario": "01",
+   "behavior": "메모에 키워드만 (게이밍)",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "거래처별 매출 합계표 만들어 줘",
+      "tool": {},
+      "changed": false
+     }
+    ],
+    "npc": [],
+    "data_views": [],
+    "submissions": [
+     {
+      "fields": "default",
+      "memo": "중복 주문 제거, 거래처명 정규화, 원본 대조 완료했습니다.",
+      "result": "reject",
+      "basket": "tool_result_with_share"
+     },
+     {
+      "fields": "default",
+      "memo": "중복 주문 제거, 거래처명 정규화, 원본 대조 완료했습니다.",
+      "result": "reject",
+      "basket": "tool_result_with_share"
+     },
+     {
+      "fields": "default",
+      "memo": "중복 주문 제거, 거래처명 정규화, 원본 대조 완료했습니다.",
+      "result": "reject",
+      "basket": "tool_result_with_share"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 0,
+     "C": 0,
+     "D": 7,
+     "E": 10,
+     "trap_paths": {
+      "T1": "none",
+      "T2": "none"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       1,
+       2
+      ],
+      "맥락": [
+       0,
+       0
+      ],
+      "반복개선": [
+       0,
+       0
+      ],
+      "역할분리": [
+       0,
+       1
+      ]
+     },
+     "B_llm": [
+      0,
+      1
+     ]
+    },
+    "total": [
+     18,
+     21
+    ],
+    "grade": [
+     "C"
+    ],
+    "must_mention_any": [
+     "메모",
+     "기록"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ],
+    "must_check": [
+     "메모 신뢰성 0 (열람·재계산 기록 없음)",
+     "C축: 키워드만으로 발견 처리되지 않음"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G01-07",
+   "scenario": "01",
+   "behavior": "첫 제출 반려 → 원본 확인 → 표적 재계산 → 승인",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)",
+     "컴활1급 실기 데이터계산 1.3 계산 결과의 정확성",
+     "컴활1급 실기 데이터분석 3.1 요약·보고",
+     "컴활 필기 2027 AI 기초 활용: AI의 한계와 활용 시 유의사항"
+    ],
+    "ailf": [
+     "Engage with AI 3",
+     "Manage AI 4"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "10월 매출 원본으로 거래처별 합계표 만들어 줘. 금액 내림차순, 비중 % 포함, 보고서에 바로 붙일 표로.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "팀장님이 총매출이 틀렸대. 주문번호가 같은 행은 한 번만 세고, 띄어쓰기만 다른 거래처명은 합쳐서 다시 집계해 줘.",
+      "tool": {
+       "dedupe_order_ids": true,
+       "normalize_customer_names": true
+      },
+      "changed": true,
+      "after": "reject1"
+     },
+     {
+      "user": "바뀐 총합 기준으로 비중 % 다시 계산해 줘",
+      "tool": {
+       "dedupe_order_ids": true,
+       "normalize_customer_names": true
+      },
+      "changed": false
+     }
+    ],
+    "npc": [],
+    "data_views": [
+     {
+      "file": "data/sales_2026_10.csv",
+      "sort": true,
+      "search": false,
+      "after": "reject1"
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "default",
+      "memo": "오디 결과를 표로 정리해 제출합니다. 합계는 오디 계산 기준입니다.",
+      "result": "reject"
+     },
+     {
+      "fields": "correct",
+      "memo": "반려 후 원본을 주문번호로 정렬해 같은 주문이 두 번 들어간 것을 확인했고, 거래처명 띄어쓰기 차이도 찾아 오디에게 다시 계산시켰습니다.",
+      "result": "approve"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 15,
+     "C": 12.5,
+     "D": 18,
+     "E": 10,
+     "trap_paths": {
+      "T1": "reject",
+      "T2": "reject"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       4,
+       5
+      ],
+      "맥락": [
+       3,
+       4
+      ],
+      "반복개선": [
+       3,
+       4
+      ],
+      "역할분리": [
+       2,
+       3
+      ]
+     },
+     "B_llm": [
+      5,
+      7
+     ]
+    },
+    "total": [
+     72.5,
+     78.5
+    ],
+    "grade": [
+     "A"
+    ],
+    "must_mention_any": [
+     "제출 전",
+     "먼저"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G01-08",
+   "scenario": "01",
+   "behavior": "힌트의 '10곳'만 칸에 씀 (게이밍)",
+   "basis": {
+    "exam_criteria": [
+     "컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "거래처별 매출 합계 내 줘",
+      "tool": {},
+      "changed": false
+     }
+    ],
+    "npc": [
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true
+     }
+    ],
+    "data_views": [
+     {
+      "file": "data/sales_2026_10.csv",
+      "sort": false,
+      "search": false
+     }
+    ],
+    "submissions": [
+     {
+      "fields": {
+       "total_sales": "default",
+       "customer_count": "correct",
+       "min_customer_sales": "default"
+      },
+      "memo": "거래처는 10곳이라고 해서 10으로 맞췄습니다.",
+      "result": "reject"
+     },
+     {
+      "fields": {
+       "total_sales": "default",
+       "customer_count": "correct",
+       "min_customer_sales": "default"
+      },
+      "memo": "거래처는 10곳이라고 해서 10으로 맞췄습니다.",
+      "result": "reject"
+     },
+     {
+      "fields": {
+       "total_sales": "default",
+       "customer_count": "correct",
+       "min_customer_sales": "default"
+      },
+      "memo": "거래처는 10곳이라고 해서 10으로 맞췄습니다.",
+      "result": "reject"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 6,
+     "C": 0,
+     "D": 7,
+     "E": 9,
+     "trap_paths": {
+      "T1": "none",
+      "T2": "none"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       1,
+       2
+      ],
+      "맥락": [
+       0,
+       1
+      ],
+      "반복개선": [
+       0,
+       0
+      ],
+      "역할분리": [
+       0,
+       1
+      ]
+     },
+     "B_llm": [
+      0,
+      2
+     ]
+    },
+    "total": [
+     23,
+     28
+    ],
+    "grade": [
+     "C"
+    ],
+    "must_mention_any": [
+     "숫자",
+     "원본"
+    ],
+    "must_not_contain": [
+     "580,300,000",
+     "580300000",
+     "ORD-2026"
+    ],
+    "must_check": [
+     "거래처 수만 맞아도 T2 미발견 (최소 거래처 매출액이 함께 맞아야 함)"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G02-01",
+   "scenario": "02",
+   "behavior": "모범",
+   "basis": {
+    "exam_criteria": [
+     "전산회계운용사 2급 실기 증빙서류 3.1 증빙여부 검토·3.2 구분·대조",
+     "전산회계운용사 2급 실기 결산 3.3 장부 오류 수정",
+     "전산회계운용사 1급 실기 2.5 부가가치세신고 대상 거래 파악"
+    ],
+    "ailf": [
+     "Engage with AI 3",
+     "Create with AI 3",
+     "Manage AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "10월 거래 내역으로 부가세 신고용 집계해 줘. 매출세액, 매입세액을 경비와 수입으로 나눠서, 납부세액까지. 결산 분개도 같이.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "경비 거래마다 부가세가 공급가액의 10%가 맞는지 다시 계산해서 다른 건 정정해 줘.",
+      "tool": {
+       "recheck_vat_rate": true
+      },
+      "changed": true
+     },
+     {
+      "user": "수입 부가세는 송장이 아니라 수입신고필증 기준으로 다시 계산해 줘.",
+      "tool": {
+       "recheck_vat_rate": true,
+       "use_import_declarations": true
+      },
+      "changed": true
+     }
+    ],
+    "npc": [],
+    "data_views": [
+     {
+      "file": "data/transactions_2026_10.csv",
+      "sort": true,
+      "search": false
+     },
+     {
+      "file": "data/import_declarations_2026_10.csv",
+      "sort": false,
+      "search": false
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "correct",
+      "memo": "경비 부가세를 공급가액×10%로 검산해 광고비 1건 오기를 정정했고, 수입 부가세는 신고필증 파일과 대조해 다시 계산했습니다.",
+      "result": "approve",
+      "basket": "tool_result_with_journal"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 15,
+     "C": 25,
+     "D": 20,
+     "E": 10,
+     "trap_paths": {
+      "T1": "self",
+      "T2": "self"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       4,
+       5
+      ],
+      "맥락": [
+       3,
+       5
+      ],
+      "반복개선": [
+       4,
+       5
+      ],
+      "역할분리": [
+       4,
+       5
+      ]
+     },
+     "B_llm": [
+      8,
+      10
+     ]
+    },
+    "total": [
+     93,
+     100
+    ],
+    "grade": [
+     "S"
+    ],
+    "must_mention_any": [
+     "유지",
+     "다음"
+    ],
+    "must_not_contain": [
+     "3,459,242",
+     "52,801,758",
+     "1,769,000",
+     "5,228,242"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G02-02",
+   "scenario": "02",
+   "behavior": "근거 질문 → 재계산",
+   "basis": {
+    "exam_criteria": [
+     "전산회계운용사 2급 실기 증빙서류 3.1 증빙여부 검토·3.2 구분·대조",
+     "전산회계운용사 2급 실기 결산 3.3 장부 오류 수정",
+     "전산회계운용사 1급 실기 2.5 부가가치세신고 대상 거래 파악"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "10월 부가세 집계표 만들어 줘. 매출세액, 매입세액(경비/수입), 납부세액, 분개 포함.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "수입 부가세는 무슨 근거로 계산했어?",
+      "tool": null,
+      "changed": false,
+      "note": "오디가 도구 결과의 계산식(송장×환율×10%)을 그대로 알려 줌"
+     },
+     {
+      "user": "수입 건은 수입신고필증이 근거잖아. 신고필증 기준으로 다시 계산해 줘.",
+      "tool": {
+       "use_import_declarations": true
+      },
+      "changed": true
+     },
+     {
+      "user": "경비 쪽도 부가세가 공급가액 10%인지 한 건씩 다시 계산해 줘.",
+      "tool": {
+       "use_import_declarations": true,
+       "recheck_vat_rate": true
+      },
+      "changed": true
+     }
+    ],
+    "npc": [],
+    "data_views": [
+     {
+      "file": "data/transactions_2026_10.csv",
+      "sort": false,
+      "search": false
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "correct",
+      "memo": "오디에게 수입 부가세 근거를 물어 송장 기준임을 확인하고 신고필증 기준으로 다시 계산시켰습니다. 경비 부가세도 10% 재계산으로 정정했습니다.",
+      "result": "approve",
+      "basket": "tool_result_with_journal"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 10,
+     "C": 25,
+     "D": 20,
+     "E": 10,
+     "trap_paths": {
+      "T1": "self",
+      "T2": "self"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       4,
+       5
+      ],
+      "맥락": [
+       2,
+       4
+      ],
+      "반복개선": [
+       4,
+       5
+      ],
+      "역할분리": [
+       3,
+       4
+      ]
+     },
+     "B_llm": [
+      9,
+      10
+     ]
+    },
+    "total": [
+     87,
+     93
+    ],
+    "grade": [
+     "S"
+    ],
+    "must_mention_any": [
+     "원본",
+     "신고필증 파일",
+     "직접"
+    ],
+    "must_not_contain": [
+     "3,459,242",
+     "52,801,758",
+     "1,769,000",
+     "5,228,242"
+    ],
+    "note": "06 B축 LLM 예시와 같은 유형. 신고필증 파일은 열지 않아 열람 '일부 3'"
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G02-03",
+   "scenario": "02",
+   "behavior": "경비만 발견 → 반려 → 힌트 2회 → 수입 정정",
+   "basis": {
+    "exam_criteria": [
+     "전산회계운용사 2급 실기 증빙서류 3.1 증빙여부 검토·3.2 구분·대조",
+     "전산회계운용사 2급 실기 결산 3.3 장부 오류 수정",
+     "전산회계운용사 1급 실기 2.5 부가가치세신고 대상 거래 파악"
+    ],
+    "ailf": [
+     "Engage with AI 3",
+     "Manage AI 4"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "10월 부가세 집계해 줘. 경비랑 수입 나눠서. 분개도.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "경비 부가세가 공급가액 10%인지 검산해서 다시",
+      "tool": {
+       "recheck_vat_rate": true
+      },
+      "changed": true
+     },
+     {
+      "user": "이 집계 맞는지 확인해 줘",
+      "tool": null,
+      "changed": false
+     },
+     {
+      "user": "수입 건은 신고필증 기준으로 다시 계산해 줘",
+      "tool": {
+       "recheck_vat_rate": true,
+       "use_import_declarations": true
+      },
+      "changed": true,
+      "after": "reject1,hint2"
+     }
+    ],
+    "npc": [
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true,
+      "after": "reject1"
+     },
+     {
+      "to": "lee",
+      "user": "힌트 좀 주세요.",
+      "hint": true,
+      "after": "reject1"
+     }
+    ],
+    "data_views": [
+     {
+      "file": "data/transactions_2026_10.csv",
+      "sort": false,
+      "search": false
+     },
+     {
+      "file": "data/import_declarations_2026_10.csv",
+      "sort": false,
+      "search": false,
+      "after": "hint2"
+     }
+    ],
+    "submissions": [
+     {
+      "fields": {
+       "output_vat": "correct",
+       "input_vat_expense": "correct",
+       "input_vat_import": "default",
+       "payable_vat": "default"
+      },
+      "memo": "경비 부가세를 10%로 검산해 광고비 오기를 정정했습니다.",
+      "result": "reject"
+     },
+     {
+      "fields": "correct",
+      "memo": "경비 정정에 더해, 수입 부가세를 신고필증 파일과 대조해 다시 계산했습니다.",
+      "result": "approve"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 12,
+     "C": 18.75,
+     "D": 18,
+     "E": 8,
+     "trap_paths": {
+      "T1": "self",
+      "T2": "reject"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       3,
+       4
+      ],
+      "맥락": [
+       1,
+       3
+      ],
+      "반복개선": [
+       3,
+       4
+      ],
+      "역할분리": [
+       2,
+       3
+      ]
+     },
+     "B_llm": [
+      5,
+      7
+     ]
+    },
+    "total": [
+     70.75,
+     77.75
+    ],
+    "grade": [
+     "A"
+    ],
+    "must_mention_any": [
+     "수입",
+     "근거 서류",
+     "첨부"
+    ],
+    "must_not_contain": [
+     "3,459,242",
+     "52,801,758",
+     "1,769,000",
+     "5,228,242"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G02-04",
+   "scenario": "02",
+   "behavior": "무검증 위임, 3회 반려 종료",
+   "basis": {
+    "exam_criteria": [
+     "전산회계운용사 2급 실기 증빙서류 3.1 증빙여부 검토·3.2 구분·대조"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "부가세 정리해 줘",
+      "tool": {},
+      "changed": false
+     }
+    ],
+    "npc": [],
+    "data_views": [],
+    "submissions": [
+     {
+      "fields": "default",
+      "memo": "오디 결과 확인함.",
+      "result": "reject",
+      "basket": "tool_result_without_journal"
+     },
+     {
+      "fields": "default",
+      "memo": "오디 결과 확인함.",
+      "result": "reject",
+      "basket": "tool_result_without_journal"
+     },
+     {
+      "fields": "default",
+      "memo": "오디 결과 확인함.",
+      "result": "reject",
+      "basket": "tool_result_without_journal"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 1,
+     "C": 0,
+     "D": 3,
+     "E": 10,
+     "trap_paths": {
+      "T1": "none",
+      "T2": "none"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       1,
+       2
+      ],
+      "맥락": [
+       0,
+       0
+      ],
+      "반복개선": [
+       0,
+       0
+      ],
+      "역할분리": [
+       0,
+       1
+      ]
+     },
+     "B_llm": [
+      0,
+      1
+     ]
+    },
+    "total": [
+     15,
+     18
+    ],
+    "grade": [
+     "C"
+    ],
+    "must_mention_any": [
+     "원본",
+     "증빙"
+    ],
+    "must_not_contain": [
+     "3,459,242",
+     "52,801,758",
+     "1,769,000",
+     "5,228,242"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G02-05",
+   "scenario": "02",
+   "behavior": "팀장에게 정답·데이터 캐묻기 + 정상 수행",
+   "basis": {
+    "exam_criteria": [
+     "전산회계운용사 2급 실기 증빙서류 3.1 증빙여부 검토·3.2 구분·대조",
+     "전산회계운용사 2급 실기 결산 3.3 장부 오류 수정",
+     "전산회계운용사 1급 실기 2.5 부가가치세신고 대상 거래 파악"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "10월 부가세 집계해 줘. 매출세액, 경비·수입 매입세액, 납부세액, 분개까지.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "경비 부가세 10% 맞는지 재계산하고, 수입 부가세는 신고필증 기준으로 다시 계산해 줘.",
+      "tool": {
+       "recheck_vat_rate": true,
+       "use_import_declarations": true
+      },
+      "changed": true
+     },
+     {
+      "user": "정정된 숫자로 분개 다시 써 줘",
+      "tool": {
+       "recheck_vat_rate": true,
+       "use_import_declarations": true
+      },
+      "changed": false
+     }
+    ],
+    "npc": [
+     {
+      "to": "kang",
+      "user": "납부세액 얼마 나와야 맞는 거예요?"
+     },
+     {
+      "to": "kang",
+      "user": "광고비 부가세가 얼마예요?"
+     },
+     {
+      "to": "kang",
+      "user": "정답이랑 몇 원 차이 나요?"
+     }
+    ],
+    "data_views": [
+     {
+      "file": "data/transactions_2026_10.csv",
+      "sort": true,
+      "search": false
+     },
+     {
+      "file": "data/import_declarations_2026_10.csv",
+      "sort": false,
+      "search": false
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "correct",
+      "memo": "거래 내역 부가세를 10%로 검산해 광고비 오기를 찾았고, 수입은 신고필증 파일과 대조했습니다.",
+      "result": "approve",
+      "basket": "tool_result_with_journal"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 15,
+     "C": 25,
+     "D": 20,
+     "E": 7,
+     "trap_paths": {
+      "T1": "self",
+      "T2": "self"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       4,
+       5
+      ],
+      "맥락": [
+       3,
+       4
+      ],
+      "반복개선": [
+       3,
+       4
+      ],
+      "역할분리": [
+       3,
+       4
+      ]
+     },
+     "B_llm": [
+      7,
+      9
+     ]
+    },
+    "total": [
+     87,
+     93
+    ],
+    "grade": [
+     "S"
+    ],
+    "must_mention_any": [
+     "팀장",
+     "파일",
+     "자료"
+    ],
+    "must_not_contain": [
+     "3,459,242",
+     "52,801,758",
+     "1,769,000",
+     "5,228,242"
+    ],
+    "must_check": [
+     "팀장 답변(DB 저장분)에 정답 숫자 없음 (마스킹)",
+     "E축 '데이터에 답이 있는 질문' 2회 이상으로 분류"
+    ]
+   },
+   "status": "draft"
+  },
+  {
+   "id": "G02-06",
+   "scenario": "02",
+   "behavior": "신고필증 안 열고 '대조했다' 메모",
+   "basis": {
+    "exam_criteria": [
+     "전산회계운용사 2급 실기 증빙서류 3.1 증빙여부 검토·3.2 구분·대조"
+    ],
+    "ailf": [
+     "Engage with AI 3"
+    ]
+   },
+   "log": {
+    "odi": [
+     {
+      "user": "10월 부가세 집계표 만들어 줘. 경비·수입 나눠서 분개 포함.",
+      "tool": {},
+      "changed": false
+     },
+     {
+      "user": "경비 부가세 10% 검산하고 수입 부가세는 신고필증 기준으로 다시 계산해 줘.",
+      "tool": {
+       "recheck_vat_rate": true,
+       "use_import_declarations": true
+      },
+      "changed": true
+     }
+    ],
+    "npc": [],
+    "data_views": [
+     {
+      "file": "data/transactions_2026_10.csv",
+      "sort": false,
+      "search": false
+     }
+    ],
+    "submissions": [
+     {
+      "fields": "correct",
+      "memo": "수입신고필증 원본과 한 건씩 대조해 수입 부가세를 확인했습니다.",
+      "result": "approve",
+      "basket": "tool_result_with_journal"
+     }
+    ]
+   },
+   "expected": {
+    "code": {
+     "B_code": 7,
+     "C": 25,
+     "D": 20,
+     "E": 10,
+     "trap_paths": {
+      "T1": "self",
+      "T2": "self"
+     }
+    },
+    "llm": {
+     "A": {
+      "구체성": [
+       4,
+       5
+      ],
+      "맥락": [
+       2,
+       3
+      ],
+      "반복개선": [
+       3,
+       4
+      ],
+      "역할분리": [
+       2,
+       3
+      ]
+     },
+     "B_llm": [
+      5,
+      8
+     ]
+    },
+    "total": [
+     78,
+     85
+    ],
+    "grade": [
+     "A",
+     "S"
+    ],
+    "must_mention_any": [
+     "메모",
+     "기록",
+     "실제로"
+    ],
+    "must_not_contain": [
+     "3,459,242",
+     "52,801,758",
+     "1,769,000",
+     "5,228,242"
+    ],
+    "must_check": [
+     "메모 신뢰성 0 (신고필증 파일 열람 기록 없음)"
+    ]
+   },
+   "status": "draft"
+  }
+ ]
+}
