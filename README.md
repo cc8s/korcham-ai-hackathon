@@ -35,6 +35,7 @@ AI 직원(NPC 에이전트)으로 이루어진 가상 회사에 신입으로 입
 - [평가 루브릭](docs/06_평가_루브릭.md) — 5축 100점, 코드/LLM 채점 분리, 리포트 JSON 스키마
 - [테스트 계획](docs/07_테스트_계획.md) — ISTQB 기준 레벨·유형·기법, 항목 목록, CI/CD 계획
 - [server/](server/README.md) — Node 백엔드 실행·API
+- [web/](web/README.md) — React 프론트 실행·화면 구조
 
 ## 일정
 
