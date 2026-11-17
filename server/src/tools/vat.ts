@@ -23,7 +23,7 @@ type Rates = { vatRate: number; fx: Record<string, number> };
 export interface VatResult {
   적용_옵션: VatInput;
   매출: { 건수: number; 공급가액_합계: number; 매출세액: number };
-  경비: { 건수: number; 공급가액_합계: number; 매입세액: number };
+  경비: { 건수: number; 공급가액_합계?: number; 매입세액: number };
   수입: {
     근거: string;
     건별: { 송장번호: string; 공급사: string; 매입세액: number; 계산: string }[];
@@ -94,7 +94,11 @@ export function vatSummary(transactionsCsv: string, importsCsv: string, input: V
   return {
     적용_옵션: input,
     매출: { 건수: sales.건수, 공급가액_합계: sales.공급가액_합계, 매출세액: sales.세액 },
-    경비: { 건수: expense.건수, 공급가액_합계: expense.공급가액_합계, 매입세액: expense.세액 },
+    // 경비 공급가액 합계는 재검산을 켰을 때만. 기본 결과에 있으면 오디가 스스로 ×10% 를 비교해 T1 을 먼저 짚는다
+    // (실측 2026-11-18). 사용자가 원본에서 직접 확인하거나 재검산을 요청해야 보이게
+    경비: input.recheck_vat_rate
+      ? { 건수: expense.건수, 공급가액_합계: expense.공급가액_합계, 매입세액: expense.세액 }
+      : { 건수: expense.건수, 매입세액: expense.세액 },
     수입: {
       근거: input.use_import_declarations ? "수입신고필증 부가세" : "송장 외화 금액 × 기준 환율 × 10%",
       건별,
