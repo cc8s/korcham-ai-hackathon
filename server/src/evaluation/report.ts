@@ -85,7 +85,8 @@ export function buildReport(args: { runId: string; sc: Scenario; ev: Evidence; c
         },
         llm: { score: bLlm, quote: mask(judge?.B.quote ?? NONE) },
       },
-      C_traps: { score: C, max: 25, traps: code.C.traps.map((t) => ({ ...t, score: r1(t.score) })) },
+      // 함정별은 소수 둘째 자리까지 (6.25 를 6.3 으로 올리면 합 12.5 와 안 맞아 보임)
+      C_traps: { score: C, max: 25, traps: code.C.traps.map((t) => ({ ...t, score: Math.round(t.score * 100) / 100 })) },
       D_deliverable: {
         score: code.D.total,
         max: 20,
