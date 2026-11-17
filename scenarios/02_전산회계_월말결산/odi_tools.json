@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "name": "vat_summary",
+      "sources": {
+        "transactions": "data/transactions_2026_10.csv",
+        "imports": "data/import_declarations_2026_10.csv"
+      }
+    }
+  ],
+  "include_raw_data": false
+}
