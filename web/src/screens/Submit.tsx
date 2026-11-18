@@ -169,7 +169,7 @@ export function SubmitScreen(props: {
                   rows={8}
                   value={memo}
                   onChange={(e) => setMemo(e.target.value)}
-                  placeholder="예) 원본 124행과 주문번호 개수를 비교해 중복 3건을 찾았고, 오디에게 거래처명 정규화를 다시 시켰습니다."
+                  placeholder={"이렇게 적어 보세요\n· 어떤 자료를 열어 봤는지\n· 오디 결과와 무엇을 비교했는지\n· 다른 점이 있었다면 무엇이고, 어떻게 고쳤는지"}
                 />
                 {err && <p className="ws-notice flat">{err}</p>}
                 <button className="ws-btn primary block lg" disabled={busy} onClick={submit}>
