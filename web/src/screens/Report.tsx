@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
-import type { Report } from "../types";
+import type { Explanation, Report } from "../types";
 import { Icon } from "../ui/kit";
 
 const PATH_LABEL: Record<string, string> = {
@@ -18,6 +18,16 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
   const [report, setReport] = useState<Report | null>(props.report);
   const [state, setState] = useState<"loading" | "ready" | "error">(props.report ? "ready" : "loading");
   const [msg, setMsg] = useState("");
+  const [explain, setExplain] = useState<Explanation | null>(null);
+  const [explainErr, setExplainErr] = useState<string | null>(null);
+  const openExplain = () => {
+    if (!props.runId) return;
+    setExplainErr(null);
+    api
+      .explanation(props.runId)
+      .then(setExplain)
+      .catch((e) => setExplainErr(e instanceof ApiError ? e.message : "해설을 불러오지 못했어요"));
+  };
 
   useEffect(() => {
     if (props.report || !props.runId) return;
@@ -118,6 +128,36 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
               </div>
             ))}
           </div>
+          {/* 해설은 정답을 담고 있어 버튼을 눌러야 연다 (샘플 리포트에는 없음) */}
+          {!props.report && !explain && (
+            <button className="ws-btn block" onClick={openExplain}>
+              해설 보기 (함정 위치와 정답)
+            </button>
+          )}
+          {explainErr && <p className="ws-notice flat">{explainErr}</p>}
+          {explain && (
+            <div className="ws-stack">
+              {explain.traps.map((t) => (
+                <div className="ws-trap" key={t.id}>
+                  <div className="ws-trap-top">
+                    <span>{t.id}</span>
+                    <b>{t.label}</b>
+                    <span className={`ws-tag ${t.found ? "accent" : "warn"}`}>{t.found ? "찾음" : "놓침"}</span>
+                  </div>
+                  <p>
+                    <b>어디에</b> {t.where}
+                  </p>
+                  <p>
+                    <b>찾는 법</b> {t.how}
+                  </p>
+                  <p>
+                    <b>숫자 영향</b> {t.impact}
+                  </p>
+                </div>
+              ))}
+              <p className="ws-fine">해설을 본 뒤 같은 업무에 다시 도전하면 이미 답을 아는 상태라, 그 점수는 참고용으로 봐 주세요.</p>
+            </div>
+          )}
         </section>
 
         <section className="ws-card">

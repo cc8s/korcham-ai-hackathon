@@ -98,6 +98,12 @@ export interface PixelEvent {
   text?: string;
 }
 
+// '해설 보기' (도전이 끝난 뒤에만 서버가 줌). 정답이 들어 있음
+export interface Explanation {
+  scenario: { id: string; title: string };
+  traps: { id: string; label: string; found: boolean; where: string; how: string; impact: string }[];
+}
+
 // 06 문서 6절 리포트 JSON
 export interface Report {
   run_id: string;

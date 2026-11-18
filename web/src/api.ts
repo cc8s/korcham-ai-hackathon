@@ -1,4 +1,4 @@
-import type { NpcId, PixelEvent, RunInfo, SessionInfo, SubmitResult, TaskCard, ScenarioSummary, Report } from "./types";
+import type { Explanation, NpcId, PixelEvent, RunInfo, SessionInfo, SubmitResult, TaskCard, ScenarioSummary, Report } from "./types";
 
 // 서버 주소. 로컬은 server/.env 의 PORT, 배포는 Railway 도메인 (VITE_API_BASE)
 // import.meta.env 는 Vite 가 넣어 줌. 테스트(tsx)에서는 process.env 로 대체
@@ -61,6 +61,7 @@ export const api = {
   submit: (rid: string, verify_memo: string, fields?: Record<string, number | string>) =>
     req<SubmitResult>("POST", `/run/${rid}/submit`, fields ? { verify_memo, fields } : { verify_memo }),
   evaluate: (rid: string) => req<Report>("POST", `/run/${rid}/evaluate`),
+  explanation: (rid: string) => req<Explanation>("GET", `/run/${rid}/explanation`),
 };
 
 // 오디 SSE. delta 마다 onDelta, 끝나면 done 페이로드 반환. error 이벤트는 throw
