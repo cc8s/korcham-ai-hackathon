@@ -32,15 +32,16 @@ scenarios/
 
 ## submission.json 필드 (선택)
 
-있으면 S3 제출 화면에 숫자 칸이 뜨고, 승인/반려와 함정 발견(trap_caught)을 **서버 코드가** 정한다. 팀장 LLM 은 판정을 받아 멘트만 쓴다. 없으면 팀장 LLM 이 제출물 텍스트를 읽고 판정 (03~05).
+있으면 S3 제출 화면에 숫자·선택 칸이 뜨고, 승인/반려와 함정 발견(trap_caught)을 **서버 코드가** 정한다. 팀장 LLM 은 판정을 받아 멘트만 쓴다. 없으면 팀장 LLM 이 제출물 텍스트를 읽고 판정하는데, 오디가 쓴 문장을 사용자의 발견으로 쳐 주는 문제가 있어(2026-11-18 03 실측) 모든 시나리오에 둔다.
 
 | 필드 | 뜻 |
 |---|---|
 | fields[].id | API 키 (`fields: {id: 값}`). 영문 소문자·숫자·_ |
-| fields[].label, unit | 화면 칸 이름·단위. 사용자에게 보이는 건 이것과 type, required 뿐 |
-| fields[].type | `integer` 또는 `number` |
+| fields[].label, unit | 화면 칸 이름·단위. 사용자에게 보이는 건 이것과 type, required, options 뿐 |
+| fields[].type | `integer` / `number` / `choice`. choice 는 글로 써야 하는 판단(청구 방향, 회의록 분류, 변환한 시각 등)을 보기 하나로 받는다 (04·05) |
+| fields[].options | choice 전용. `[{id, label}]` 2개 이상. 함정을 놓쳤을 때 고를 법한 보기(도구 기본값·오디 초안의 답)를 꼭 넣고, 시각처럼 순서가 있으면 순서대로 나열해 위치로 정답이 드러나지 않게 |
 | fields[].required | 비면 400 |
-| fields[].answer | 정답 위치. `path` = answer_key 키를 `.` 으로 이음. `derive` (선택) = `count`(키 개수) / `min` / `max` |
+| fields[].answer | 정답 위치. `path` = answer_key 키를 `.` 으로 이음. `derive` (선택, 숫자 칸) = `count`(키 개수) / `min` / `max`. `value` = 정답을 직접 적음. choice 의 정답은 보기 id |
 | fields[].tolerance | 허용 차이(절댓값). 0 = 정확히 일치 |
 | fields[].reject_area | 틀리면 이 반려 영역. prompts.json `review_rules.reject_area` 또는 아래 `extra_reject_area` 의 키 |
 | fields[].proves | 맞으면 증명되는 함정 id. 한 함정을 여러 칸이 증명하면 전부 맞아야 발견 |

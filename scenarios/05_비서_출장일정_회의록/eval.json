@@ -1,10 +1,18 @@
 {
   "traps": {
     "T1": {
-      "keywords": "UTC|협정 ?세계시|LH ?276|시각 ?기준|기준 ?열"
+      "keywords": "UTC|협정 ?세계시|LH ?276|시각 ?기준|기준 ?열",
+      "tool_flags": [
+        "use_time_basis_column"
+      ],
+      "ai_warns": "UTC|협정 ?세계시|시각 ?기준"
     },
     "T2": {
-      "keywords": "서머 ?타임|썸머 ?타임|DST|CEST|CET|8시간|-8|시차"
+      "keywords": "서머 ?타임|썸머 ?타임|DST|CEST|CET|8시간|-8|시차",
+      "tool_flags": [
+        "use_event_date_offset"
+      ],
+      "ai_warns": "서머 ?타임|썸머 ?타임|일광 ?절약|DST|CEST|CET|표준시"
     }
   },
   "memo_files": {
