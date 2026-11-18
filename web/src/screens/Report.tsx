@@ -199,7 +199,6 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
 
         <div className="ws-chips">
           <span className="ws-tag">오디 {report.resources.odi_calls}</span>
-          <span className="ws-tag">힌트 {report.resources.hints}</span>
           <span className="ws-tag">반려 {report.resources.rejects}</span>
           <span className="ws-tag">{report.resources.duration_min}분</span>
         </div>

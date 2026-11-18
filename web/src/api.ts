@@ -1,4 +1,4 @@
-import type { Explanation, NpcId, PixelEvent, RunInfo, SessionInfo, SubmitResult, TaskCard, ScenarioSummary, Report } from "./types";
+import type { Explanation, NpcId, PixelEvent, RunInfo, SessionInfo, SubmitResult, TaskCard, ScenarioSummary, Report, Flow } from "./types";
 
 // 서버 주소. 로컬은 server/.env 의 PORT, 배포는 Railway 도메인 (VITE_API_BASE)
 // import.meta.env 는 Vite 가 넣어 줌. 테스트(tsx)에서는 process.env 로 대체
@@ -52,11 +52,11 @@ export const api = {
     return req<{ file: string; text: string }>("GET", `/run/${rid}/data/${file}${qs ? "?" + qs : ""}`);
   },
   putBasket: (rid: string, text: string) => req<{ ok: true; notice?: string }>("PUT", `/run/${rid}/basket`, { text }),
-  npc: (rid: string, npc: NpcId, message: string, hint_request = false) =>
-    req<{ npc: NpcId; name: string; text: string; hint_level: number; hint_limit: number; notice?: string }>("POST", `/run/${rid}/npc/${npc}`, {
-      message,
-      hint_request,
-    }),
+  npc: (rid: string, npc: NpcId, message: string) =>
+    req<{ npc: NpcId; name: string; text: string; notice?: string }>("POST", `/run/${rid}/npc/${npc}`, { message }),
+  // 고정 대사 (LLM 없음): intro=이하늘 첫 만남, brief=담당 팀장 지시, faq=이하늘 추천 질문
+  scripted: (rid: string, npc: NpcId, kind: "intro" | "brief" | "faq", faq_id?: string) =>
+    req<{ npc: NpcId; text: string; question: string | null; flow: Flow }>("POST", `/run/${rid}/npc/${npc}/scripted`, { kind, faq_id }),
   // fields: 구조화 제출 칸 {id: 값}. 칸이 없는 시나리오는 생략
   submit: (rid: string, verify_memo: string, fields?: Record<string, number | string>) =>
     req<SubmitResult>("POST", `/run/${rid}/submit`, fields ? { verify_memo, fields } : { verify_memo }),

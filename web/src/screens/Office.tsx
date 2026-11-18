@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, connectEvents } from "../api";
-import { NPC_INFO, type Message, type NpcId, type PixelEvent, type RunInfo } from "../types";
+import { NPC_INFO, type Flow, type Message, type NpcId, type PixelEvent, type RunInfo } from "../types";
 import { OfficeHome, RUN_STATUS, type CharStatus } from "./OfficeHome";
 import { Avatar, Icon } from "../ui/kit";
 import { TaskCard } from "../panels/TaskCard";
@@ -83,10 +83,8 @@ export function Office(props: {
         props.onClosed(r.scenario.owner_npc_id);
         return;
       }
-      if (r.messages.length === 0) {
-        setChar(r.scenario.owner_npc_id, { state: "talking", bubble: "잠깐 봅시다." }, 6000);
-        setPanel("task");
-      }
+      // 첫 진입: 하늘이 먼저 부른다 (화면은 어두워지고 하늘만 강조). 업무 카드는 팀장 지시 뒤에
+      if (!r.flow.met_mentor) setChar("lee", { state: "talking", bubble: "여기예요! 저부터 만나요." }, 10000);
     });
     touch();
     return () => {
@@ -131,19 +129,35 @@ export function Office(props: {
 
   const run = info.run;
   const owner = info.scenario.owner_npc_id;
+  const flow = info.flow;
+  // 수습 흐름: 하늘을 만나기 전엔 하늘만, 팀장 지시 전엔 하늘·팀원만 열린다
+  const npcLocked = (id: NpcId) => !flow.met_mentor && id !== "lee";
+  const workLocked = !flow.briefed;
+  const nudge = () =>
+    flow.met_mentor
+      ? setChar("lee", { state: "talking", bubble: `${NPC_INFO[owner].name} 팀장님께 지시부터 받아 와요.` }, 6000)
+      : setChar("lee", { state: "talking", bubble: "여기예요! 저부터 만나요." }, 6000);
   const toggle = (p: Exclude<Panel, null | "npc">) => {
+    if (workLocked) return nudge();
     setPanel(panel === p ? null : p);
     touch();
   };
   const openNpc = (id: NpcId) => {
+    if (npcLocked(id)) return nudge();
     setNpc(id);
     setPanel("npc");
     touch();
   };
   const openData = (file: string) => {
+    if (workLocked) return nudge();
     setDataFile(file);
     setPanel("data");
     touch();
+  };
+  const setFlow = (f: Flow) => {
+    setInfo((prev) => (prev ? { ...prev, flow: f } : prev));
+    // 팀장 지시를 받으면 팀장 말풍선
+    if (f.briefed && !flow.briefed) setChar(owner, { state: "talking", bubble: "그럼 부탁해요." }, 5000);
   };
   const appendMessages = (ms: Message[]) => {
     setMessages((prev) => [...prev, ...ms]);
@@ -154,6 +168,7 @@ export function Office(props: {
 
   return (
     <div className="ws">
+      {!flow.met_mentor && panel !== "npc" && <div className="ws-spot-dim" aria-hidden="true" />}
       <nav className="ws-side">
         <div className="ws-brand">
           <span className="ws-brand-mark">오름</span>
@@ -166,17 +181,17 @@ export function Office(props: {
         <button className={`ws-nav ${panel === null ? "active" : ""}`} onClick={() => setPanel(null)}>
           <Icon name="home" />홈
         </button>
-        <button className={`ws-nav ${panel === "task" ? "active" : ""}`} onClick={() => toggle("task")}>
+        <button className={`ws-nav ${panel === "task" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("task")}>
           <Icon name="task" />
           업무 카드
           <span className={`ws-tag ${RUN_STATUS[run.state].tone}`}>{RUN_STATUS[run.state].label}</span>
         </button>
-        <button className={`ws-nav ${panel === "odi" ? "active" : ""}`} onClick={() => toggle("odi")}>
+        <button className={`ws-nav ${panel === "odi" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("odi")}>
           <Icon name="spark" />
           오디
           <span className={`ws-tag ${status.me.state === "working" ? "info" : ""}`}>{status.me.state === "working" ? "응답 중" : `${odiLeft}회 남음`}</span>
         </button>
-        <button className={`ws-nav ${panel === "data" ? "active" : ""}`} onClick={() => toggle("data")}>
+        <button className={`ws-nav ${panel === "data" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("data")}>
           <Icon name="table" />
           첨부 데이터
           <span className="ws-tag">{info.task_card.attachments.length}</span>
@@ -184,7 +199,13 @@ export function Office(props: {
 
         <span className="ws-side-label">팀원</span>
         {NPC_ORDER.map((id) => (
-          <button key={id} className={`ws-nav ${panel === "npc" && npc === id ? "active" : ""}`} onClick={() => openNpc(id)}>
+          <button
+            key={id}
+            className={`ws-nav ${panel === "npc" && npc === id ? "active" : ""} ${npcLocked(id) ? "locked" : ""} ${
+              (!flow.met_mentor && id === "lee") || (flow.met_mentor && !flow.briefed && id === owner) ? "ws-spot" : ""
+            }`}
+            onClick={() => openNpc(id)}
+          >
             <span className={`ws-presence ${status[id].state === "thinking" ? "busy" : ""}`}>
               <Avatar who={id} size={28} />
             </span>
@@ -193,6 +214,8 @@ export function Office(props: {
               <small>{status[id].state === "thinking" ? "답변 작성 중…" : NPC_INFO[id].role}</small>
             </span>
             {id === owner && <span className="ws-tag accent">담당</span>}
+            {!flow.met_mentor && id === "lee" && <span className="ws-spot-tip">먼저 인사해요 ←</span>}
+            {flow.met_mentor && !flow.briefed && id === owner && <span className="ws-spot-tip">지시 받기 ←</span>}
           </button>
         ))}
 
@@ -200,12 +223,11 @@ export function Office(props: {
 
         <div className="ws-quota" title="사용량은 평가에 반영됩니다">
           <Quota label="오디" used={run.odi_calls_used} total={run.odi_calls_limit} />
-          <Quota label="힌트" used={run.hint_level} total={3} />
           <Quota label="반려" used={run.reject_count} total={3} warn />
         </div>
 
         <div className="ws-side-foot">
-          <button className="ws-btn primary block" onClick={props.onSubmit}>
+          <button className="ws-btn primary block" onClick={() => (workLocked ? nudge() : props.onSubmit())}>
             제출하기
           </button>
           <small>결과물 {run.basket_text.length.toLocaleString()}자 담김</small>
@@ -223,8 +245,8 @@ export function Office(props: {
           messages={messages}
           status={status}
           npcOrder={NPC_ORDER}
-          onOpenTask={() => setPanel("task")}
-          onOpenOdi={() => setPanel("odi")}
+          onOpenTask={() => (workLocked ? nudge() : setPanel("task"))}
+          onOpenOdi={() => (workLocked ? nudge() : setPanel("odi"))}
           onOpenData={openData}
           onOpenNpc={openNpc}
         />
@@ -286,12 +308,13 @@ export function Office(props: {
               runId={props.runId}
               nickname={props.nickname}
               npc={npc}
+              owner={owner}
               messages={messages.filter((m) => m.agent === npc)}
-              hintLevel={run.hint_level}
-              onReply={(ms, hintLevel) => {
-                appendMessages(ms);
-                patchRun({ hint_level: hintLevel, state: run.state === "assigned" ? "working" : run.state });
-              }}
+              flow={flow}
+              mentorQuestions={info.mentor_questions}
+              rejectCount={run.reject_count}
+              onReply={appendMessages}
+              onFlow={setFlow}
             />
           )}
         </aside>

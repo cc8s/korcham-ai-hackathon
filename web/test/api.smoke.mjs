@@ -49,15 +49,19 @@ try {
   check("P2 odiStream done payload", done.odi_calls_used === 1 && done.odi_calls_limit === 15 && done.truncated === false, JSON.stringify(done));
 
   // P3 NPC + 힌트
-  const h = await api.npc(rid, "lee", "힌트 좀 주세요.", true);
-  check("P3 hint level 1", h.hint_level === 1 && h.name === "이하늘");
+  const intro = await api.scripted(rid, "lee", "intro");
+  check("P3 mentor intro", intro.flow.met_mentor === true && intro.text.includes("박소연"));
+  const brief = await api.scripted(rid, "park", "brief");
+  check("P3 leader brief", brief.flow.briefed === true && brief.text.includes("프론트 씨"));
+  const h = await api.npc(rid, "lee", "오디 팁 있어요?");
+  check("P3 mentor chat", h.name === "이하늘");
   const q = await api.npc(rid, "park", "마감 언제예요?");
   check("P3 npc chat", q.text.startsWith("[mock]"));
 
   // 복구: getRun 에 이력 전부
   const run = await api.getRun(rid);
-  check("GET run restores messages", run.messages.filter((m) => m.agent === "odi").length === 2 && run.messages.filter((m) => m.agent === "lee").length === 2);
-  check("GET run counters", run.run.odi_calls_used === 1 && run.run.hint_level === 1 && run.run.closed === false);
+  check("GET run restores messages", run.messages.filter((m) => m.agent === "odi").length === 2 && run.messages.filter((m) => m.agent === "lee").length === 3);
+  check("GET run counters", run.run.odi_calls_used === 1 && run.flow.briefed === true && run.run.closed === false);
 
   // S3 → S4 (반려 → 승인)
   // 01 은 구조화 제출: 칸 정의가 오고, 숫자는 서버 코드가 채점

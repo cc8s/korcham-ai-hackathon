@@ -61,6 +61,17 @@ export interface SubmissionField {
   options?: { id: string; label: string }[]; // choice 전용. 정답 표시는 서버가 보내지 않음
 }
 
+export interface Flow {
+  met_mentor: boolean;
+  briefed: boolean;
+}
+export type MentorStage = "start" | "work" | "reject";
+export interface MentorQuestion {
+  id: string;
+  q: string;
+  stages: MentorStage[];
+}
+
 export interface RunInfo {
   run: {
     id: string;
@@ -73,6 +84,9 @@ export interface RunInfo {
     closed: boolean;
   };
   scenario: { id: string; title: string; owner_npc_id: NpcId };
+  // 수습 흐름: 이하늘 첫 만남 → 담당 팀장 지시 → 업무. 마치기 전에는 다른 메뉴를 잠근다
+  flow: Flow;
+  mentor_questions: MentorQuestion[];
   submission_fields: SubmissionField[] | null;
   task_card: TaskCard;
   messages: Message[];

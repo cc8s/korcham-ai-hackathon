@@ -1490,3 +1490,60 @@ body {
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* 수습 흐름: 첫 진입에 화면을 어둡게 하고 이하늘(그다음 담당 팀장)만 강조 */
+.ws-spot-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(16, 18, 22, 0.55);
+  animation: ws-fade 0.3s ease-out;
+}
+.ws-nav.ws-spot {
+  position: relative;
+  z-index: 41;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent), 0 6px 18px rgba(0, 0, 0, 0.18);
+  animation: ws-pulse 1.6s ease-in-out infinite;
+}
+.ws-spot-tip {
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.ws-nav.locked {
+  opacity: 0.45;
+}
+.ws-faq {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 20px 0;
+}
+.ws-faq .ws-hint {
+  height: auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  text-align: left;
+  font-size: 12px;
+}
+@keyframes ws-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ws-pulse {
+  50% {
+    box-shadow: 0 0 0 4px var(--accent), 0 6px 18px rgba(0, 0, 0, 0.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-nav.ws-spot,
+  .ws-spot-dim {
+    animation: none;
+  }
+}
