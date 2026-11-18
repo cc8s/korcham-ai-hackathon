@@ -1,7 +1,10 @@
 import type { Scenario } from "../scenarios.js";
 import type { Evidence } from "./evidence.js";
+import { scoreEmail, type EmailScore } from "../email.js";
 
-// 코드 채점 (06 문서 3절 B-코드·C·D·E). 같은 입력이면 항상 같은 점수. LLM 은 여기 관여하지 않는다
+// 코드 채점 (06 문서 3절 B-코드·C·D·E·F). 같은 입력이면 항상 같은 점수. LLM 은 여기 관여하지 않는다
+// 배점 (2026-11-18 회의 결정으로 F축 추가): A 20 · B 25 · C 25 · D 15 · E 5 · F 10 = 100
+// 힌트 3단계는 같은 날 없앰 → C 의 힌트 경로·E 의 힌트 점수 제거. 이하늘에게 묻는 건 감점 없음
 
 // 오디에게 결과를 확인·수정하라고 한 지시 (06 9절 되묻기 정규식)
 export const ASK_BACK = /확인|맞아|맞는지|다시|근거|검산|비교|중복|정규화/;
@@ -15,12 +18,11 @@ const MEMO_SORT = /정렬/;
 const MEMO_SEARCH = /검색/; // "찾아"는 "차이도 찾아" 같은 일반 서술에도 나와서 뺌
 const MEMO_RECALC = /중복|정규화|띄어쓰기|재계산|다시 계산|검산|10 ?%|정정/;
 
-const HINT_COEF = [1, 0.8, 0.6, 0.4];
 const REJECT_COEF = 0.5;
 // 오디가 먼저 경고한 함정을 사용자가 확인해 잡은 경우 (샌드박스 원칙 3). 임시값, 사용자 결정 대기
 const AI_WARN_COEF = 0.7;
 
-export type TrapPath = "self" | "hint1" | "hint2" | "hint3" | "ai_warned" | "reject" | "none";
+export type TrapPath = "self" | "ai_warned" | "reject" | "none";
 
 export interface TrapScore {
   id: string;
@@ -37,7 +39,8 @@ export interface CodeScore {
   B: { data_viewed: number; active_explore: number; ask_back: number; memo_consistent: number; total: number };
   C: { traps: TrapScore[]; total: number };
   D: { approved: boolean; reject_count: number; format_ok: boolean; total: number };
-  E_partial: { odi_calls: number; hints: number; odi_score: number; hint_score: number };
+  E_partial: { odi_calls: number; odi_score: number };
+  F: EmailScore;
   // AI 최소 조건 (10 문서 7절 결정 1, 2026-11-18): 오디에게 결과를 고치게 해서 실제로 바뀐 적이 있는가.
   // 없으면 등급 상한 B
   aiMinMet: boolean;
@@ -103,7 +106,6 @@ export function scoreCode(ev: Evidence, sc: Scenario): CodeScore {
       if (flagHit) candidates.push(turn.at);
     }
     const at = Math.min(...candidates.filter((x) => x <= caughtSub.at));
-    const hintsBefore = Math.min(3, ev.npc.filter((n) => n.hint && n.at < at).length);
     const rejectsBefore = ev.subs.filter((s) => s.decision === "reject" && s.at < at).length;
     // 오디 경고가 발견 경로가 되려면: 사용자가 스스로 짚은 첫 턴(키워드 또는 교정 옵션)보다 앞선 턴의 경고이고,
     // 발견 시점 이전이어야 한다. 사용자가 이미 짚은 뒤의 경고는 meta.ai_warned 에도 안 남지만 여기서 한 번 더 막는다
@@ -111,11 +113,9 @@ export function scoreCode(ev: Evidence, sc: Scenario): CodeScore {
       (turn) => kw.test(turn.text) || turn.toolCalls.some((c) => c.changed_flags.some((f) => cfg.tool_flags?.includes(f))),
     );
     const warned = warnIdx >= 0 && (firstOwnIdx < 0 || warnIdx < firstOwnIdx) && ev.odi[warnIdx].at <= at;
-    // 계수는 해당하는 경로(힌트·AI 경고·반려) 중 가장 낮은 것이고, 경로 이름도 그 계수를 낸 쪽.
-    // 같으면 반려 > AI 경고 > 힌트 순으로 이름을 붙인다 (예전 규칙: 반려 0.5 와 힌트가 같으면 반려)
-    // 예: 힌트 1(0.8) + 경고 → ai_warned 0.7, 힌트 2(0.6) + 경고 → hint2 0.6, 경고 + 반려 → reject 0.5
-    let coef = HINT_COEF[hintsBefore];
-    let path: TrapPath = hintsBefore === 0 ? "self" : (`hint${hintsBefore}` as TrapPath);
+    // 계수는 해당하는 경로(AI 경고·반려) 중 가장 낮은 것이고, 경로 이름도 그 계수를 낸 쪽. 예: 경고 + 반려 → reject 0.5
+    let coef = 1;
+    let path: TrapPath = "self";
     if (warned && AI_WARN_COEF <= coef) {
       coef = AI_WARN_COEF;
       path = "ai_warned";
@@ -127,38 +127,41 @@ export function scoreCode(ev: Evidence, sc: Scenario): CodeScore {
     return { id: t.id, desc: sc.evalCfg.traps[t.id].label, found: true, path, coef, score: per * coef };
   });
 
-  // ---- D 20 ----
+  // ---- D 15: 승인 7 (반려 3회 종료 2) + 반려 횟수 5/3/1/0 + 형식 3 ----
   const approved = lastSub?.decision === "approve";
   const closedByRejects = ev.rejectCount >= 3;
-  const approval = approved ? 10 : closedByRejects ? 3 : 0;
-  const rejectScore = [6, 4, 2, 0][Math.min(ev.rejectCount, 3)];
+  const approval = approved ? 7 : closedByRejects ? 2 : 0;
+  const rejectScore = [5, 3, 1, 0][Math.min(ev.rejectCount, 3)];
   let format: number;
   const checks = lastSub?.checks;
   if (checks && checks.length > 0) {
     const ok = checks.filter((c) => c.ok).length;
-    format = ok === checks.length ? 4 : ok > 0 ? 2 : 0;
+    format = ok === checks.length ? 3 : ok > 0 ? 1 : 0;
   } else {
-    format = approved ? 4 : 2; // 구조화 칸이 없는 시나리오는 팀장 승인 여부로 근사
+    format = approved ? 3 : 1; // 구조화 칸이 없는 시나리오는 팀장 승인 여부로 근사
   }
 
-  // ---- E 중 코드 부분 (팀장에게 데이터 질문 수는 LLM 분류 후 합산) ----
+  // ---- E 5 중 코드 부분: 오디 호출 3 (팀장에게 데이터 질문 2 는 LLM 분류 후 합산) ----
   const n = ev.odiCallsUsed;
-  const odi_score = n <= 6 ? 4 : n <= 10 ? 3 : n <= 14 ? 2 : 1;
-  const hint_score = [3, 2, 1, 0][Math.min(ev.hintLevel, 3)];
+  const odi_score = n <= 6 ? 3 : n <= 10 ? 2 : n <= 14 ? 1 : 0;
+
+  // ---- F 10: 마지막 제출 메일 (email.ts) ----
+  const F = scoreEmail({ email: lastSub?.email ?? null, cfg: sc.email, owner: sc.ownerNpcId, spec: sc.submission, values: lastSub?.values ?? undefined, basket: lastSub?.basket ?? "" });
 
   const endAt = lastSub?.at ?? ev.startedAt;
   return {
     B: { data_viewed, active_explore, ask_back, memo_consistent, total: data_viewed + active_explore + ask_back + memo_consistent },
     C: { traps, total: traps.reduce((s, t) => s + t.score, 0) },
-    D: { approved, reject_count: ev.rejectCount, format_ok: format === 4, total: approval + rejectScore + format },
-    E_partial: { odi_calls: n, hints: ev.hintLevel, odi_score, hint_score },
+    D: { approved, reject_count: ev.rejectCount, format_ok: format === 3, total: approval + rejectScore + format },
+    E_partial: { odi_calls: n, odi_score },
+    F,
     aiMinMet: changed,
     durationMin: Math.max(0, Math.round((endAt - ev.startedAt) / 60000)),
   };
 }
 
 // 팀장 등에게 "첨부에 답이 있는 걸" 물은 횟수 → E 3점 항목
-export const redundantScore = (count: number) => (count === 0 ? 3 : count === 1 ? 2 : 0);
+export const redundantScore = (count: number) => (count === 0 ? 2 : count === 1 ? 1 : 0);
 
 export function gradeOf(total: number): "S" | "A" | "B" | "C" {
   return total >= 85 ? "S" : total >= 70 ? "A" : total >= 55 ? "B" : "C";

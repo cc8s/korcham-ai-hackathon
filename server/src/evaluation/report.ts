@@ -1,6 +1,6 @@
 import { limits } from "../config.js";
 import { maskAnswers } from "../mask.js";
-import type { Scenario } from "../scenarios.js";
+import type { Scenario, NpcId } from "../scenarios.js";
 import type { Evidence } from "./evidence.js";
 import { scoreCode, redundantScore, gradeOf, type CodeScore } from "./score.js";
 import { A_NAMES, NONE, npcQuestions, type Judge } from "./judge.js";
@@ -23,12 +23,26 @@ export interface Report {
       llm: { score: number; quote: string };
     };
     C_traps: { score: number; max: 25; traps: CodeScore["C"]["traps"] };
-    D_deliverable: { score: number; max: 20; approved: boolean; reject_count: number; format_ok: boolean };
-    E_efficiency: { score: number; max: 10; odi_calls: number; hints: number; redundant_questions: number };
+    D_deliverable: { score: number; max: 15; approved: boolean; reject_count: number; format_ok: boolean };
+    E_efficiency: { score: number; max: 5; odi_calls: number; redundant_questions: number };
+    // 보고 메일 (2026-11-18). 리포트는 도전 종료 후라 참조 정답·이유(cc_why)도 보여 준다
+    F_report: {
+      score: number;
+      max: 10;
+      to: number;
+      cc: number;
+      attach: number;
+      subject: number;
+      lead: number;
+      cc_missing: NpcId[];
+      cc_extra: NpcId[];
+      cc_why: string;
+      sent: boolean;
+    };
   };
   highlights: { good: { quote: string; why: string }; improve: { quote: string; why: string } };
   next_steps: string[];
-  resources: { odi_calls: string; hints: string; rejects: string; duration_min: number };
+  resources: { odi_calls: string; mentor_questions: number; rejects: string; duration_min: number };
 }
 
 export const GRADE_CAP_NOTE =
@@ -53,10 +67,10 @@ export function buildReport(args: { runId: string; sc: Scenario; ev: Evidence; c
   // 팀장 등에게 한 중복 질문: LLM 이 고른 번호 중 실제 있는 것만
   const qCount = npcQuestions(ev).length;
   const redundant = judge ? new Set(judge.redundant_npc.filter((i) => Number.isInteger(i) && i >= 0 && i < qCount)).size : 0;
-  const E = code.E_partial.odi_score + code.E_partial.hint_score + redundantScore(redundant);
+  const E = code.E_partial.odi_score + redundantScore(redundant);
 
   const C = r1(code.C.total);
-  const total = Math.round(A + code.B.total + bLlm + C + code.D.total + E);
+  const total = Math.round(A + code.B.total + bLlm + C + code.D.total + E + code.F.total);
   let grade = gradeOf(total);
   let grade_note: string | undefined;
   if (!code.aiMinMet && (grade === "S" || grade === "A")) {
@@ -89,12 +103,25 @@ export function buildReport(args: { runId: string; sc: Scenario; ev: Evidence; c
       C_traps: { score: C, max: 25, traps: code.C.traps.map((t) => ({ ...t, score: Math.round(t.score * 100) / 100 })) },
       D_deliverable: {
         score: code.D.total,
-        max: 20,
+        max: 15,
         approved: code.D.approved,
         reject_count: code.D.reject_count,
         format_ok: code.D.format_ok,
       },
-      E_efficiency: { score: E, max: 10, odi_calls: code.E_partial.odi_calls, hints: code.E_partial.hints, redundant_questions: redundant },
+      E_efficiency: { score: E, max: 5, odi_calls: code.E_partial.odi_calls, redundant_questions: redundant },
+      F_report: {
+        score: code.F.total,
+        max: 10,
+        to: code.F.to,
+        cc: code.F.cc,
+        attach: code.F.attach,
+        subject: code.F.subject,
+        lead: code.F.lead,
+        cc_missing: code.F.cc_missing,
+        cc_extra: code.F.cc_extra,
+        cc_why: sc.email.cc_why,
+        sent: !!ev.subs.at(-1)?.email,
+      },
     },
     highlights: {
       good: { quote: mask(judge?.good.quote ?? NONE), why: mask(judge?.good.why ?? "") },
@@ -103,7 +130,8 @@ export function buildReport(args: { runId: string; sc: Scenario; ev: Evidence; c
     next_steps: (judge?.next_steps ?? []).slice(0, 2).map(mask),
     resources: {
       odi_calls: `${ev.odiCallsUsed}/${limits.odiCalls}`,
-      hints: `${ev.hintLevel}/${limits.hints}`,
+      // 이하늘에게 한 질문 수 (추천 질문 포함). 감점 없음, 표시만
+      mentor_questions: ev.npc.filter((n) => n.to === "lee").length,
       rejects: `${ev.rejectCount}/${limits.rejects}`,
       duration_min: code.durationMin,
     },

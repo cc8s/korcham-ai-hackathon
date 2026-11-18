@@ -71,7 +71,7 @@ for (const table of ["session", "run"]) {
 // 구조화 제출(grading.ts)용 열. fields_json = 입력한 칸 값, grading_json = 코드 채점 결과
 {
   const cols = db.prepare(`PRAGMA table_info(submission)`).all() as { name: string }[];
-  for (const col of ["fields_json", "grading_json"]) {
+  for (const col of ["fields_json", "grading_json", "email_json"]) {
     if (!cols.some((c) => c.name === col)) db.exec(`ALTER TABLE submission ADD COLUMN ${col} TEXT`);
   }
 }
@@ -127,6 +127,7 @@ export interface SubmissionRow {
   review_json: string | null;
   fields_json: string | null;
   grading_json: string | null;
+  email_json: string | null; // 결과물 제출 메일 (email.ts)
   created_at: string;
 }
 
@@ -215,10 +216,11 @@ export function addSubmission(
   verifyMemo: string,
   fields?: Record<string, number | string>, // 숫자 칸은 number, 선택 칸은 보기 id
   grading?: unknown,
+  email?: unknown,
 ): number {
   const r = db
     .prepare(
-      "INSERT INTO submission (run_id, attempt, basket_text, verify_memo, fields_json, grading_json) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO submission (run_id, attempt, basket_text, verify_memo, fields_json, grading_json, email_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
     .run(
       runId,
@@ -227,6 +229,7 @@ export function addSubmission(
       verifyMemo,
       fields ? JSON.stringify(fields) : null,
       grading ? JSON.stringify(grading) : null,
+      email ? JSON.stringify(email) : null,
     );
   return Number(r.lastInsertRowid);
 }

@@ -1,6 +1,8 @@
 import { getRun, listMessages, listDataViews, listSubmissions, type RunRow } from "../db.js";
 import type { OdiToolLog } from "../tools/index.js";
 import type { NpcId } from "../scenarios.js";
+import type { FieldValue } from "../grading.js";
+import type { Email } from "../email.js";
 
 // 평가 입력 (06 문서 2절). DB 에서 모으지만 형태는 순수 데이터라, 골든셋 테스트가 DB 없이 직접 만들 수 있다.
 // at = 시각(ms). 같은 초에 생긴 기록은 순서를 장담할 수 없으므로 판정은 "이전(<)" 기준으로 한다
@@ -31,6 +33,8 @@ export interface EvSub {
   decision: "approve" | "reject" | null; // 검토 실패로 결과가 없으면 null
   trapCaught: Record<string, boolean>;
   checks: { id: string; ok: boolean }[] | null; // 구조화 제출의 text_checks (없으면 null)
+  values: Record<string, FieldValue> | null; // 구조화 제출 칸 값
+  email: Email | null; // 결과물 제출 메일 (이 기능 전 제출은 null)
 }
 export interface Evidence {
   startedAt: number;
@@ -105,6 +109,8 @@ export function collectEvidence(runId: string): { run: RunRow; ev: Evidence } {
       decision: review?.decision ?? null,
       trapCaught: Object.fromEntries((review?.trap_caught ?? []).map((t) => [t.id, t.caught])),
       checks: grading?.checks ?? null,
+      values: parseJson<Record<string, FieldValue>>(s.fields_json),
+      email: parseJson<Email>(s.email_json),
     };
   });
 

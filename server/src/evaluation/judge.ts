@@ -67,7 +67,9 @@ function dropBadQuotes(j: Judge, ev: Evidence): Judge {
   };
 }
 
-// 이하늘(멘토)은 힌트 창구라 제외. 번호는 이 목록의 인덱스
+const NPC_NAME: Record<string, string> = { kang: "강지훈", park: "박소연", jung: "정우진", lee: "이하늘" };
+
+// 이하늘(사수)에게 묻는 건 감점하지 않으므로 제외. 번호는 이 목록의 인덱스
 export const npcQuestions = (ev: Evidence) => ev.npc.filter((n) => n.to !== "lee");
 
 export function logText(ev: Evidence, sc: Scenario, code: CodeScore): string {
@@ -94,6 +96,11 @@ export function logText(ev: Evidence, sc: Scenario, code: CodeScore): string {
     `[첨부 열람] ${views || "(없음)"} / 첨부 목록: ${sc.prompts.task_card.attachments.join(", ")}`,
     `[제출 이력]\n${subs || "(없음)"}`,
     `[최종 제출물]\n${clip(last?.basket ?? "", 3000)}`,
+    `[보고 메일] (인용 대상 아님)\n${
+      last?.email
+        ? `받는 사람: ${last.email.to.map((n) => NPC_NAME[n]).join(", ")} / 참조: ${last.email.cc.map((n) => NPC_NAME[n]).join(", ") || "없음"} / 결과물 첨부: ${last.email.attach_result ? "함" : "안 함"}\n제목: ${last.email.subject}\n${clip(last.email.body, 1500)}`
+        : "(없음)"
+    }`,
     `[AI 결과를 고치게 한 기록] ${code.aiMinMet ? "있음" : "없음"}`,
     `[오디가 먼저 경고한 함정] ${warned || "(없음)"}`,
   ].join("\n\n");
@@ -131,7 +138,8 @@ export async function runJudge(args: {
   nickname: string;
 }): Promise<{ judge: Judge; usages: Usage[]; quoteRetry: boolean }> {
   const { ev, sc, code } = args;
-  const ePartial = code.E_partial.odi_score + code.E_partial.hint_score;
+  const ePartial = code.E_partial.odi_score;
+  const F = code.F;
   const system = [
     {
       text: evaluatorBlock({
@@ -143,6 +151,8 @@ export async function runJudge(args: {
           c: Math.round(code.C.total * 10) / 10,
           d: code.D.total,
           e_partial: ePartial,
+          f: F.total,
+          f_detail: `받는 사람 ${F.to}/2, 참조 ${F.cc}/2, 첨부 ${F.attach}/2, 제목 ${F.subject}/1, 두괄식 ${F.lead}/3`,
           trap_paths: code.C.traps.map((t) => `${t.id}=${t.path}`).join(", "),
         },
       }),

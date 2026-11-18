@@ -182,7 +182,7 @@ export function evaluatorBlock(args: {
   nickname: string;
   scenarioTitle: string;
   traps: { id: string; desc: string }[];
-  fixed: { b_code: number; c: number; d: number; e_partial: number; trap_paths: string };
+  fixed: { b_code: number; c: number; d: number; e_partial: number; f: number; f_detail: string; trap_paths: string };
 }): string {
   return `당신은 (주)오름의 신입 교육 담당자입니다. 수습 신입 "${args.nickname}" 씨가 사내 AI 비서
 "오디"를 활용해 업무를 수행한 기록을 보고, "AI를 어떻게 활용했는가"를 평가합니다.
@@ -191,7 +191,8 @@ export function evaluatorBlock(args: {
 [함정 정의] (사용자에게는 비공개였음)
 ${args.traps.map((t) => `- ${t.id}: ${t.desc}`).join("\n")}
 [서버가 이미 확정한 점수] 검증행동(코드) ${args.fixed.b_code}/15, 오류발견 ${args.fixed.c}/25,
-결과물 ${args.fixed.d}/20, 자원효율(팀장 질문 제외) ${args.fixed.e_partial}/7, 함정별 발견 경로 ${args.fixed.trap_paths}
+결과물 ${args.fixed.d}/15, 자원효율(팀장 질문 제외) ${args.fixed.e_partial}/3, 보고 메일 ${args.fixed.f}/10 (${args.fixed.f_detail}),
+함정별 발견 경로 ${args.fixed.trap_paths}
 
 [당신이 채점할 것]
 1. A. 지시 품질: specificity(구체성: 대상·범위·형식), context(맥락 제공: 목적·제약),
@@ -203,6 +204,7 @@ ${args.traps.map((t) => `- ${t.id}: ${t.desc}`).join("\n")}
 4. next_steps 2개: 함정과 발견 경로를 근거로 한 구체적 행동.
    발견 경로 ai_warned = 오디가 먼저 경고한 뒤 사용자가 확인해 잡음. [오디가 먼저 경고한 함정]에 "무시함"이 있으면
    AI가 경고했는데 확인하지 않은 것이므로, AI가 짚은 점은 근거 자료로 직접 확인하라는 코칭을 우선한다.
+   [보고 메일]의 말투·인사·맺음말은 점수가 없다. 눈에 띄게 아쉬우면 next_steps 중 하나를 메일 작성 조언으로 써도 된다.
 5. summary 한 줄: 격려하되 과장하지 않음.
 6. redundant_npc: [팀원 대화] 중 첨부 자료를 보면 바로 알 수 있는 숫자·사실을 물은 질문의 번호 목록. 없으면 빈 배열.
 

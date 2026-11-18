@@ -39,6 +39,7 @@ import { emit } from "../events.js";
 import { checkBudget, recordSpend, npcCallsForRun, trimTurns } from "../guard.js";
 import { odiToolsFor, mockToolInput, TOOL_REGISTRY, type OdiToolLog } from "../tools/index.js";
 import { maskPii, maskNotice } from "../pii.js";
+import { parseEmail, type Email } from "../email.js";
 import { flowOf, mentorIntro, mentorAnswer, mentorQuestions, leaderBrief, mentorContextBlock } from "../mentor.js";
 
 export const runRouter = Router();
@@ -96,6 +97,7 @@ runRouter.get("/run/:rid", (req, res) => {
       attempt: s.attempt,
       verify_memo: s.verify_memo,
       fields: s.fields_json ? JSON.parse(s.fields_json) : null,
+      email: s.email_json ? JSON.parse(s.email_json) : null,
       review: s.review_json ? JSON.parse(s.review_json) : null,
       at: s.created_at,
     })),
@@ -448,6 +450,19 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     }
     values = parsed.values;
   }
+  // 결과물 제출 메일 (email.ts). 화면은 항상 보내고, 없으면 F축 0점 (예전 API 호환)
+  let email: Email | null = null;
+  if (req.body?.email !== undefined) {
+    const parsed = parseEmail(req.body.email);
+    if ("error" in parsed) {
+      res.status(400).json({ error: parsed.error, code: "email" });
+      return;
+    }
+    const subj = maskPii(parsed.email.subject);
+    const body = maskPii(parsed.email.body);
+    memoMasked.found.push(...subj.found, ...body.found);
+    email = { ...parsed.email, subject: subj.text, body: body.text };
+  }
   if (isClosed(run) || run.state === "reviewing") {
     res.status(409).json({ error: "제출할 수 없는 상태", state: run.state });
     return;
@@ -471,7 +486,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
       basket: run.basket_text,
       memo,
     });
-    subId = addSubmission(run.id, attempt, run.basket_text, memo, values, g);
+    subId = addSubmission(run.id, attempt, run.basket_text, memo, values, g, email ?? undefined);
     updateRun(run.id, { state: "reviewing" });
     emit({ type: "submit", run_id: run.id, npc_id: sc.ownerNpcId });
 
@@ -496,7 +511,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     const turns: ChatTurn[] = [
       {
         role: "user",
-        content: `[제출 칸]\n${fieldLines.join("\n")}\n\n[제출물]\n${run.basket_text.slice(0, 4000)}\n\n[검증 메모]\n${memo}`,
+        content: `${email ? `[보고 메일]\n제목: ${email.subject}\n${email.body.slice(0, 1500)}\n\n` : ""}[제출 칸]\n${fieldLines.join("\n")}\n\n[제출물]\n${run.basket_text.slice(0, 4000)}\n\n[검증 메모]\n${memo}`,
       },
     ];
     let message: string;
@@ -535,7 +550,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     };
   } else {
     // ---- 기존 경로 (submission.json 없는 시나리오): 팀장 LLM 이 판정까지 ----
-    subId = addSubmission(run.id, attempt, run.basket_text, memo);
+    subId = addSubmission(run.id, attempt, run.basket_text, memo, undefined, undefined, email ?? undefined);
     updateRun(run.id, { state: "reviewing" });
     emit({ type: "submit", run_id: run.id, npc_id: sc.ownerNpcId });
 
