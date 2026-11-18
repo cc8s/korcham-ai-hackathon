@@ -503,8 +503,28 @@ w(f"{ROOT}/03_유통관리사_발주제안/README.md", f"""# 03. 유통관리사
 - TH-003 오디 방식은 시즌 무시 + 단위 미환산(60을 ea로) 둘 다 들어간 값
 - T1만 따로: 정답 공식인데 TH-003 단위만 놓치면 {t1_qty:,} (허용 상한 {th3["허용범위"][1]:,}의 두 배 이상). T2만 따로: 단위는 720ea로 고쳤는데 오디 방식이면 음수 → 0. 둘 다 허용범위 밖
 
-## 오디에 심는 믿음
-"최근 3개월 평균 × 커버 개월. 시즌·전년 동월 무시. 재고 단위 열 무시."
+## 오디 계산 도구 (`odi_tools.json`)
+오디는 발주 숫자를 `order_quantity` 도구로 낸다 (`server/src/tools/order.ts`). 함정은 프롬프트가 아니라 도구 기본값에 있다.
+실제 모델은 아래 믿음을 프롬프트로 심어도 따르지 않고 스스로 전년 동월로 계산해 함정을 설명했다 (2026-11-18 실측).
+
+| 옵션 (기본 false) | false 일 때 (기본) | true 일 때 | 함정 |
+|---|---|---|---|
+| use_last_year_same_month | 최근 3개월(8~10월) 월평균 × 개월 수 | 전년 동월 합 × 1.1 (소수점 버림) | T2 (시즌) |
+| include_pre_arrival_demand | 커버 1~2월만 | 입고 전 11~12월 + 커버 1~2월, 입고예정일 표시 | T2 (입고 전 소진) |
+| convert_stock_units | 현재고 숫자 그대로 (TH-003 = 60) | 단위 열로 낱개 환산 (box(12입) → × 12) | T1 |
+
+- 기본값 = 위 표의 "오디 방식" (answer_key `오디_오답`), 셋 다 켜면 정답과 정확히 같음 (`server/test/unit/tools.test.ts`)
+- 옵션 하나씩: 단위만 → TH-003 0, T2 둘만 → TH-003 {t1_qty:,}. 전년 동월만 → 10개 전부 범위 밖, 입고 전 소진만 → 비시즌 VN-004 만 범위 안
+- 기본 결과에는 단위·시즌·입고예정일을 안 넣는다 (오디가 스스로 함정을 짚지 않게. 켠 옵션의 정보만 보임)
+- `prompts.json` 의 `planted_belief_for_odi` ("최근 3개월 평균 × 커버 개월. 시즌·전년 동월 무시. 재고 단위 열 무시.")는 `odi_tools.json` 을 지웠을 때의 대비로 남겨 둔다
+
+## 구조화 제출 (`submission.json`)
+| 칸 | 정답 | 가르는 함정 | 틀리면 |
+|---|---|---|---|
+| SKU 10개 발주량 | answer_key 허용범위 안 (`range_path`) | VN-001~TH-005 (TH-003 제외) → T2. 재고가 ea 라 T1 영향 없음 | 시즌 무시 (VN-004 만 입고 전 소진 누락) |
+| TH-003 발주량 | 허용범위 안 | 없음 (T1·T2 둘 다 영향 → `derived`) | 다른 칸이 다 맞을 때만 단위 오류 |
+| 계산에 쓴 현재고 합계 | 정답.*.현재고 합 (`derive: sum`, `pick`) | T1 만 (수요 예측 방식과 무관) | 단위 오류 |
+| (text_check) 산출 근거 | 결과물에 근거 표현이 있는지 | — | 근거 없음 |
 
 ## 박소연 반려 기준
 - VN 과다 / TH 과소 → "1월에 뭐가 팔리는지 생각해 봤어요?"
@@ -815,8 +835,8 @@ scenarios/
 │   ├── README.md            사람용 설명: 업무 카드, 정답, 함정, 반려 기준, 힌트
 │   ├── prompts.json         서버용: task_card, NPC 컨텍스트, 오디 planted_belief, hints, review_rules, traps
 │   ├── answer_key.json      정답. 팀장 검토·평가 에이전트에만 주입. 사용자에게 절대 노출 금지
-│   ├── submission.json      (선택, 지금 01·02) 구조화 제출 칸. 서버가 칸 값을 answer_key 와 대조해 채점
-│   ├── odi_tools.json       (선택, 지금 01·02) 오디 계산 도구 설정. 있으면 함정은 도구 기본값이 담당
+│   ├── submission.json      (선택, 지금 01·02·03) 구조화 제출 칸. 서버가 칸 값을 answer_key 와 대조해 채점
+│   ├── odi_tools.json       (선택, 지금 01·02·03) 오디 계산 도구 설정. 있으면 함정은 도구 기본값이 담당
 │   ├── eval.json            (필수, 손으로 관리) 평가 판정 재료: 함정 발견 시점 키워드, 메모-열람 대조 규칙
 │   └── data/                첨부 데이터. 데이터 뷰어(P4)와 오디 system prompt에 주입
 ├── 02_전산회계_월말결산/
@@ -838,7 +858,7 @@ scenarios/
 
 ## submission.json 필드 (선택)
 
-있으면 S3 제출 화면에 숫자 칸이 뜨고, 승인/반려와 함정 발견(trap_caught)을 **서버 코드가** 정한다. 팀장 LLM 은 판정을 받아 멘트만 쓴다. 없으면 팀장 LLM 이 제출물 텍스트를 읽고 판정 (03~05).
+있으면 S3 제출 화면에 숫자 칸이 뜨고, 승인/반려와 함정 발견(trap_caught)을 **서버 코드가** 정한다. 팀장 LLM 은 판정을 받아 멘트만 쓴다. 없으면 팀장 LLM 이 제출물 텍스트를 읽고 판정 (04·05).
 
 | 필드 | 뜻 |
 |---|---|
@@ -846,8 +866,8 @@ scenarios/
 | fields[].label, unit | 화면 칸 이름·단위. 사용자에게 보이는 건 이것과 type, required 뿐 |
 | fields[].type | `integer` 또는 `number` |
 | fields[].required | 비면 400 |
-| fields[].answer | 정답 위치. `path` = answer_key 키를 `.` 으로 이음. `derive` (선택) = `count`(키 개수) / `min` / `max` |
-| fields[].tolerance | 허용 차이(절댓값). 0 = 정확히 일치 |
+| fields[].answer | 정답 위치. `path` = answer_key 키를 `.` 으로 이음. `derive` (선택) = `count`(키 개수) / `min` / `max` / `sum`. `pick` (선택) = 값이 객체면 그 안의 이 키로 derive (03 `정답` + `현재고` → 재고 합). `range_path` (선택) = 정답이 범위면 answer_key 의 `[하한, 상한]` 위치 (03 `허용범위`) |
+| fields[].tolerance | 허용 차이(절댓값). 0 = 정확히 일치. `range_path` 가 있으면 안 쓰고 하한~상한(양끝 포함)으로 채점 |
 | fields[].reject_area | 틀리면 이 반려 영역. prompts.json `review_rules.reject_area` 또는 아래 `extra_reject_area` 의 키 |
 | fields[].proves | 맞으면 증명되는 함정 id. 한 함정을 여러 칸이 증명하면 전부 맞아야 발견 |
 | fields[].derived | (선택) 다른 칸에서 계산되는 합계 칸. 다른 칸이 다 맞을 때만 자기 반려 영역을 보고 |
@@ -857,9 +877,9 @@ scenarios/
 
 칸 고르는 기준: 사용자가 결과물에서 바로 옮겨 적을 수 있고, 함정을 잡았을 때와 놓쳤을 때 값이 다를 것. 함정 하나를 하나의 칸이 가르도록(다른 함정의 영향을 안 받게) 고른다. 서버 시작 때 path·반려 영역·함정 id 를 검사해서 틀리면 바로 실패한다.
 
-## odi_tools.json (선택, 01·02)
+## odi_tools.json (선택, 01·02·03)
 
-있으면 오디가 계산 도구로 숫자를 내고, 함정은 도구의 기본값이 재현한다 (기획 피드백 1번). 없으면 `planted_belief_for_odi` 를 프롬프트에 넣는 예전 방식. 01·02 의 `planted_belief_for_odi` 는 이 파일을 지웠을 때의 대비로 남겨 둔다.
+있으면 오디가 계산 도구로 숫자를 내고, 함정은 도구의 기본값이 재현한다 (기획 피드백 1번). 없으면 `planted_belief_for_odi` 를 프롬프트에 넣는 예전 방식. 01·02·03 의 `planted_belief_for_odi` 는 이 파일을 지웠을 때의 대비로 남겨 둔다.
 
 ```json
 {
@@ -870,7 +890,7 @@ scenarios/
 
 | 필드 | 뜻 |
 |---|---|
-| tools[].name | `server/src/tools/` 에 등록된 도구 이름 (`aggregate_sales`, `vat_summary`) |
+| tools[].name | `server/src/tools/` 에 등록된 도구 이름 (`aggregate_sales`, `vat_summary`, `order_quantity`) |
 | tools[].sources | 도구가 읽을 첨부. 키는 도구가 정하고, 값은 `task_card.attachments` 에 있는 경로 |
 | include_raw_data | true 면 원문도 오디 컨텍스트에 넣음. 기본 false (파일명·열·행 수만. 숫자는 도구로만) |
 

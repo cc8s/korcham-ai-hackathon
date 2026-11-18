@@ -1,0 +1,13 @@
+{
+  "tools": [
+    {
+      "name": "order_quantity",
+      "sources": {
+        "sales": "data/monthly_sales_2025_11_2026_10.csv",
+        "inventory": "data/inventory_2026_10_31.csv",
+        "products": "_shared/products.csv"
+      }
+    }
+  ],
+  "include_raw_data": false
+}

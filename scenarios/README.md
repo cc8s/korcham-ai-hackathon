@@ -9,8 +9,8 @@ scenarios/
 │   ├── README.md            사람용 설명: 업무 카드, 정답, 함정, 반려 기준, 힌트
 │   ├── prompts.json         서버용: task_card, NPC 컨텍스트, 오디 planted_belief, hints, review_rules, traps
 │   ├── answer_key.json      정답. 팀장 검토·평가 에이전트에만 주입. 사용자에게 절대 노출 금지
-│   ├── submission.json      (선택, 지금 01·02) 구조화 제출 칸. 서버가 칸 값을 answer_key 와 대조해 채점
-│   ├── odi_tools.json       (선택, 지금 01·02) 오디 계산 도구 설정. 있으면 함정은 도구 기본값이 담당
+│   ├── submission.json      (선택, 지금 01·02·03) 구조화 제출 칸. 서버가 칸 값을 answer_key 와 대조해 채점
+│   ├── odi_tools.json       (선택, 지금 01·02·03) 오디 계산 도구 설정. 있으면 함정은 도구 기본값이 담당
 │   ├── eval.json            (필수, 손으로 관리) 평가 판정 재료: 함정 발견 시점 키워드, 메모-열람 대조 규칙
 │   └── data/                첨부 데이터. 데이터 뷰어(P4)와 오디 system prompt에 주입
 ├── 02_전산회계_월말결산/
@@ -32,7 +32,7 @@ scenarios/
 
 ## submission.json 필드 (선택)
 
-있으면 S3 제출 화면에 숫자 칸이 뜨고, 승인/반려와 함정 발견(trap_caught)을 **서버 코드가** 정한다. 팀장 LLM 은 판정을 받아 멘트만 쓴다. 없으면 팀장 LLM 이 제출물 텍스트를 읽고 판정 (03~05).
+있으면 S3 제출 화면에 숫자 칸이 뜨고, 승인/반려와 함정 발견(trap_caught)을 **서버 코드가** 정한다. 팀장 LLM 은 판정을 받아 멘트만 쓴다. 없으면 팀장 LLM 이 제출물 텍스트를 읽고 판정 (04·05).
 
 | 필드 | 뜻 |
 |---|---|
@@ -40,8 +40,8 @@ scenarios/
 | fields[].label, unit | 화면 칸 이름·단위. 사용자에게 보이는 건 이것과 type, required 뿐 |
 | fields[].type | `integer` 또는 `number` |
 | fields[].required | 비면 400 |
-| fields[].answer | 정답 위치. `path` = answer_key 키를 `.` 으로 이음. `derive` (선택) = `count`(키 개수) / `min` / `max` |
-| fields[].tolerance | 허용 차이(절댓값). 0 = 정확히 일치 |
+| fields[].answer | 정답 위치. `path` = answer_key 키를 `.` 으로 이음. `derive` (선택) = `count`(키 개수) / `min` / `max` / `sum`. `pick` (선택) = 값이 객체면 그 안의 이 키로 derive (03 `정답` + `현재고` → 재고 합). `range_path` (선택) = 정답이 범위면 answer_key 의 `[하한, 상한]` 위치 (03 `허용범위`) |
+| fields[].tolerance | 허용 차이(절댓값). 0 = 정확히 일치. `range_path` 가 있으면 안 쓰고 하한~상한(양끝 포함)으로 채점 |
 | fields[].reject_area | 틀리면 이 반려 영역. prompts.json `review_rules.reject_area` 또는 아래 `extra_reject_area` 의 키 |
 | fields[].proves | 맞으면 증명되는 함정 id. 한 함정을 여러 칸이 증명하면 전부 맞아야 발견 |
 | fields[].derived | (선택) 다른 칸에서 계산되는 합계 칸. 다른 칸이 다 맞을 때만 자기 반려 영역을 보고 |
@@ -51,9 +51,9 @@ scenarios/
 
 칸 고르는 기준: 사용자가 결과물에서 바로 옮겨 적을 수 있고, 함정을 잡았을 때와 놓쳤을 때 값이 다를 것. 함정 하나를 하나의 칸이 가르도록(다른 함정의 영향을 안 받게) 고른다. 서버 시작 때 path·반려 영역·함정 id 를 검사해서 틀리면 바로 실패한다.
 
-## odi_tools.json (선택, 01·02)
+## odi_tools.json (선택, 01·02·03)
 
-있으면 오디가 계산 도구로 숫자를 내고, 함정은 도구의 기본값이 재현한다 (기획 피드백 1번). 없으면 `planted_belief_for_odi` 를 프롬프트에 넣는 예전 방식. 01·02 의 `planted_belief_for_odi` 는 이 파일을 지웠을 때의 대비로 남겨 둔다.
+있으면 오디가 계산 도구로 숫자를 내고, 함정은 도구의 기본값이 재현한다 (기획 피드백 1번). 없으면 `planted_belief_for_odi` 를 프롬프트에 넣는 예전 방식. 01·02·03 의 `planted_belief_for_odi` 는 이 파일을 지웠을 때의 대비로 남겨 둔다.
 
 ```json
 {
@@ -64,7 +64,7 @@ scenarios/
 
 | 필드 | 뜻 |
 |---|---|
-| tools[].name | `server/src/tools/` 에 등록된 도구 이름 (`aggregate_sales`, `vat_summary`) |
+| tools[].name | `server/src/tools/` 에 등록된 도구 이름 (`aggregate_sales`, `vat_summary`, `order_quantity`) |
 | tools[].sources | 도구가 읽을 첨부. 키는 도구가 정하고, 값은 `task_card.attachments` 에 있는 경로 |
 | include_raw_data | true 면 원문도 오디 컨텍스트에 넣음. 기본 false (파일명·열·행 수만. 숫자는 도구로만) |
 

@@ -1,0 +1,151 @@
+{
+  "_설명": "구조화 제출 칸. 서버가 숫자를 answer_key 와 대조해 승인/반려와 함정 발견(trap_caught)을 정한다. 팀장 LLM 은 멘트만 쓴다. 발주량은 answer_key 허용범위(±20%, 소수점 버림) 안이면 정답. 칸 정의는 scenarios/README.md 참고",
+  "fields": [
+    {
+      "id": "order_vn_001",
+      "label": "VN-001 대나무 도마 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.VN-001.발주량", "range_path": "정답.VN-001.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 181, 정답 125 [100~150]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "order_vn_002",
+      "label": "VN-002 라탄 바구니 중 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.VN-002.발주량", "range_path": "정답.VN-002.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 137, 정답 97 [77~116]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "order_vn_003",
+      "label": "VN-003 라탄 트레이 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.VN-003.발주량", "range_path": "정답.VN-003.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 126, 정답 68 [54~81]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "order_vn_004",
+      "label": "VN-004 대나무 수저 세트 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.VN-004.발주량", "range_path": "정답.VN-004.허용범위" },
+      "tolerance": 0,
+      "reject_area": "입고 전 소진 누락",
+      "proves": ["T2"],
+      "why": "비시즌 품목이라 시즌은 상관없고 입고 전 11~12월 소진만 가른다: 기본 186, 전년 동월만 켜면 209(밖), 입고 전 소진만 켜면 368(안), 정답 409 [327~490]. 재고가 ea 라 T1 영향 없음"
+    },
+    {
+      "id": "order_vn_005",
+      "label": "VN-005 라탄 빨래바구니 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.VN-005.발주량", "range_path": "정답.VN-005.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 82, 정답 43 [34~51]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "order_th_001",
+      "label": "TH-001 리빙박스 대 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.TH-001.발주량", "range_path": "정답.TH-001.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 87, 정답 500 [400~600]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "order_th_002",
+      "label": "TH-002 리빙박스 중 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.TH-002.발주량", "range_path": "정답.TH-002.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 131, 정답 682 [545~818]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "order_th_003",
+      "label": "TH-003 옷걸이 20P 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.TH-003.발주량", "range_path": "정답.TH-003.허용범위" },
+      "tolerance": 0,
+      "reject_area": "단위 오류",
+      "proves": [],
+      "derived": true,
+      "why": "단위(T1)와 시즌·입고 전 소진(T2) 둘 다 영향: 기본 278, 단위만 고치면 0, T2 만 고치면 1,078, 둘 다 고치면 418 → 이 칸만으로는 어느 함정인지 못 가른다. 그래서 proves 는 비우고 derived: 다른 칸이 다 맞는데 이 칸만 틀리면 '단위 오류'(T2 를 다 풀었는데 TH-003 만 남은 경우 = 단위만 놓침)"
+    },
+    {
+      "id": "order_th_004",
+      "label": "TH-004 서랍 정리함 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.TH-004.발주량", "range_path": "정답.TH-004.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 95, 정답 466 [372~559]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "order_th_005",
+      "label": "TH-005 신발 정리대 발주량",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답.TH-005.발주량", "range_path": "정답.TH-005.허용범위" },
+      "tolerance": 0,
+      "reject_area": "시즌 무시",
+      "proves": ["T2"],
+      "why": "시즌 품목. 재고가 ea 라 T1 영향 없음 → T2 만 가른다. 기본(최근 3개월 평균 × 2) 70, 정답 293 [234~351]. 전년 동월·입고 전 소진 중 하나만 반영해도 범위 밖이라 둘 다 반영해야 맞는다. 정답이 ±20% 범위라 range_path"
+    },
+    {
+      "id": "stock_total",
+      "label": "계산에 쓴 현재고 합계 (SKU 10개)",
+      "type": "integer",
+      "unit": "개",
+      "required": true,
+      "answer": { "path": "정답", "derive": "sum", "pick": "현재고" },
+      "tolerance": 0,
+      "reject_area": "단위 오류",
+      "proves": ["T1"],
+      "why": "T1 만 가르는 칸. 현재고는 수요 예측 방식(T2)과 무관하고, TH-003 을 60 그대로 쓰면 659, 720ea 로 환산하면 1,319. TH-003 발주량 칸은 T2 영향도 받아서 T1 증거로 못 쓴다. 특정 SKU 재고를 묻지 않아 함정 위치를 흘리지 않음 (라벨에 '낱개'·'ea' 도 일부러 안 씀)"
+    }
+  ],
+  "text_checks": [
+    {
+      "id": "basis",
+      "label": "산출 근거",
+      "target": "basket",
+      "pattern": "근거|산출|공식|계산|안전재고|수요|평균|전년|동월|×",
+      "reject_area": "근거 없음",
+      "why": "approve_if 의 '근거 기재'. 결과물에 산출 근거로 볼 말이 있는지만 본다 (근거 내용의 정답 여부는 보지 않음)"
+    }
+  ],
+  "extra_reject_area": {
+    "근거 없음": "숫자만 있고 어떻게 나온 건지가 없어요. 근거 한 줄만 붙여 주세요."
+  }
+}

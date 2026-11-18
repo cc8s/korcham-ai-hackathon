@@ -1,4 +1,4 @@
-// GRD-01~05: 구조화 제출 채점 (01·02 submission.json). 실행: npm run test:unit
+// GRD-01~09: 구조화 제출 채점 (01·02·03 submission.json). 실행: npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getScenario } from "../../src/scenarios.ts";
@@ -6,6 +6,7 @@ import { grade, parseFields, parseFieldValue, publicFields, expectedValue, valid
 
 const s01 = getScenario("01")!;
 const s02 = getScenario("02")!;
+const s03 = getScenario("03")!;
 
 function run(s: typeof s01, values: Record<string, number>, basket = "거래처별 합계표, 비중 % 포함, 분개 정리", memo = "원본 대조했습니다") {
   return grade({ spec: s.submission!, answerKey: s.answerKey, traps: s.prompts.traps, values, basket, memo });
@@ -14,18 +15,17 @@ function run(s: typeof s01, values: Record<string, number>, basket = "거래처�
 const ok01 = { total_sales: 580300000, customer_count: 10, min_customer_sales: 9480000 };
 const ok02 = { output_vat: 58030000, input_vat_expense: 1769000, input_vat_import: 3459242, payable_vat: 52801758 };
 
-test("GRD-01 01·02 만 submission.json, 03~05 는 없음", () => {
-  assert.ok(s01.submission && s02.submission);
-  for (const id of ["03", "04", "05"]) assert.equal(getScenario(id)!.submission, undefined, id);
+test("GRD-01 01·02·03 은 submission.json, 01 파생 정답", () => {
+  assert.ok(s01.submission && s02.submission && s03.submission);
   // 파생 정답: 거래처 수 = 키 개수, 최소 = 마켓C
   const f = Object.fromEntries(s01.submission!.fields.map((x) => [x.id, expectedValue(x, s01.answerKey)]));
   assert.deepEqual(f, ok01);
 });
 
 test("GRD-02 공개 칸 정의에 정답·허용오차·함정 없음", () => {
-  for (const s of [s01, s02]) {
+  for (const s of [s01, s02, s03]) {
     const pub = JSON.stringify(publicFields(s.submission!));
-    for (const banned of ["answer", "tolerance", "proves", "reject_area", "580300000", "52801758", "T1"]) {
+    for (const banned of ["answer", "tolerance", "proves", "reject_area", "range", "허용범위", "580300000", "52801758", "T1", "1319", "ea", "낱개", "box"]) {
       assert.ok(!pub.includes(banned), `${s.id} ${banned}`);
     }
   }
@@ -114,4 +114,72 @@ test("GRD-07 잘못된 submission.json 은 로드 때 throw", () => {
   assert.throws(() => validateSpec(bad({ proves: ["T9"] }), s01.prompts, s01.answerKey, "t"));
   assert.throws(() => validateSpec(bad({ answer: { path: "중복_주문번호" } }), s01.prompts, s01.answerKey, "t"));
   assert.doesNotThrow(() => validateSpec(base, s01.prompts, s01.answerKey, "t"));
+});
+
+// 03: SKU 10개 발주량(허용범위 안이면 정답) + 현재고 합계. 정답·오디 기본값은 order_quantity 도구와 같은 숫자 (tools.test.ts)
+const ans03: Record<string, number> = {
+  order_vn_001: 125, order_vn_002: 97, order_vn_003: 68, order_vn_004: 409, order_vn_005: 43,
+  order_th_001: 500, order_th_002: 682, order_th_003: 418, order_th_004: 466, order_th_005: 293,
+  stock_total: 1319,
+};
+// 오디 도구 기본값 그대로 (시즌 무시 + 입고 전 소진 누락 + TH-003 60 을 ea 로)
+const odi03: Record<string, number> = {
+  order_vn_001: 181, order_vn_002: 137, order_vn_003: 126, order_vn_004: 186, order_vn_005: 82,
+  order_th_001: 87, order_th_002: 131, order_th_003: 278, order_th_004: 95, order_th_005: 70,
+  stock_total: 659,
+};
+const basket03 = "SKU별 발주량 표. 근거: 전년 동월 × 1.1 + 안전재고 − 현재고";
+const caught = (g: ReturnType<typeof run>) => g.trap_caught.map((t) => t.caught);
+
+test("GRD-08 03 결정 테이블: 범위 안 승인, T1·T2 는 각자 칸으로 판정", () => {
+  const ok = run(s03, ans03, basket03);
+  assert.equal(ok.decision, "approve");
+  assert.deepEqual(caught(ok), [true, true]);
+  // 허용범위 양끝은 정답, 한 칸 밖은 오답 (VN-002 [77, 116]: ±20% 를 소수점 버림한 비대칭 범위)
+  assert.equal(run(s03, { ...ans03, order_vn_002: 77 }, basket03).decision, "approve");
+  assert.equal(run(s03, { ...ans03, order_vn_002: 116 }, basket03).decision, "approve");
+  assert.deepEqual(run(s03, { ...ans03, order_vn_002: 76 }, basket03).wrong_areas, ["시즌 무시"]);
+  assert.deepEqual(run(s03, { ...ans03, order_vn_002: 117 }, basket03).wrong_areas, ["시즌 무시"]);
+
+  // 오디 기본값 그대로 → 두 함정 다 미발견. TH-003 칸은 derived 라 다른 칸이 틀렸을 땐 영역을 안 보탬
+  const raw = run(s03, odi03, basket03);
+  assert.deepEqual(raw.wrong_areas, ["시즌 무시", "입고 전 소진 누락", "단위 오류"]);
+  assert.deepEqual(caught(raw), [false, false]);
+
+  // T2 만 풀고 단위는 놓침: TH-003 1,078 + 재고 합계 659 → 단위 오류 만, T1 미발견·T2 발견
+  const unit = run(s03, { ...ans03, order_th_003: 1078, stock_total: 659 }, basket03);
+  assert.deepEqual(unit.wrong_areas, ["단위 오류"]);
+  assert.deepEqual(caught(unit), [false, true]);
+
+  // T1 만 풀고 시즌·입고 전 소진은 놓침: 재고 합계 1,319 맞음, 발주량은 오디 방식 (TH-003 은 0) → T1 발견·T2 미발견
+  const season = run(s03, { ...odi03, order_th_003: 0, stock_total: 1319 }, basket03);
+  assert.deepEqual(season.wrong_areas, ["시즌 무시", "입고 전 소진 누락"]);
+  assert.deepEqual(caught(season), [true, false]);
+
+  // T2 반쪽 (입고 전 소진만 반영): 비시즌 VN-004 만 맞고 나머지는 시즌 무시
+  const preOnly = { ...ans03, order_vn_001: 333, order_vn_002: 257, order_vn_003: 266, order_vn_004: 368, order_vn_005: 170, order_th_001: 179, order_th_002: 255, order_th_003: 0, order_th_004: 185, order_th_005: 126 };
+  const p = run(s03, preOnly, basket03);
+  assert.deepEqual(p.wrong_areas, ["시즌 무시"]);
+  assert.deepEqual(caught(p), [true, false]);
+
+  // TH-003 만 틀림 (다른 칸 다 맞음) → derived 칸이 자기 영역 보고. 함정 판정엔 영향 없음
+  const th3 = run(s03, { ...ans03, order_th_003: 900 }, basket03);
+  assert.deepEqual(th3.wrong_areas, ["단위 오류"]);
+  assert.deepEqual(caught(th3), [true, true]);
+
+  // 숫자 다 맞아도 근거가 없으면 반려 (메모가 아니라 결과물에 있어야 함)
+  const noBasis = run(s03, ans03, "SKU별 발주량 표", "원본 대조, 전년 동월 기준");
+  assert.deepEqual(noBasis.wrong_areas, ["근거 없음"]);
+  assert.deepEqual(caught(noBasis), [true, true]);
+});
+
+test("GRD-09 range_path·sum 정의 검증: 범위가 [하한, 상한] 숫자 쌍이 아니면 로드 때 throw", () => {
+  const base = s03.submission!;
+  const bad = (answer: object) => ({ ...base, fields: [{ ...base.fields[0], answer }] });
+  assert.throws(() => validateSpec(bad({ path: "정답.VN-001.발주량", range_path: "정답.VN-001.현재고" }), s03.prompts, s03.answerKey, "t"));
+  assert.throws(() => validateSpec(bad({ path: "정답.VN-001.발주량", range_path: "정답.없음.허용범위" }), s03.prompts, s03.answerKey, "t"));
+  assert.throws(() => validateSpec(bad({ path: "정답", derive: "sum", pick: "없는키" }), s03.prompts, s03.answerKey, "t"));
+  assert.doesNotThrow(() => validateSpec(base, s03.prompts, s03.answerKey, "t"));
+  const stock = base.fields.find((f) => f.id === "stock_total")!;
+  assert.equal(expectedValue(stock, s03.answerKey), 1319);
 });

@@ -9,8 +9,10 @@ export interface SubmissionField {
   unit: string; // "원", "곳" 등. 화면 표시용
   required: boolean;
   // 정답 위치. path 는 answer_key.json 의 키를 "." 으로 이은 것.
-  // derive: count = 객체 키 개수(배열 길이), min/max = 객체·배열 값의 최솟값·최댓값
-  answer: { path: string; derive?: "count" | "min" | "max" };
+  // derive: count = 객체 키 개수(배열 길이), min/max/sum = 객체·배열 값의 최솟값·최댓값·합
+  // pick (선택): 값이 객체일 때 그 안의 이 키를 꺼내 derive (03: 정답.{SKU}.현재고 의 합)
+  // range_path (선택): 정답이 범위일 때 answer_key 의 [하한, 상한] 위치. 있으면 tolerance 대신 이 범위로 채점 (03 허용범위)
+  answer: { path: string; derive?: "count" | "min" | "max" | "sum"; pick?: string; range_path?: string };
   tolerance: number; // 정답과의 허용 차이 (절댓값). 0 = 정확히 일치
   reject_area: string; // 틀리면 이 반려 영역. prompts.json review_rules.reject_area 또는 extra_reject_area 의 키
   proves: string[]; // 맞으면 증명되는 함정 id (prompts.json traps)
@@ -60,11 +62,33 @@ export function expectedValue(f: SubmissionField, answerKey: unknown): number {
     return v;
   }
   if (v === null || typeof v !== "object") throw fail("가 객체·배열이 아님");
-  const vals = Array.isArray(v) ? v : Object.values(v);
+  const all = Array.isArray(v) ? v : Object.values(v);
+  const pick = f.answer.pick;
+  const vals = pick ? all.map((x) => (x !== null && typeof x === "object" ? (x as Record<string, unknown>)[pick] : undefined)) : all;
   if (f.answer.derive === "count") return vals.length;
   const nums = vals.filter((x): x is number => typeof x === "number");
   if (nums.length === 0) throw fail("에 숫자 값이 없음");
+  if (f.answer.derive === "sum") return nums.reduce((n, x) => n + x, 0);
   return f.answer.derive === "min" ? Math.min(...nums) : Math.max(...nums);
+}
+
+// 정답이 범위인 칸의 [하한, 상한]. range_path 가 없으면 null. 틀린 정의는 throw (시나리오 로드 때 걸러짐)
+// 03 처럼 answer_key 가 허용범위를 직접 들고 있으면 그대로 쓴다: ±20% 를 소수점 버림한 비대칭 범위라
+// 정답 ± tolerance 로는 정확히 못 옮긴다 (예: 97 → [77, 116])
+export function expectedRange(f: SubmissionField, answerKey: unknown): [number, number] | null {
+  if (!f.answer.range_path) return null;
+  const r = lookup(answerKey, f.answer.range_path);
+  if (!Array.isArray(r) || r.length !== 2 || !r.every((x) => typeof x === "number") || r[0] > r[1]) {
+    throw new Error(`submission.json ${f.id}: answer.range_path '${f.answer.range_path}' 가 [하한, 상한] 숫자 쌍이 아님`);
+  }
+  return [r[0], r[1]];
+}
+
+// 한 칸이 정답인가. 범위가 있으면 하한~상한(양끝 포함), 없으면 정답 ± tolerance
+export function fieldCorrect(f: SubmissionField, v: number, answerKey: unknown): boolean {
+  const range = expectedRange(f, answerKey);
+  if (range) return v >= range[0] && v <= range[1];
+  return Math.abs(v - expectedValue(f, answerKey)) <= f.tolerance;
 }
 
 // 시나리오 로드 때 한 번 검사. 잘못된 정의는 서버 시작 시 바로 드러나게 throw
@@ -82,6 +106,7 @@ export function validateSpec(spec: SubmissionSpec, prompts: ScenarioPrompts, ans
     if (!areas.has(f.reject_area)) throw new Error(`${where}: ${f.id} reject_area '${f.reject_area}' 가 반려 영역에 없음`);
     for (const t of f.proves) if (!traps.has(t)) throw new Error(`${where}: ${f.id} proves '${t}' 가 traps 에 없음`);
     expectedValue(f, answerKey);
+    expectedRange(f, answerKey);
   }
   for (const c of spec.text_checks ?? []) {
     if (!areas.has(c.reject_area)) throw new Error(`${where}: ${c.id} reject_area '${c.reject_area}' 가 반려 영역에 없음`);
@@ -147,7 +172,7 @@ export function grade(args: {
   const { spec, answerKey, values } = args;
   const fields = spec.fields.map((f) => {
     const v = f.id in values ? values[f.id] : null;
-    const correct = v !== null && Math.abs(v - expectedValue(f, answerKey)) <= f.tolerance;
+    const correct = v !== null && fieldCorrect(f, v, answerKey);
     return { f, value: v, correct };
   });
   const checks = (spec.text_checks ?? []).map((c) => {

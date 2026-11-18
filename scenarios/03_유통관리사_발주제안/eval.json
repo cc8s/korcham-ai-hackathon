@@ -1,10 +1,19 @@
 {
   "traps": {
     "T1": {
-      "keywords": "단위|box|박스|12입|입수|환산"
+      "keywords": "단위|box|(?<!리빙)박스|12입|입수|환산|낱개",
+      "tool_flags": [
+        "convert_stock_units"
+      ],
+      "ai_warns": "12입|낱개|단위.{0,12}(확인|다르|다른|맞|환산|섞)|box.{0,15}(단위|기준|환산|낱개|팩)|(?<!리빙)박스 단위|환산|팩 단위"
     },
     "T2": {
-      "keywords": "전년|작년|시즌|계절|동월|성수기|입고 ?전|소진"
+      "keywords": "전년|작년|시즌|계절|동월|성수기|입고 ?전|소진",
+      "tool_flags": [
+        "use_last_year_same_month",
+        "include_pre_arrival_demand"
+      ],
+      "ai_warns": "시즌|성수기|비수기|이사철|전년 ?동월|계절|입고 ?전.{0,12}(소진|판매|수요|팔)"
     }
   },
   "memo_files": {

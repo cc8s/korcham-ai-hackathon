@@ -7,6 +7,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { readAttachment, type Scenario } from "../scenarios.js";
 import { aggregateSalesTool } from "./sales.js";
 import { vatSummaryTool } from "./vat.js";
+import { orderQuantityTool } from "./order.js";
 import type { AnyOdiTool, OdiToolLog } from "./types.js";
 
 export type { OdiToolLog } from "./types.js";
@@ -14,6 +15,7 @@ export type { OdiToolLog } from "./types.js";
 export const TOOL_REGISTRY: Record<string, AnyOdiTool> = {
   [aggregateSalesTool.name]: aggregateSalesTool,
   [vatSummaryTool.name]: vatSummaryTool,
+  [orderQuantityTool.name]: orderQuantityTool,
 };
 
 export interface OdiToolset {
@@ -87,6 +89,10 @@ export function mockToolInput(tool: AnyOdiTool, userText: string): Record<string
     normalize_customer_names: /정규화|이름\s*정리|표기|띄어쓰기|공백/,
     recheck_vat_rate: /10\s*%|부가세\s*확인/,
     use_import_declarations: /신고필증|근거/,
+    // 03: 무엇을 고칠지 특정한 말만. "리빙박스" 같은 품명의 '박스'로 켜지지 않게 앞 글자를 막는다
+    use_last_year_same_month: /전년|작년|동월|시즌|계절|성수기/,
+    include_pre_arrival_demand: /입고\s*전|입고되기\s*전|소진/,
+    convert_stock_units: /단위|환산|낱개|입수|\d+\s*입(?!고)|box|(?<!리빙)박스/i,
   };
   const defaults = tool.parse({});
   return Object.fromEntries(Object.keys(defaults).map((k) => [k, want[k]?.test(userText) ?? false]));
