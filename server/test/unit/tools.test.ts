@@ -297,3 +297,29 @@ test("TOOL-10 모델에게 주는 도구 결과에 옵션 이름이 없다 (적�
     assert.ok(Object.keys(TOOL_REGISTRY[name].parse({})).every((k) => k in r.log.input), `${id} log`);
   }
 });
+
+// ---- 04 read_documents: 함정은 읽기 범위 기본값 (계약 요약·검정보고서 안 읽음) ----
+test("TOOL-12 read_documents 기본은 최근 서신 2개만, 옵션으로 계약·검정보고서 추가, 메일에 FOB 결론 없음", () => {
+  const sc = getScenario("04")!;
+  const names = (flags: Record<string, boolean>) => {
+    const r = odiToolsFor(sc)!.run("read_documents", flags);
+    assert.ok(!r.isError, r.content);
+    return JSON.parse(r.content).문서.map((d: { 이름: string }) => d.이름) as string[];
+  };
+  assert.equal(names({}).length, 2);
+  assert.ok(!names({}).some((n) => /계약|검정/.test(n)));
+  assert.ok(names({ include_contract: true }).some((n) => n.includes("계약")));
+  assert.ok(names({ include_survey: true }).some((n) => n.includes("검정")));
+  assert.equal(names({ include_contract: true, include_survey: true }).length, 4);
+  // 기본으로 읽는 문서에 정답(FOB 위험 이전·적하보험·18ea)이 없어야 함정이 성립
+  const dflt = odiToolsFor(sc)!.run("read_documents", {}).content;
+  for (const w of ["Risk passed", "cargo insurer", "FOB Hamburg terms", "18ea", "ICC(A)"]) assert.ok(!dflt.includes(w), w);
+});
+
+test("TOOL-13 read_documents criteria: 사용자가 계약·검정보고서를 짚어야 열림, '확인해 줘'만으로는 안 열림", () => {
+  const sc = getScenario("04")!;
+  const flags = (criteria: string, said: string) => odiToolsFor(sc, { userTexts: [said] })!.run("read_documents", { criteria }).log.changed_flags;
+  assert.deepEqual(flags("계약 조건 확인", "계약 조건(FOB) 확인하고 다시 써 줘"), ["include_contract"]);
+  assert.deepEqual(flags("검정보고서 기준", "검정보고서 기준으로 수량 맞춰 줘"), ["include_survey"]);
+  assert.deepEqual(flags("계약·검정보고서 전부", "다시 확인해 줘"), []);
+});

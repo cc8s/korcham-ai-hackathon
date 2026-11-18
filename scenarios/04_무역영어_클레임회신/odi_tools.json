@@ -1,0 +1,14 @@
+{
+  "tools": [
+    {
+      "name": "read_documents",
+      "sources": {
+        "email": "data/inbound_email.txt",
+        "memo": "data/internal_memo.md",
+        "contract": "data/contract_summary.md",
+        "survey": "data/survey_report.md"
+      }
+    }
+  ],
+  "include_raw_data": false
+}

@@ -9,6 +9,7 @@ import { aggregateSalesTool } from "./sales.js";
 import { vatSummaryTool } from "./vat.js";
 import { orderQuantityTool } from "./order.js";
 import { itineraryKstTool } from "./itinerary.js";
+import { readDocumentsTool } from "./docs.js";
 import type { AnyOdiTool, OdiToolLog } from "./types.js";
 
 export type { OdiToolLog } from "./types.js";
@@ -18,6 +19,7 @@ export const TOOL_REGISTRY: Record<string, AnyOdiTool> = {
   [vatSummaryTool.name]: vatSummaryTool,
   [orderQuantityTool.name]: orderQuantityTool,
   [itineraryKstTool.name]: itineraryKstTool,
+  [readDocumentsTool.name]: readDocumentsTool,
 };
 
 export interface OdiToolset {
@@ -147,6 +149,9 @@ export const FLAG_PATTERNS: Record<string, RegExp> = {
   // 05: "시차 확인해 줘" 처럼 막연한 말은 안 켠다. 서머타임·UTC·시각기준을 특정해야 켬
   use_event_date_offset: /서머\s*타임|썸머\s*타임|DST|일광\s*절약|날짜별\s*시차/,
   use_time_basis_column: /UTC|시각\s*기준/,
+  // 04: 어떤 문서를 볼지 사용자가 짚어야 켬. "확인해 줘"만으로는 안 켜짐
+  include_contract: /계약|인코텀즈|FOB|위험\s*이전|적하\s*보험|보험\s*(조건|조항|가입|누가|누구)/i,
+  include_survey: /검정|survey|조사\s*보고서|손상\s*원인/i,
 };
 
 // 문장 하나 → 옵션. mock 오디와 테스트가 쓴다
