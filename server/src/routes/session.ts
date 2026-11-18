@@ -47,6 +47,27 @@ sessionRouter.get("/session/:id", (req, res) => {
   res.json({ session_id: s.id, nickname: s.nickname, scenarios });
 });
 
+// GET /session/:id/runs → 이 세션의 모든 도전 (새로 도전하기 전의 run 포함). 상세는 GET /run/:rid.
+// 세션 id 를 아는 사람만 볼 수 있음 (/session/:id 와 같은 수준). DB 조회만이라 비용 없음
+sessionRouter.get("/session/:id/runs", (req, res) => {
+  const s = getSession(String(req.params.id));
+  if (!s) {
+    res.status(404).json({ error: "세션 없음" });
+    return;
+  }
+  res.json(
+    listRunsForSession(s.id).map((r) => ({
+      id: r.id,
+      scenario_id: r.scenario_id,
+      state: r.state,
+      reject_count: r.reject_count,
+      odi_calls_used: r.odi_calls_used,
+      hint_level: r.hint_level,
+      created_at: r.created_at,
+    })),
+  );
+});
+
 // POST /scenario/:sid/start { session_id } → run 생성 + 업무 카드
 sessionRouter.post("/scenario/:sid/start", (req, res) => {
   const sc = getScenario(req.params.sid);

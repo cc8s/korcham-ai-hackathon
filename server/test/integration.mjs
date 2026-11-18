@@ -113,6 +113,9 @@ try {
   check("SUB-03 approve path", ok.json?.decision === "approve" && ok.json?.state === "approved" && ok.json?.closed === true, JSON.stringify(ok.json));
   check("SUB-02 approved run rejects odi 409", (await api("POST", `/run/${rid2}/odi`, { message: "x" })).status === 409);
   check("session shows latest run per scenario", (await api("GET", `/session/${sid}`)).json.scenarios.find((x) => x.id === "01").run.state === "approved");
+  const allRuns = (await api("GET", `/session/${sid}/runs`)).json;
+  check("GET session runs lists earlier runs too", allRuns.filter((r) => r.scenario_id === "01").map((r) => r.id).join() === [rid, rid2].join(), JSON.stringify(allRuns));
+  check("GET session runs 404", (await api("GET", `/session/nope/runs`)).status === 404);
 
   // WS-01 이벤트 확인
   await sleep(300);
