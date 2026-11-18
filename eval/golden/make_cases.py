@@ -93,7 +93,7 @@ cases.append({"id": "G01-04", "scenario": "01", "behavior": "하늘 선배에게
     "data_views": [{"file": CSV01, "sort": False, "search": True}],
     "submissions": [sub("correct", "원본에서 주문번호를 검색해 중복을 확인했고, 거래처명 띄어쓰기를 정리해 10곳으로 다시 계산했습니다.", "approve", "tool_result_with_share")]},
   "expected": {"code": {"B_code": 15, "C": 25, "D": 15, "E": 5, "F": 10, "trap_paths": {"T1": "self", "T2": "self"}},
-    "llm": {"A": A([3, 4], [1, 2], [3, 4], [1, 3]), "B_llm": [5, 7]}, "total": [72.5, 79.5], "grade": ["A", "S"],
+    "llm": {"A": A([3, 4], [1, 3], [4, 5], [1, 3]), "B_llm": [7, 10]}, "total": [72.5, 79.5], "grade": ["A", "S"],
     "must_mention_any": ["스스로", "유지", "습관"], "must_not_contain": NL01}})
 
 cases.append({"id": "G01-05", "scenario": "01", "behavior": "오디 1회만, 수동으로 정답",
