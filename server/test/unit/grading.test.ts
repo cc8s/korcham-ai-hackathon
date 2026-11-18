@@ -7,16 +7,16 @@ import { grade, parseFields, parseFieldValue, publicFields, expectedValue, valid
 const s01 = getScenario("01")!;
 const s02 = getScenario("02")!;
 
-function run(s: typeof s01, values: Record<string, number>, basket = "거래처별 합계표, 비중 % 포함, 분개 정리", memo = "원본 대조했습니다") {
+function run(s: typeof s01, values: Record<string, number | string>, basket = "거래처별 합계표, 비중 % 포함, 분개 정리", memo = "원본 대조했습니다") {
   return grade({ spec: s.submission!, answerKey: s.answerKey, traps: s.prompts.traps, values, basket, memo });
 }
 
 const ok01 = { total_sales: 580300000, customer_count: 10, min_customer_sales: 9480000 };
 const ok02 = { output_vat: 58030000, input_vat_expense: 1769000, input_vat_import: 3459242, payable_vat: 52801758 };
 
-test("GRD-01 01·02 만 submission.json, 03~05 는 없음", () => {
+test("GRD-01 01·02·04·05 는 submission.json 있음 (03 은 다른 트랙)", () => {
   assert.ok(s01.submission && s02.submission);
-  for (const id of ["03", "04", "05"]) assert.equal(getScenario(id)!.submission, undefined, id);
+  for (const id of ["04", "05"]) assert.ok(getScenario(id)!.submission, id);
   // 파생 정답: 거래처 수 = 키 개수, 최소 = 마켓C
   const f = Object.fromEntries(s01.submission!.fields.map((x) => [x.id, expectedValue(x, s01.answerKey)]));
   assert.deepEqual(f, ok01);
@@ -114,4 +114,90 @@ test("GRD-07 잘못된 submission.json 은 로드 때 throw", () => {
   assert.throws(() => validateSpec(bad({ proves: ["T9"] }), s01.prompts, s01.answerKey, "t"));
   assert.throws(() => validateSpec(bad({ answer: { path: "중복_주문번호" } }), s01.prompts, s01.answerKey, "t"));
   assert.doesNotThrow(() => validateSpec(base, s01.prompts, s01.answerKey, "t"));
+});
+
+// ---- 선택 칸 (choice). 04·05 는 회신·일정표 본문 대신 판단을 보기로 받아 코드가 채점 ----
+const s04 = getScenario("04")!;
+const s05 = getScenario("05")!;
+const ok04 = { damage_qty: 18, risk_transfer: "hamburg_on_board", claim_route: "oreum_insurance" };
+const basket04 = "Dear Mr. Weber, ... please send the packing list and B/L ... Best regards";
+const ok05 = { lh276_departure_kst: "t1810", expo_meeting_kst: "t2200", hausmann_call_kst: "t2100", payment_terms_status: "pending" };
+const basket05 = "일정표 ... 액션: 결제 조건 회신 확인 (무역팀)";
+
+test("GRD-08 선택 칸 공개 정의: 보기(id·label)만, 정답은 없음", () => {
+  for (const s of [s04, s05]) {
+    const pub = publicFields(s.submission!);
+    for (const f of pub.filter((x) => x.type === "choice")) assert.ok(Array.isArray(f.options) && f.options.length >= 2, f.id);
+    const txt = JSON.stringify(pub);
+    for (const banned of ["answer", "proves", "reject_area", "제출_칸_정답"]) assert.ok(!txt.includes(banned), `${s.id} ${banned}`);
+  }
+});
+
+test("GRD-09 04: 정답 승인, 24ea 는 수량 오류(T1 미발견), FOB 오해는 조건 오류(T2 미발견), 서류 요청 없으면 반려", () => {
+  const g = run(s04, ok04, basket04);
+  assert.equal(g.decision, "approve", JSON.stringify(g));
+  assert.deepEqual(g.trap_caught.map((t) => [t.id, t.caught]), [["T1", true], ["T2", true]]);
+
+  const qty = run(s04, { ...ok04, damage_qty: 24 }, basket04);
+  assert.equal(qty.decision, "reject");
+  assert.equal(qty.area, "수량 오류");
+  assert.deepEqual(qty.trap_caught.map((t) => [t.id, t.caught]), [["T1", false], ["T2", true]]);
+
+  // 오디 기본 초안(FOB 를 매도인 보험으로 오해)을 따른 경우. 두 칸 중 하나만 맞아도 T2 미발견
+  const fob = run(s04, { ...ok04, claim_route: "hausmann_insurance" }, basket04);
+  assert.equal(fob.area, "조건 오류");
+  assert.deepEqual(fob.trap_caught.map((t) => [t.id, t.caught]), [["T1", true], ["T2", false]]);
+  assert.equal(run(s04, { ...ok04, risk_transfer: "busan_discharge" }, basket04).trap_caught[1].caught, false);
+
+  const noDocs = run(s04, ok04, "Dear Mr. Weber, we are sorry. Best regards");
+  assert.equal(noDocs.decision, "reject");
+  assert.equal(noDocs.area, "서류 요청 없음");
+});
+
+test("GRD-10 05: 정답 승인, LH276 은 T1·전시장 미팅은 T2 만 가름, 보고 전화는 시차 칸이 맞을 때만 자기 영역", () => {
+  const g = run(s05, ok05, basket05);
+  assert.equal(g.decision, "approve", JSON.stringify(g));
+  assert.deepEqual(g.trap_caught.map((t) => [t.id, t.caught]), [["T1", true], ["T2", true]]);
+
+  // 오디 도구 기본값 그대로: LH276 16:10, 미팅 21:00, 보고 전화 20:00
+  const dflt = run(s05, { ...ok05, lh276_departure_kst: "t1610", expo_meeting_kst: "t2100", hausmann_call_kst: "t2000" }, basket05);
+  assert.equal(dflt.decision, "reject");
+  assert.deepEqual(dflt.trap_caught.map((t) => [t.id, t.caught]), [["T1", false], ["T2", false]]);
+  assert.ok(!dflt.wrong_areas.includes("보고 전화 오류"), "시차가 틀려서 생긴 보고 전화 오답은 따로 보고하지 않음");
+
+  // 시각기준(UTC)만 놓침: 서머타임은 반영해서 17:10
+  const t1 = run(s05, { ...ok05, lh276_departure_kst: "t1710" }, basket05);
+  assert.deepEqual([t1.area, t1.trap_caught[0].caught, t1.trap_caught[1].caught], ["항공편 오류", false, true]);
+
+  // 시차 칸은 다 맞는데 보고 전화만 틀림 (+1h 누락) → 보고 전화 오류
+  const call = run(s05, { ...ok05, hausmann_call_kst: "t2000" }, basket05);
+  assert.equal(call.area, "보고 전화 오류");
+
+  // 회의록: '검토하겠다'를 합의로 요약
+  assert.equal(run(s05, { ...ok05, payment_terms_status: "decided" }, basket05).area, "회의록 왜곡");
+  // 액션 담당 없음
+  assert.equal(run(s05, ok05, "일정표만 있음").area, "액션 담당 없음");
+});
+
+test("GRD-11 선택 칸 입력 해석: 보기 id 만 받음 (label·순번·숫자는 거부)", () => {
+  const spec = s05.submission!;
+  const ok = parseFields(spec, { ...ok05, lh276_departure_kst: " t1810 " });
+  assert.ok("values" in ok && ok.values.lh276_departure_kst === "t1810");
+  for (const bad of ["10/30 18:10", "2", 1810, "t9999"]) {
+    const r = parseFields(spec, { ...ok05, lh276_departure_kst: bad });
+    assert.ok("error" in r, String(bad));
+  }
+});
+
+test("GRD-12 잘못된 선택 칸 정의는 로드 때 throw (보기 부족·id 중복·정답이 보기에 없음·숫자 칸에 options)", () => {
+  const base = s05.submission!;
+  const f0 = base.fields[0];
+  const mk = (patch: object) => ({ ...base, fields: [{ ...f0, ...patch }, ...base.fields.slice(1)] });
+  const bad = [
+    mk({ options: [{ id: "t1810", label: "18:10" }] }),
+    mk({ options: [{ id: "t1810", label: "a" }, { id: "t1810", label: "b" }] }),
+    mk({ answer: { value: "t0000" } }),
+    mk({ type: "integer", answer: { value: 1810 } }), // 숫자 칸인데 options 가 남아 있음
+  ];
+  for (const spec of bad) assert.throws(() => validateSpec(spec as typeof base, s05.prompts, s05.answerKey, "test"));
 });

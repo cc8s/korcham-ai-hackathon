@@ -112,3 +112,46 @@ test("CSV 파서: 따옴표 안 쉼표", () => {
   const { rows } = parseCsv('a,b\n1,"x, y"\n');
   assert.deepEqual(rows, [{ a: "1", b: "x, y" }]);
 });
+
+// ---- 05 itinerary_kst: 함정은 도구 기본값 (작성일 시차 7h 고정 = T2, 시각기준 열 무시 = T1) ----
+const s05 = getScenario("05")!;
+const it05 = (flags: Record<string, boolean>) => {
+  const r = odiToolsFor(s05)!.run("itinerary_kst", flags);
+  assert.ok(!r.isError, r.content);
+  const o = JSON.parse(r.content);
+  return {
+    lh276: o.항공편.find((f: { 편명: string }) => f.편명 === "LH276").출발.한국 as string,
+    expo: o.일정.find((x: { 현지: string; 날짜: string }) => x.날짜 === "10/29" && x.현지 === "14:00").한국 as string,
+    call: o.보고_전화[0].한국 as string,
+    log: r.log,
+    raw: r.content,
+  };
+};
+
+test("TOOL-05 itinerary_kst 기본값은 두 함정 그대로 (LH276 16:10, 전시장 21:00), 결과에 함정 단어 없음", () => {
+  const d = it05({});
+  assert.deepEqual([d.lh276, d.expo, d.call], ["10/30 16:10", "10/29 21:00", "10/28 20:00"]);
+  assert.ok(!/UTC|CEST|CET|서머|시각기준/.test(d.raw), "기본 결과에 단서 단어가 있으면 오디가 먼저 짚음");
+});
+
+test("TOOL-06 itinerary_kst 옵션 둘 다 켜면 answer_key 정답 (18:10, 22:00, 보고 전화 21:00), 옵션 하나는 자기 함정만", () => {
+  const all = it05({ use_event_date_offset: true, use_time_basis_column: true });
+  assert.deepEqual([all.lh276, all.expo, all.call], ["10/30 18:10", "10/29 22:00", "10/28 21:00"]);
+  const key = s05.answerKey as { 제출_칸_정답: Record<string, string> };
+  assert.equal(key.제출_칸_정답.LH276_출발_한국시간, "t1810");
+  assert.equal(key.제출_칸_정답.전시장_14시_미팅_한국시간, "t2200");
+  // 서머타임만: 미팅은 맞고 LH276 은 현지로 봐서 17:10
+  const dst = it05({ use_event_date_offset: true });
+  assert.deepEqual([dst.lh276, dst.expo], ["10/30 17:10", "10/29 22:00"]);
+  // 시각기준만: LH276 은 UTC+9 라 서머타임과 무관하게 18:10, 미팅은 여전히 21:00
+  const basis = it05({ use_time_basis_column: true });
+  assert.deepEqual([basis.lh276, basis.expo], ["10/30 18:10", "10/29 21:00"]);
+  assert.equal(basis.log.differs_from_default, true);
+});
+
+test("TOOL-07 itinerary_kst mock: 막연한 '시차 확인해 줘'는 옵션을 켜지 않고, 서머타임·UTC 를 특정하면 켬", () => {
+  const tool = TOOL_REGISTRY.itinerary_kst;
+  assert.deepEqual(mockToolInput(tool, "시차 다시 확인해 줘"), { use_event_date_offset: false, use_time_basis_column: false });
+  assert.deepEqual(mockToolInput(tool, "서머타임 끝난 거 반영해서 다시"), { use_event_date_offset: true, use_time_basis_column: false });
+  assert.deepEqual(mockToolInput(tool, "항공편 시각기준 UTC 인 거 반영해 줘"), { use_event_date_offset: false, use_time_basis_column: true });
+});
