@@ -39,6 +39,7 @@ import { config, limits } from "../config.js";
 import { emit } from "../events.js";
 import { checkBudget, recordSpend, npcCallsForRun, trimTurns } from "../guard.js";
 import { odiToolsFor, mockToolInput, TOOL_REGISTRY, type OdiToolLog } from "../tools/index.js";
+import { maskPii, maskNotice } from "../pii.js";
 
 export const runRouter = Router();
 
@@ -121,13 +122,15 @@ runRouter.get("/run/:rid/data/*file", (req, res) => {
 runRouter.put("/run/:rid/basket", (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
-  const text = typeof req.body?.text === "string" ? req.body.text : "";
-  if (text.length > 20000) {
+  const raw = typeof req.body?.text === "string" ? req.body.text : "";
+  if (raw.length > 20000) {
     res.status(400).json({ error: "바구니 20,000자 초과" });
     return;
   }
+  // 결과물은 팀장 검토·평가 때 Claude 에 들어가므로 저장 전에 개인정보를 가린다 (src/pii.ts)
+  const { text, found } = maskPii(raw);
   updateRun(ctx.run.id, { basket_text: text });
-  res.json({ ok: true });
+  res.json({ ok: true, ...(found.length ? { masked: found, notice: maskNotice(found) } : {}) });
 });
 
 // POST /run/:rid/odi { message } → SSE 스트리밍. 호출 상한 적용
@@ -135,7 +138,8 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
   const { run, sc } = ctx;
-  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  // Claude 호출·저장 전에 개인정보를 가린다 (대회 규정). 가린 종류는 done 이벤트로 알려 줌
+  const { text: message, found: maskedOdi } = maskPii(typeof req.body?.message === "string" ? req.body.message.trim() : "");
   if (!message) {
     res.status(400).json({ error: "message 필요" });
     return;
@@ -248,6 +252,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
       odi_calls_limit: limits.odiCalls,
       truncated: out.stopReason === "max_tokens",
       usage: out.usage,
+      ...(maskedOdi.length ? { masked: maskedOdi, notice: maskNotice(maskedOdi) } : {}),
     });
   } catch (err) {
     if (!ac.signal.aborted) send("error", describeLlmError(err));
@@ -268,7 +273,8 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     return;
   }
   const hintRequest = req.body?.hint_request === true;
-  let message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  const npcMasked = maskPii(typeof req.body?.message === "string" ? req.body.message.trim() : "");
+  let message = npcMasked.text;
   if (hintRequest && npc !== "lee") {
     res.status(400).json({ error: "힌트는 이하늘에게만" });
     return;
@@ -323,7 +329,14 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
       ...(run.state === "assigned" ? { state: "working" as const } : {}),
     });
     emit({ type: "npc.call.end", run_id: run.id, npc_id: npc, text: text.split(/(?<=[.!?。])\s/)[0] });
-    res.json({ npc, name: persona.name, text, hint_level: updated.hint_level, hint_limit: limits.hints });
+    res.json({
+      npc,
+      name: persona.name,
+      text,
+      hint_level: updated.hint_level,
+      hint_limit: limits.hints,
+      ...(npcMasked.found.length ? { masked: npcMasked.found, notice: maskNotice(npcMasked.found) } : {}),
+    });
   } catch (err) {
     emit({ type: "npc.call.end", run_id: run.id, npc_id: npc });
     const e = describeLlmError(err);
@@ -383,7 +396,8 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
   const { run, sc, nickname } = ctx;
-  const memo = typeof req.body?.verify_memo === "string" ? req.body.verify_memo.trim() : "";
+  const memoMasked = maskPii(typeof req.body?.verify_memo === "string" ? req.body.verify_memo.trim() : "");
+  const memo = memoMasked.text;
   if (memo.length < 10) {
     res.status(400).json({ error: "검증 메모는 10자 이상 (무엇을 어떻게 확인했는지)" });
     return;
@@ -556,6 +570,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     state: updated.state,
     reject_count: updated.reject_count,
     closed: isClosed(updated),
+    ...(memoMasked.found.length ? { masked: memoMasked.found, notice: maskNotice(memoMasked.found) } : {}),
   });
 });
 

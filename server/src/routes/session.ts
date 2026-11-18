@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createSession, getSession, listRunsForSession, createRun } from "../db.js";
 import { loadScenarios, getScenario, publicScenarioSummary } from "../scenarios.js";
 import { emit } from "../events.js";
+import { maskPii } from "../pii.js";
 import { config } from "../config.js";
 import { checkBudget, clientIp, sessionsFromIpToday, runsFromIpToday, runsForSessionToday } from "../guard.js";
 
@@ -15,6 +16,11 @@ sessionRouter.post("/session", (req, res) => {
   const raw = typeof req.body?.nickname === "string" ? req.body.nickname.trim() : "";
   if (raw.length < 1 || raw.length > 20) {
     res.status(400).json({ error: "닉네임은 1~20자" });
+    return;
+  }
+  // 닉네임은 팀원 대사("○○ 씨")로 매번 Claude 에 들어간다. 연락처 같은 형식이 보이면 받지 않는다
+  if (maskPii(raw).found.length > 0) {
+    res.status(400).json({ error: "닉네임에 연락처 같은 개인정보는 넣지 말아 주세요. 별명을 써 주세요." });
     return;
   }
   if (!checkBudget(res)) return;

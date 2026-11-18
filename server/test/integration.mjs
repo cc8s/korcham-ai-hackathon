@@ -65,6 +65,24 @@ try {
   const msgs = (await api("GET", `/run/${rid}`)).json.messages;
   check("NPC-04 history split by agent", msgs.filter((m) => m.agent === "lee").length === 8 && msgs.filter((m) => m.agent === "park").length === 2);
 
+  // PII: 대회 규정 (외부 AI API 에 실제 개인정보 금지). 별도 run 에서 확인 (위 run 은 오디 상한 소진)
+  {
+    const PHONE = "010-9876-5432";
+    const rp = (await api("POST", "/scenario/02/start", { session_id: sid })).json.run_id;
+    const o = await api("POST", `/run/${rp}/odi`, { message: `결과는 ${PHONE} 로 문자 줘` });
+    const doneP = JSON.parse(o.text.split(/\r?\n/).find((l, i, arr) => arr[i - 1] === "event: done").replace(/^data: /, ""));
+    check("PII-05 odi: done 에 가린 종류", doneP.masked?.includes("전화번호") && typeof doneP.notice === "string", JSON.stringify(doneP));
+    const n = await api("POST", `/run/${rp}/npc/kang`, { message: "제 메일 me@company.co.kr 로 보내 주세요" });
+    check("PII-06 npc: 응답에 가린 종류", n.json?.masked?.includes("이메일"), JSON.stringify(n.json));
+    const bk = await api("PUT", `/run/${rp}/basket`, { text: `집계표 + 분개 (차) 부가세예수금. 담당 ${PHONE}` });
+    check("PII-07 basket: 응답에 가린 종류", bk.json?.masked?.includes("전화번호"));
+    const hist = (await api("GET", `/run/${rp}`)).json;
+    const all = JSON.stringify(hist);
+    check("PII-08 저장된 대화·결과물에 원래 번호·메일 없음, 가림 표시는 있음", !all.includes(PHONE) && !all.includes("me@company.co.kr") && all.includes("[전화번호]") && all.includes("[이메일]"));
+    const bad = await api("POST", "/session", { nickname: "hong@gmail.com" });
+    check("PII-09 닉네임에 개인정보 형식이면 400", bad.status === 400);
+  }
+
   // SUB-01: 빈 바구니 400
   check("SUB-01 empty basket 400", (await api("POST", `/run/${rid}/submit`, { verify_memo: "원본 행 수 확인했습니다" })).status === 400);
 
