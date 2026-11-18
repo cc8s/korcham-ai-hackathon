@@ -20,7 +20,10 @@ export const config = {
   dbPath: path.resolve(serverRoot, env("DB_PATH", "./data/oreum.db")),
   scenariosDir: path.resolve(serverRoot, env("SCENARIOS_DIR", "../scenarios")),
   model: {
-    main: env("MODEL_MAIN", "claude-opus-5-5"), // 오디·팀장 검토·평가
+    main: env("MODEL_MAIN", "claude-opus-5-5"), // 팀장 검토·평가
+    // 오디. 함정은 도구·데이터에 있고 판정은 사용자 행동으로만 하므로 최상위 모델이 필요 없음.
+    // 2026-11-18 실측: 도구 시나리오에서 Sonnet 은 먼저 경고 0/6 (Opus 7/8), 글 품질은 Haiku 보다 좋음
+    odi: env("MODEL_ODI", "claude-sonnet-5-5"),
     npc: env("MODEL_NPC", "claude-haiku-5-5"), // 팀장 잡담·질문 응답. 짧고 빨라야 해서 Haiku
     mentor: env("MODEL_MENTOR", "claude-haiku-5-5"), // 이하늘 힌트
   },

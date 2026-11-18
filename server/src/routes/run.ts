@@ -194,7 +194,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
     let out: { text: string; usage: Usage; stopReason: string | null };
     if (toolset) {
       const r = await chatStreamTools({
-        model: models.main,
+        model: models.odi,
         system,
         turns,
         tools: toolset.defs,
@@ -210,7 +210,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
         // 옵션 값은 보내지 않는다 (사용자에게 함정을 알려 주는 셈이라). "계산 중" 표시용 신호만
         onToolStart: () => send("tool", { phase: "start" }),
         // API 요청마다 지출 기록 (한 턴에 여러 번일 수 있음)
-        onUsage: (u) => recordSpend({ runId: run.id, kind: "odi", model: models.main, usage: u }),
+        onUsage: (u) => recordSpend({ runId: run.id, kind: "odi", model: models.odi, usage: u }),
         signal: ac.signal,
         mockInput: (name, text) => mockToolInput(TOOL_REGISTRY[name], text),
       });
@@ -218,7 +218,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
       requests = r.requests;
     } else {
       out = await chatStream({
-        model: models.main,
+        model: models.odi,
         system,
         turns,
         maxTokens: config.maxTokens.odi,
@@ -226,7 +226,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
         onText: (d) => filter.push(d),
         signal: ac.signal,
       });
-      recordSpend({ runId: run.id, kind: "odi", model: models.main, usage: out.usage });
+      recordSpend({ runId: run.id, kind: "odi", model: models.odi, usage: out.usage });
     }
     filter.end();
     // 성공한 호출만 차감. 실패는 차감 안 함 (04 문서 7절). 도구 루프 전체가 1회
