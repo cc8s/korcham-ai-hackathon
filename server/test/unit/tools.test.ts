@@ -5,6 +5,7 @@ import { getScenario, loadScenarios, readAttachment } from "../../src/scenarios.
 import { odiToolsFor, mockToolInput, TOOL_REGISTRY } from "../../src/tools/index.ts";
 import { aggregateSales } from "../../src/tools/sales.ts";
 import { vatSummary } from "../../src/tools/vat.ts";
+import { orderQuantity, unitMultiplier, type OrderInput } from "../../src/tools/order.ts";
 import { parseCsv } from "../../src/tools/csv.ts";
 import { constants } from "../../src/config.ts";
 
@@ -13,6 +14,13 @@ const s02 = getScenario("02")!;
 const sales = readAttachment(s01, "data/sales_2026_10.csv");
 const tx = readAttachment(s02, "data/transactions_2026_10.csv");
 const imp = readAttachment(s02, "data/import_declarations_2026_10.csv");
+const s03 = getScenario("03")!;
+const monthly = readAttachment(s03, "data/monthly_sales_2025_11_2026_10.csv");
+const inventory = readAttachment(s03, "data/inventory_2026_10_31.csv");
+const products = readAttachment(s03, "_shared/products.csv");
+const order = (input: Partial<OrderInput>) =>
+  orderQuantity(monthly, inventory, products, { use_last_year_same_month: false, include_pre_arrival_demand: false, convert_stock_units: false, ...input });
+const qtyOf = (r: ReturnType<typeof order>) => Object.fromEntries(r.SKU별.map((x) => [x.SKU, x.발주량]));
 const rates = { vatRate: Number(constants["부가세율"]), fx: constants["환율"] as Record<string, number> };
 
 test("TOOL-01 aggregate_sales 교정 옵션 둘 다 켜면 answer_key 와 정확히 일치", () => {
@@ -93,10 +101,11 @@ test("TOOL-05 odi_tools.json 이 있는 시나리오는 설정이 유효, 없는
       assert.equal(ts.run(d.name, {}).isError, false, `${s.id} ${d.name}`);
       // 도구 설명에 정답 숫자 같은 함정 정보가 없음
       assert.ok(!JSON.stringify(d).includes("580300000") && !JSON.stringify(d).includes("성실"), d.name);
+      // 03: 어느 SKU 가 문제인지(옷걸이·TH-003·box) 설명에 없음
+      assert.ok(!/TH-\d|VN-\d|옷걸이|box|12입/i.test(JSON.stringify(d)), d.name);
     }
   }
-  assert.ok(getScenario("01")!.odiTools && getScenario("02")!.odiTools);
-  assert.equal(getScenario("03")!.odiTools, undefined);
+  assert.ok(getScenario("01")!.odiTools && getScenario("02")!.odiTools && getScenario("03")!.odiTools);
 });
 
 test("TOOL-06 mock 옵션 규칙: 기본은 전부 false, 낱말에 따라 켬, 막연한 검증 요청은 안 켬", () => {
@@ -106,6 +115,100 @@ test("TOOL-06 mock 옵션 규칙: 기본은 전부 false, 낱말에 따라 켬, 
   assert.deepEqual(mockToolInput(t, "거래처명 정규화해서 다시"), { dedupe_order_ids: false, normalize_customer_names: true });
   assert.deepEqual(mockToolInput(t, "다시 확인해 줘"), { dedupe_order_ids: false, normalize_customer_names: false });
   assert.deepEqual(mockToolInput(t, "검증해 줘"), { dedupe_order_ids: false, normalize_customer_names: false });
+});
+
+type Key03 = {
+  정답: Record<string, { 발주량: number; 허용범위: [number, number]; 현재고: number; "예측수요_11~12월(입고전소진)": number; "예측수요_1~2월(커버)": number }>;
+  "오디_오답(최근3개월평균×2, 단위 미환산)": Record<string, number>;
+  함정_검산: Record<string, number>;
+};
+const key03 = s03.answerKey as Key03;
+const all3 = { use_last_year_same_month: true, include_pre_arrival_demand: true, convert_stock_units: true };
+
+test("TOOL-07 order_quantity 교정 옵션 셋 다 켜면 answer_key 정답과 정확히 일치 (허용범위 안)", () => {
+  const r = order(all3);
+  const ans = key03.정답;
+  assert.deepEqual(Object.keys(qtyOf(r)), Object.keys(ans));
+  for (const row of r.SKU별) {
+    const a = ans[row.SKU];
+    assert.equal(row.발주량, a.발주량, row.SKU);
+    assert.ok(row.발주량 >= a.허용범위[0] && row.발주량 <= a.허용범위[1], row.SKU);
+    assert.equal(row.현재고, a.현재고, row.SKU);
+    assert.equal(row.예측수요_입고전, a["예측수요_11~12월(입고전소진)"], row.SKU);
+    assert.equal(row.예측수요_커버, a["예측수요_1~2월(커버)"], row.SKU);
+  }
+  assert.equal(r.발주량_합계, Object.values(ans).reduce((n, a) => n + a.발주량, 0));
+  // 옵션을 켰을 때만 보이는 칸: 환산 전 재고, 시즌, 입고예정일 (TH 40일 → 12-26, VN 45일 → 12-31)
+  const th3 = r.SKU별.find((x) => x.SKU === "TH-003")!;
+  assert.equal(th3.재고_원본, "60 box(12입)");
+  assert.equal(th3.입고예정일, "2026-12-26");
+  assert.equal(r.SKU별.find((x) => x.SKU === "VN-001")!.입고예정일, "2026-12-31");
+  assert.ok(th3.시즌?.includes("이사철"));
+});
+
+test("TOOL-08 order_quantity 기본값은 README·answer_key 의 오디 오답 (시즌 무시 + 입고 전 소진 누락 + 단위 미환산)", () => {
+  const d = order({});
+  assert.deepEqual(qtyOf(d), key03["오디_오답(최근3개월평균×2, 단위 미환산)"]);
+  // 기본 결과에는 단위·시즌·입고일 정보 자체가 없음 (오디가 스스로 함정을 짚지 않게)
+  const text = JSON.stringify(d);
+  assert.ok(!/box|12입|이사철|여름|입고예정일|재고_원본|시즌/.test(text), text.slice(0, 200));
+  for (const row of d.SKU별) {
+    assert.ok(!(row.SKU in key03.정답) || !(row.발주량 >= key03.정답[row.SKU].허용범위[0] && row.발주량 <= key03.정답[row.SKU].허용범위[1]), `${row.SKU} 기본값이 범위 안`);
+  }
+  // 결정적
+  assert.deepEqual(order({}), d);
+});
+
+test("TOOL-09 order_quantity 옵션 하나씩: 자기 함정만 풀린다", () => {
+  const inRange = (sku: string, q: number) => q >= key03.정답[sku].허용범위[0] && q <= key03.정답[sku].허용범위[1];
+  const wrong = key03["오디_오답(최근3개월평균×2, 단위 미환산)"];
+
+  // T1 만: 단위만 환산하면 TH-003 외에는 기본값 그대로, TH-003 은 오디 방식 + 720ea → 0 (answer_key 함정_검산)
+  const u = qtyOf(order({ convert_stock_units: true }));
+  for (const [sku, q] of Object.entries(u)) if (sku !== "TH-003") assert.equal(q, wrong[sku], sku);
+  assert.equal(u["TH-003"], key03.함정_검산["T2_TH-003_단위는_고치고_오디방식"]);
+
+  // T2 만 (두 옵션 다): TH-003 외에는 정답, TH-003 은 단위 미환산 1,078 (answer_key 함정_검산)
+  const t2 = qtyOf(order({ use_last_year_same_month: true, include_pre_arrival_demand: true }));
+  for (const [sku, q] of Object.entries(t2)) if (sku !== "TH-003") assert.equal(q, key03.정답[sku].발주량, sku);
+  assert.equal(t2["TH-003"], key03.함정_검산["T1_TH-003_단위만_미환산(60을 ea로)"]);
+  assert.ok(!inRange("TH-003", t2["TH-003"]));
+
+  // T2 의 반쪽만: 전년 동월만이면 전부 범위 밖 (입고 전 소진 누락), 입고 전 소진만이면 비시즌 VN-004 만 범위 안
+  const season = qtyOf(order({ use_last_year_same_month: true, convert_stock_units: true }));
+  assert.deepEqual(Object.keys(season).filter((k) => inRange(k, season[k])), []);
+  const pre = qtyOf(order({ include_pre_arrival_demand: true, convert_stock_units: true }));
+  assert.deepEqual(Object.keys(pre).filter((k) => inRange(k, pre[k])), ["VN-004"]);
+
+  assert.equal(unitMultiplier("ea"), 1);
+  assert.equal(unitMultiplier("box(12입)"), 12);
+  assert.throws(() => unitMultiplier("pallet"));
+});
+
+test("TOOL-10 03 도구 묶음: 옵션 변화가 로그에 남고, mock 규칙은 특정한 말에만 옵션을 켬", () => {
+  const ts = odiToolsFor(s03)!;
+  assert.deepEqual(ts.defs.map((d) => d.name), ["order_quantity"]);
+  const def = ts.run("order_quantity", {});
+  assert.equal(def.isError, false);
+  assert.equal(def.log.differs_from_default, false);
+  assert.equal((def.log.summary as { 발주량_합계: number }).발주량_합계, Object.values(key03["오디_오답(최근3개월평균×2, 단위 미환산)"]).reduce((n, x) => n + x, 0));
+  const fix = ts.run("order_quantity", { convert_stock_units: true });
+  assert.deepEqual(fix.log.changed_flags, ["convert_stock_units"]);
+  assert.equal(fix.log.differs_from_default, true);
+  assert.equal(ts.run("order_quantity", { cover_months: 3 }).isError, true);
+
+  const t = TOOL_REGISTRY["order_quantity"];
+  const off = { use_last_year_same_month: false, include_pre_arrival_demand: false, convert_stock_units: false };
+  assert.deepEqual(mockToolInput(t, "SKU별 발주량 제안해 줘"), off);
+  assert.deepEqual(mockToolInput(t, "다시 확인해 줘"), off);
+  assert.deepEqual(mockToolInput(t, "검증해 줘"), off);
+  // 품명 "리빙박스" 의 박스, "12월 말 입고" 로는 안 켜짐
+  assert.deepEqual(mockToolInput(t, "리빙박스 대 발주량만 다시 알려 줘"), off);
+  assert.deepEqual(mockToolInput(t, "12월 말 입고분 발주량 표로 줘"), off);
+  assert.deepEqual(mockToolInput(t, "전년 동월 기준으로 다시"), { ...off, use_last_year_same_month: true });
+  assert.deepEqual(mockToolInput(t, "입고 전 소진분도 넣어서"), { ...off, include_pre_arrival_demand: true });
+  assert.deepEqual(mockToolInput(t, "재고 단위 환산해서 다시"), { ...off, convert_stock_units: true });
+  assert.deepEqual(mockToolInput(t, "box 는 12입이에요"), { ...off, convert_stock_units: true });
 });
 
 test("CSV 파서: 따옴표 안 쉼표", () => {

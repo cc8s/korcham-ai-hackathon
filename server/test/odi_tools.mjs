@@ -1,6 +1,7 @@
 // 통합 (LLM_MOCK=1): 오디 계산 도구. 도구 호출이 옵션과 함께 기록되고, SSE 는 그대로 delta…→done.
 // 실행: npm run test:odi-tools   (07 문서 TOOL-08~11)
 import Database from "better-sqlite3";
+import fs from "node:fs";
 import path from "node:path";
 import { startServer, makeChecker, testPort, serverDir } from "./_harness.mjs";
 
@@ -66,12 +67,29 @@ try {
   const v2 = lastOdiMeta(rid2).tool_calls?.[0];
   check("TOOL-11 02 declarations flag only", v2?.changed_flags.join(",") === "use_import_declarations" && v2.summary.매입세액_수입 === 3459242 && v2.differs_from_default === true, JSON.stringify(v2));
 
-  // 도구 없는 시나리오(03)는 예전 그대로: tool 이벤트 없음, tool_calls 없음, 지출 1행
+  // TOOL-13 03: order_quantity 기본값은 함정 숫자, 단위 환산만 요청하면 그 옵션만 켜짐
   const rid3 = (await api("POST", "/scenario/03/start", { session_id: sid })).json.run_id;
-  const r3 = await api("POST", `/run/${rid3}/odi`, { message: "발주량 제안해 줘" });
-  const ev3 = events(r3.text);
-  check("TOOL-12 non-tool scenario unchanged (delta… → done)", ev3.at(-1) === "done" && ev3.slice(0, -1).every((e) => e === "delta"), ev3.join(","));
-  check("TOOL-12 non-tool scenario meta has no tool_calls, 1 spend row", lastOdiMeta(rid3).tool_calls === undefined && spendRows(rid3) === 1);
+  await api("POST", `/run/${rid3}/odi`, { message: "SKU별 발주량 제안해 줘" });
+  const o1 = lastOdiMeta(rid3).tool_calls?.[0];
+  check("TOOL-13 03 default: order_quantity, trap numbers", o1?.name === "order_quantity" && o1.defaults_changed === false && o1.summary.발주량_합계 === 1373 && o1.summary.SKU별_발주량["TH-003"] === 278, JSON.stringify(o1));
+  await api("POST", `/run/${rid3}/odi`, { message: "재고 단위 환산해서 다시 해 줘" });
+  const o2 = lastOdiMeta(rid3).tool_calls?.[0];
+  check("TOOL-13 03 unit flag only", o2?.changed_flags.join(",") === "convert_stock_units" && o2.differs_from_default === true && o2.summary.SKU별_발주량["TH-003"] === 0, JSON.stringify(o2));
+
+  // 도구 없는 시나리오는 예전 그대로: tool 이벤트 없음, tool_calls 없음, 지출 1행
+  // 폴더에서 odi_tools.json 없는 첫 시나리오를 고른다 (모든 시나리오가 도구로 바뀌면 건너뜀)
+  const scDir = path.join(serverDir, "..", "scenarios");
+  const legacy = fs
+    .readdirSync(scDir)
+    .filter((d) => /^\d{2}_/.test(d) && !fs.existsSync(path.join(scDir, d, "odi_tools.json")))
+    .map((d) => d.slice(0, 2))[0];
+  if (legacy) {
+    const ridL = (await api("POST", `/scenario/${legacy}/start`, { session_id: sid })).json.run_id;
+    const rL = await api("POST", `/run/${ridL}/odi`, { message: "초안 만들어 줘" });
+    const evL = events(rL.text);
+    check(`TOOL-12 non-tool scenario ${legacy} unchanged (delta… → done)`, evL.at(-1) === "done" && evL.slice(0, -1).every((e) => e === "delta"), evL.join(","));
+    check(`TOOL-12 non-tool scenario ${legacy} meta has no tool_calls, 1 spend row`, lastOdiMeta(ridL).tool_calls === undefined && spendRows(ridL) === 1);
+  } else console.log("  (TOOL-12 건너뜀: odi_tools.json 없는 시나리오가 없음)");
 } catch (e) {
   console.error(e);
   fail();

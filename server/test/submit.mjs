@@ -1,6 +1,8 @@
 // 구조화 제출 + 코드 채점 + 정답 마스킹 (LLM_MOCK=1). 실행: npm run test:submit
 // 07 문서 SUB-08~13, MSK-04
-import { startServer, makeChecker, testPort } from "./_harness.mjs";
+import fs from "node:fs";
+import path from "node:path";
+import { startServer, makeChecker, testPort, serverDir } from "./_harness.mjs";
 
 const { check, finish, fail } = makeChecker();
 const ANSWERS_01 = ["580,300,000", "580300000", "9,480,000", "9480000"];
@@ -13,7 +15,7 @@ try {
   const sid = (await api("POST", "/session", { nickname: "제출" })).json.session_id;
   const start = async (id) => (await api("POST", `/scenario/${id}/start`, { session_id: sid })).json.run_id;
 
-  // SUB-08: GET run 에 칸 정의만, 정답·허용오차·함정 없음. 03 은 null
+  // SUB-08: GET run 에 칸 정의만, 정답·허용오차·함정 없음
   const rid = await start("01");
   const info = (await api("GET", `/run/${rid}`)).json;
   const fieldsJson = JSON.stringify(info.submission_fields);
@@ -86,14 +88,34 @@ try {
   check("SUB-13 02 odi import vat -> 수입 불일치", r02.json?.area === "수입 불일치" && r02.json?.wrong_areas?.length === 1, JSON.stringify(r02.json));
   check("SUB-13 02 trap T1 caught, T2 missed", s02.review.trap_caught.map((t) => t.caught).join() === "true,false", JSON.stringify(s02.review.trap_caught));
 
-  // SUB-14: 03 은 submission.json 없음 → 기존 LLM 검토 경로 (mock: "반려"/"12곳" 포함 시 반려), fields 무시
+  // SUB-14: submission.json 없는 시나리오 → 기존 LLM 검토 경로 (mock: "반려"/"12곳" 포함 시 반려), fields 무시
+  // 03 은 이제 구조화 제출이라 폴더에서 submission.json 없는 첫 시나리오를 고른다 (다른 시나리오도 바뀌면 건너뜀)
+  const legacy = fs
+    .readdirSync(path.join(serverDir, "..", "scenarios"))
+    .filter((d) => /^\d{2}_/.test(d) && !fs.existsSync(path.join(serverDir, "..", "scenarios", d, "submission.json")))
+    .map((d) => d.slice(0, 2))[0];
+  if (legacy) {
+    const ridL = await start(legacy);
+    const infoL = (await api("GET", `/run/${ridL}`)).json;
+    check(`SUB-14 ${legacy} has no fields`, infoL.submission_fields === null);
+    await api("PUT", `/run/${ridL}/basket`, { text: "결과물 초안" });
+    const rL = await api("POST", `/run/${ridL}/submit`, { verify_memo: "원본 파일과 한 줄씩 대조했습니다", fields: { anything: 1 } });
+    const sL = (await api("GET", `/run/${ridL}`)).json.submissions[0];
+    check(`SUB-14 ${legacy} old LLM path`, rL.json?.decision === "approve" && sL.review.graded_by === "llm" && sL.fields === null && rL.json?.wrong_areas === undefined, JSON.stringify(rL.json));
+  } else console.log("  (SUB-14 건너뜀: submission.json 없는 시나리오가 없음)");
+
+  // SUB-15: 03 구조화 제출. 발주량은 허용범위 안이면 정답, T2 만 풀고 단위를 놓치면 단위 오류 + T1 미발견
   const rid03 = await start("03");
   const info03 = (await api("GET", `/run/${rid03}`)).json;
-  check("SUB-14 03 has no fields", info03.submission_fields === null);
-  await api("PUT", `/run/${rid03}/basket`, { text: "발주 제안서: SKU별 발주량 표" });
-  const r03 = await api("POST", `/run/${rid03}/submit`, { verify_memo: "전년 동월 대비 확인했습니다", fields: { anything: 1 } });
-  const s03 = (await api("GET", `/run/${rid03}`)).json.submissions[0];
-  check("SUB-14 03 old LLM path", r03.json?.decision === "approve" && s03.review.graded_by === "llm" && s03.fields === null && r03.json?.wrong_areas === undefined, JSON.stringify(r03.json));
+  check("SUB-15 03 fields exposed without ranges", info03.submission_fields?.length === 11 && !/허용범위|range|proves|1319/.test(JSON.stringify(info03.submission_fields)), JSON.stringify(info03.submission_fields));
+  await api("PUT", `/run/${rid03}/basket`, { text: "SKU별 발주량 표. 근거: 전년 동월 × 1.1 + 입고 전 소진 + 안전재고 − 현재고" });
+  const ok03 = { order_vn_001: 125, order_vn_002: 97, order_vn_003: 68, order_vn_004: 409, order_vn_005: 43, order_th_001: 500, order_th_002: 682, order_th_003: 418, order_th_004: 466, order_th_005: 293, stock_total: 1319 };
+  const w03 = await api("POST", `/run/${rid03}/submit`, { verify_memo: "전년 동월 대비 확인했습니다", fields: { ...ok03, order_th_003: "1,078", stock_total: 659 } });
+  const sw03 = (await api("GET", `/run/${rid03}`)).json.submissions[0];
+  check("SUB-15 03 unit missed -> 단위 오류", w03.json?.decision === "reject" && w03.json?.area === "단위 오류" && w03.json?.wrong_areas?.length === 1, JSON.stringify(w03.json));
+  check("SUB-15 03 trap T1 missed, T2 caught", sw03.review.graded_by === "code" && sw03.review.trap_caught.map((t) => t.caught).join() === "false,true", JSON.stringify(sw03.review.trap_caught));
+  const a03 = await api("POST", `/run/${rid03}/submit`, { verify_memo: "재고 단위 환산, 전년 동월 기준", fields: { ...ok03, order_vn_001: 140 } });
+  check("SUB-15 03 within range -> approve", a03.json?.decision === "approve", JSON.stringify(a03.json));
 
   // MSK-05: NPC 대화 출력 마스킹. mock NPC 는 사용자 말을 따라 하므로 정답 숫자가 들어간 질문으로 확인
   const rid4 = await start("01");
