@@ -51,9 +51,9 @@ export const api = {
     const qs = q.toString();
     return req<{ file: string; text: string }>("GET", `/run/${rid}/data/${file}${qs ? "?" + qs : ""}`);
   },
-  putBasket: (rid: string, text: string) => req<{ ok: true }>("PUT", `/run/${rid}/basket`, { text }),
+  putBasket: (rid: string, text: string) => req<{ ok: true; notice?: string }>("PUT", `/run/${rid}/basket`, { text }),
   npc: (rid: string, npc: NpcId, message: string, hint_request = false) =>
-    req<{ npc: NpcId; name: string; text: string; hint_level: number; hint_limit: number }>("POST", `/run/${rid}/npc/${npc}`, {
+    req<{ npc: NpcId; name: string; text: string; hint_level: number; hint_limit: number; notice?: string }>("POST", `/run/${rid}/npc/${npc}`, {
       message,
       hint_request,
     }),
@@ -71,7 +71,7 @@ export async function odiStream(
   onDelta: (text: string) => void,
   signal?: AbortSignal,
   onTool?: () => void,
-): Promise<{ odi_calls_used: number; odi_calls_limit: number; truncated: boolean }> {
+): Promise<{ odi_calls_used: number; odi_calls_limit: number; truncated: boolean; notice?: string }> {
   const res = await fetch(`${API_BASE}/run/${rid}/odi`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -85,7 +85,7 @@ export async function odiStream(
   const reader = res.body!.getReader();
   const dec = new TextDecoder();
   let buf = "";
-  let done: { odi_calls_used: number; odi_calls_limit: number; truncated: boolean } | null = null;
+  let done: { odi_calls_used: number; odi_calls_limit: number; truncated: boolean; notice?: string } | null = null;
   for (;;) {
     const { value, done: end } = await reader.read();
     if (end) break;

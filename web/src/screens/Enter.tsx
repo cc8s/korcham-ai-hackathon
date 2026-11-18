@@ -45,11 +45,14 @@ export function Enter({ onEnter }: { onEnter: (s: { id: string; nickname: string
             autoFocus
           />
         </label>
+        {/^[가-힣]{2,3}$/.test(nick.trim()) && (
+          <p className="ws-fine">실명이라면 별명으로 바꿔 주세요. 닉네임은 팀원 대사로 AI 대화에 들어갑니다.</p>
+        )}
         {err && <p className="ws-notice flat">{err}</p>}
         <button className="ws-btn primary block lg" disabled={busy} onClick={go}>
           {busy ? "출입증 발급 중…" : "입사하기"}
         </button>
-        <p className="ws-fine">실명·연락처는 받지 않습니다. 입력한 닉네임은 세계관 안에서만 쓰입니다.</p>
+        <p className="ws-fine">실명·연락처는 받지 않습니다. 대화·메모에 전화번호·이메일 같은 개인정보를 쓰면 서버가 가려서 AI 에 보냅니다.</p>
       </div>
     </div>
   );

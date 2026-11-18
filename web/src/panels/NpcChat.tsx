@@ -42,6 +42,7 @@ export function NpcChat(props: {
         ],
         r.hint_level,
       );
+      if (r.notice) setErr(r.notice);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "응답이 없어요");
       if (!hint) setInput(text);

@@ -65,7 +65,9 @@ export function OdiPanel(props: {
         ],
         done.odi_calls_used,
       );
-      if (done.truncated) setErr("답이 길어서 잘렸어요. '이어서'라고 해 보세요.");
+      // 서버가 개인정보를 가려서 보냈으면 알려 준다 (대회 규정, server/src/pii.ts)
+      if (done.notice) setErr(done.notice);
+      else if (done.truncated) setErr("답이 길어서 잘렸어요. '이어서'라고 해 보세요.");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "오디가 응답하지 않아요");
       setInput(text);
