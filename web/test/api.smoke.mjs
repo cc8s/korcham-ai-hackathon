@@ -31,7 +31,11 @@ try {
 
   // WS
   const events = [];
-  const off = connectEvents(rid, (ev) => events.push(ev));
+  // 연결이 열린 뒤에 호출해야 이벤트를 놓치지 않음 (CI 에서 mock 오디가 연결보다 먼저 끝나 실패한 적 있음)
+  let off;
+  await new Promise((resolve) => {
+    off = connectEvents(rid, (ev) => events.push(ev), resolve);
+  });
 
   // S2 P4 데이터
   const d = await api.getData(rid, "data/sales_2026_10.csv");

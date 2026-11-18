@@ -108,11 +108,13 @@ export async function odiStream(
   return done;
 }
 
-export function connectEvents(rid: string, onEvent: (ev: PixelEvent) => void): () => void {
+// onOpen: 연결이 열릴 때마다 (재연결 포함). 테스트가 이벤트를 놓치지 않게 기다리는 데 씀
+export function connectEvents(rid: string, onEvent: (ev: PixelEvent) => void, onOpen?: () => void): () => void {
   let ws: WebSocket | null = null;
   let closed = false;
   const open = () => {
     ws = new WebSocket(`${WS_BASE}/ws/${rid}`);
+    ws.onopen = () => onOpen?.();
     ws.onmessage = (m) => {
       try {
         onEvent(JSON.parse(m.data));
