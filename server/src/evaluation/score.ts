@@ -17,12 +17,25 @@ const MEMO_RECALC = /중복|정규화|띄어쓰기|재계산|다시 계산|검�
 
 const HINT_COEF = [1, 0.8, 0.6, 0.4];
 const REJECT_COEF = 0.5;
+// 오디가 먼저 경고한 함정을 사용자가 확인해 잡은 경우 (샌드박스 원칙 3). 임시값, 사용자 결정 대기
+const AI_WARN_COEF = 0.7;
 
-export type TrapPath = "self" | "hint1" | "hint2" | "hint3" | "reject" | "none";
+export type TrapPath = "self" | "hint1" | "hint2" | "hint3" | "ai_warned" | "reject" | "none";
+
+export interface TrapScore {
+  id: string;
+  desc: string;
+  found: boolean;
+  path: TrapPath;
+  coef: number;
+  score: number;
+  // 오디가 경고했는데 끝내 못 잡음 (found=false 일 때만 true 로 붙음). 리포트·평가 코칭용
+  warned_ignored?: boolean;
+}
 
 export interface CodeScore {
   B: { data_viewed: number; active_explore: number; ask_back: number; memo_consistent: number; total: number };
-  C: { traps: { id: string; desc: string; found: boolean; path: TrapPath; coef: number; score: number }[]; total: number };
+  C: { traps: TrapScore[]; total: number };
   D: { approved: boolean; reject_count: number; format_ok: boolean; total: number };
   E_partial: { odi_calls: number; hints: number; odi_score: number; hint_score: number };
   // AI 최소 조건 (10 문서 7절 결정 1, 2026-11-18): 오디에게 결과를 고치게 해서 실제로 바뀐 적이 있는가.
@@ -72,12 +85,15 @@ export function scoreCode(ev: Evidence, sc: Scenario): CodeScore {
 
   // ---- C 25: 함정마다 12.5 × 발견 경로 계수 ----
   const per = 25 / sc.prompts.traps.length;
-  const traps = sc.prompts.traps.map((t) => {
+  const traps = sc.prompts.traps.map((t): TrapScore => {
     const cfg = sc.evalCfg.traps[t.id];
-    const caughtSub = ev.subs.find((s) => s.trapCaught[t.id]);
-    if (!caughtSub) return { id: t.id, desc: t.desc, found: false, path: "none" as TrapPath, coef: 0, score: 0 };
-    // 발견 시점 = 정답 제출, 교정 옵션으로 숫자가 바뀐 턴, 함정 키워드가 처음 나온 턴 중 가장 이른 것
     const kw = new RegExp(cfg.keywords);
+    const caughtSub = ev.subs.find((s) => s.trapCaught[t.id]);
+    const warnIdx = ev.odi.findIndex((turn) => turn.aiWarned.includes(t.id));
+    if (!caughtSub) {
+      return { id: t.id, desc: t.desc, found: false, path: "none", coef: 0, score: 0, ...(warnIdx >= 0 ? { warned_ignored: true } : {}) };
+    }
+    // 발견 시점 = 정답 제출, 교정 옵션으로 숫자가 바뀐 턴, 함정 키워드가 처음 나온 턴 중 가장 이른 것
     const candidates = [caughtSub.at];
     for (const turn of ev.odi) {
       if (kw.test(turn.text)) candidates.push(turn.at);
@@ -89,10 +105,25 @@ export function scoreCode(ev: Evidence, sc: Scenario): CodeScore {
     const at = Math.min(...candidates.filter((x) => x <= caughtSub.at));
     const hintsBefore = Math.min(3, ev.npc.filter((n) => n.hint && n.at < at).length);
     const rejectsBefore = ev.subs.filter((s) => s.decision === "reject" && s.at < at).length;
-    const hintCoef = HINT_COEF[hintsBefore];
-    const useReject = rejectsBefore > 0 && REJECT_COEF <= hintCoef;
-    const coef = useReject ? REJECT_COEF : hintCoef;
-    const path: TrapPath = useReject ? "reject" : hintsBefore === 0 ? "self" : (`hint${hintsBefore}` as TrapPath);
+    // 오디 경고가 발견 경로가 되려면: 사용자가 스스로 짚은 첫 턴(키워드 또는 교정 옵션)보다 앞선 턴의 경고이고,
+    // 발견 시점 이전이어야 한다. 사용자가 이미 짚은 뒤의 경고는 meta.ai_warned 에도 안 남지만 여기서 한 번 더 막는다
+    const firstOwnIdx = ev.odi.findIndex(
+      (turn) => kw.test(turn.text) || turn.toolCalls.some((c) => c.changed_flags.some((f) => cfg.tool_flags?.includes(f))),
+    );
+    const warned = warnIdx >= 0 && (firstOwnIdx < 0 || warnIdx < firstOwnIdx) && ev.odi[warnIdx].at <= at;
+    // 계수는 해당하는 경로(힌트·AI 경고·반려) 중 가장 낮은 것이고, 경로 이름도 그 계수를 낸 쪽.
+    // 같으면 반려 > AI 경고 > 힌트 순으로 이름을 붙인다 (예전 규칙: 반려 0.5 와 힌트가 같으면 반려)
+    // 예: 힌트 1(0.8) + 경고 → ai_warned 0.7, 힌트 2(0.6) + 경고 → hint2 0.6, 경고 + 반려 → reject 0.5
+    let coef = HINT_COEF[hintsBefore];
+    let path: TrapPath = hintsBefore === 0 ? "self" : (`hint${hintsBefore}` as TrapPath);
+    if (warned && AI_WARN_COEF <= coef) {
+      coef = AI_WARN_COEF;
+      path = "ai_warned";
+    }
+    if (rejectsBefore > 0 && REJECT_COEF <= coef) {
+      coef = REJECT_COEF;
+      path = "reject";
+    }
     return { id: t.id, desc: t.desc, found: true, path, coef, score: per * coef };
   });
 

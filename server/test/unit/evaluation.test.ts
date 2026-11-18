@@ -11,7 +11,7 @@ import { grade, expectedValue } from "../../src/grading.ts";
 import { odiToolsFor, type OdiToolLog } from "../../src/tools/index.ts";
 import type { Evidence } from "../../src/evaluation/evidence.ts";
 import { scoreCode, redundantScore } from "../../src/evaluation/score.ts";
-import { judgeMock, quoteOk, NONE } from "../../src/evaluation/judge.ts";
+import { judgeMock, quoteOk, logText, NONE } from "../../src/evaluation/judge.ts";
 import { buildReport, GRADE_CAP_NOTE } from "../../src/evaluation/report.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -91,7 +91,7 @@ function evidenceOf(c: { scenario: string; log: { odi: GOdi[]; npc: GNpc[]; data
       prev = now;
       toolCalls = [log];
     }
-    return { at: lastAt, text: t.user, reply: "", toolCalls };
+    return { at: lastAt, text: t.user, reply: "", toolCalls, aiWarned: [] as string[] };
   });
 
   let hintNo = 0;
@@ -212,4 +212,67 @@ test("EVL-12 평가 에이전트 실패 시 부분 리포트: A·B-LLM 0, 코드
   assert.equal(rep.axes.B_verification.llm.score, 0);
   assert.equal(rep.axes.C_traps.score, 25);
   assert.ok(!JSON.stringify(rep).includes("580300000") && !JSON.stringify(rep).includes("580,300,000"));
+});
+
+// ---- EVL-13~18: 오디가 먼저 경고한 함정 (발견 경로 ai_warned, 경고 무시) ----
+const s01 = getScenario("01")!;
+const oTurn = (at: number, text: string, aiWarned: string[] = []) => ({ at, text, reply: "", toolCalls: [] as OdiToolLog[], aiWarned });
+const hintAt = (at: number) => ({ at, to: "lee" as NpcId, text: "힌트 주세요", hint: true });
+const subAt = (at: number, caught: Record<string, boolean>, decision: "approve" | "reject" = "approve") => ({
+  at,
+  attempt: 1,
+  memo: "",
+  basket: "",
+  decision,
+  trapCaught: caught,
+  checks: null,
+});
+const evOf = (o: Partial<Evidence>): Evidence => ({ startedAt: 0, odi: [], npc: [], views: [], subs: [], odiCallsUsed: 0, hintLevel: 0, rejectCount: 0, ...o });
+const trapOf = (ev: Evidence, id: string) => scoreCode(ev, s01).C.traps.find((t) => t.id === id)!;
+const BOTH = { T1: true, T2: true };
+
+test("EVL-13 오디가 먼저 경고 → 사용자가 확인해 잡으면 경로 ai_warned, 계수 0.7", () => {
+  const ev = evOf({ odi: [oTurn(1, "거래처별 합계표 만들어 줘", ["T2"]), oTurn(2, "중복 빼고 띄어쓰기 정리해서 다시 해 줘")], subs: [subAt(3, BOTH)] });
+  const t2 = trapOf(ev, "T2");
+  assert.deepEqual([t2.path, t2.coef, t2.score, t2.warned_ignored], ["ai_warned", 0.7, 12.5 * 0.7, undefined]);
+  assert.equal(trapOf(ev, "T1").path, "self", "경고 안 받은 함정은 그대로 self");
+});
+
+test("EVL-14 경고했는데 못 잡은 함정은 warned_ignored, 평가 로그에 무시함으로 표시", () => {
+  const ev = evOf({ odi: [oTurn(1, "합계표 만들어 줘", ["T1"]), oTurn(2, "띄어쓰기 정리해서 다시")], subs: [subAt(3, { T1: false, T2: true })] });
+  const code = scoreCode(ev, s01);
+  const [t1, t2] = code.C.traps;
+  assert.deepEqual([t1.found, t1.path, t1.score, t1.warned_ignored], [false, "none", 0, true]);
+  assert.equal(t2.warned_ignored, undefined);
+  assert.ok(logText(ev, s01, code).includes("[오디가 먼저 경고한 함정] T1(무시함)"));
+  // 경고가 없으면 (없음)
+  assert.ok(logText(evOf({ subs: [subAt(3, BOTH)] }), s01, scoreCode(evOf({ subs: [subAt(3, BOTH)] }), s01)).includes("[오디가 먼저 경고한 함정] (없음)"));
+});
+
+test("EVL-15 사용자가 이미 짚은 뒤의 경고는 발견 경로로 치지 않음", () => {
+  const ev = evOf({ odi: [oTurn(1, "거래처명 띄어쓰기 정리해 줘"), oTurn(2, "다시 보여 줘", ["T2"])], subs: [subAt(3, BOTH)] });
+  assert.equal(trapOf(ev, "T2").path, "self");
+  assert.equal(trapOf(ev, "T2").coef, 1);
+});
+
+test("EVL-16 힌트 계수가 0.7 보다 낮으면 힌트 경로가 이김, 높으면 ai_warned", () => {
+  const odi = [oTurn(1, "합계표 만들어 줘", ["T2"]), oTurn(5, "띄어쓰기 정리해서 다시")];
+  const two = trapOf(evOf({ odi, npc: [hintAt(2), hintAt(3)], subs: [subAt(6, BOTH)], hintLevel: 2 }), "T2");
+  assert.deepEqual([two.path, two.coef], ["hint2", 0.6]);
+  const one = trapOf(evOf({ odi, npc: [hintAt(2)], subs: [subAt(6, BOTH)], hintLevel: 1 }), "T2");
+  assert.deepEqual([one.path, one.coef], ["ai_warned", 0.7]);
+});
+
+test("EVL-17 반려 뒤 발견은 경고가 있어도 reject (0.5 가 더 낮음)", () => {
+  const ev = evOf({
+    odi: [oTurn(1, "합계표 만들어 줘", ["T2"]), oTurn(5, "띄어쓰기 정리해서 다시")],
+    subs: [subAt(3, { T1: false, T2: false }, "reject"), subAt(6, BOTH)],
+    rejectCount: 1,
+  });
+  assert.deepEqual([trapOf(ev, "T2").path, trapOf(ev, "T2").coef], ["reject", 0.5]);
+});
+
+test("EVL-18 경고 없이 제출로만 잡은 경우는 예전과 같음 (self)", () => {
+  const ev = evOf({ odi: [oTurn(1, "합계표 만들어 줘")], subs: [subAt(3, BOTH)] });
+  assert.deepEqual(scoreCode(ev, s01).C.traps.map((t) => [t.path, t.coef, t.warned_ignored]), [["self", 1, undefined], ["self", 1, undefined]]);
 });

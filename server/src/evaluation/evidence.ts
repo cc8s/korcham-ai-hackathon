@@ -9,6 +9,7 @@ export interface EvOdiTurn {
   text: string; // 사용자 지시 원문
   reply: string; // 오디 답변
   toolCalls: OdiToolLog[]; // 이 답변을 만들며 부른 계산 도구 (도구 시나리오만)
+  aiWarned: string[]; // 이 답변에서 오디가 사용자보다 먼저 경고한 함정 id (meta.ai_warned, src/aiWarn.ts)
 }
 export interface EvNpcTurn {
   at: number;
@@ -67,8 +68,14 @@ export function collectEvidence(runId: string): { run: RunRow; ev: Evidence } {
     const m = odiMsgs[i];
     if (m.role !== "user") continue;
     const next = odiMsgs[i + 1]?.role === "assistant" ? odiMsgs[i + 1] : undefined;
-    const meta = parseJson<{ tool_calls?: OdiToolLog[] }>(next?.meta ?? null);
-    odi.push({ at: parseAt(m.created_at), text: m.content, reply: next?.content ?? "", toolCalls: meta?.tool_calls ?? [] });
+    const meta = parseJson<{ tool_calls?: OdiToolLog[]; ai_warned?: string[] }>(next?.meta ?? null);
+    odi.push({
+      at: parseAt(m.created_at),
+      text: m.content,
+      reply: next?.content ?? "",
+      toolCalls: meta?.tool_calls ?? [],
+      aiWarned: meta?.ai_warned ?? [],
+    });
   }
 
   // 팀원: 사용자 발화만. 제출 기록(meta.submission)은 대화가 아니므로 뺀다

@@ -70,7 +70,7 @@ function dropBadQuotes(j: Judge, ev: Evidence): Judge {
 // 이하늘(멘토)은 힌트 창구라 제외. 번호는 이 목록의 인덱스
 export const npcQuestions = (ev: Evidence) => ev.npc.filter((n) => n.to !== "lee");
 
-function logText(ev: Evidence, sc: Scenario, code: CodeScore): string {
+export function logText(ev: Evidence, sc: Scenario, code: CodeScore): string {
   const odi = ev.odi
     .map((t, i) => {
       const tools = t.toolCalls.length > 0 ? `\n  (계산 도구: ${t.toolCalls.map((c) => c.summary).join(" / ")})` : "";
@@ -83,6 +83,11 @@ function logText(ev: Evidence, sc: Scenario, code: CodeScore): string {
   const views = ev.views.map((v) => `${v.file}${v.sort ? " (정렬)" : ""}${v.search ? " (검색)" : ""}`).join(", ");
   const subs = ev.subs.map((s) => `- ${s.attempt}차: ${s.decision ?? "검토 실패"} / 메모: ${s.memo}`).join("\n");
   const last = ev.subs.at(-1);
+  // 오디가 사용자보다 먼저 경고한 함정. 잡았으면 확인함, 끝내 못 잡았으면 무시함
+  const warned = [...new Set(ev.odi.flatMap((t) => t.aiWarned))]
+    .sort()
+    .map((id) => `${id}(${code.C.traps.find((t) => t.id === id)?.found ? "확인함" : "무시함"})`)
+    .join(", ");
   return [
     `[오디 지시] (인용은 여기 "사용자:" 뒤 문장에서만)\n${odi || "(없음)"}`,
     `[팀원 대화] (redundant_npc 번호)\n${npc || "(없음)"}`,
@@ -90,6 +95,7 @@ function logText(ev: Evidence, sc: Scenario, code: CodeScore): string {
     `[제출 이력]\n${subs || "(없음)"}`,
     `[최종 제출물]\n${clip(last?.basket ?? "", 3000)}`,
     `[AI 결과를 고치게 한 기록] ${code.aiMinMet ? "있음" : "없음"}`,
+    `[오디가 먼저 경고한 함정] ${warned || "(없음)"}`,
   ].join("\n\n");
 }
 
