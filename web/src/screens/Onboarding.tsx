@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-// S1 온보딩: 3장, 30초
+// S1 온보딩: 2장. 사용법은 사무실에서 이하늘(사수)이 알려 준다 (2026-11-18 회의: 온보딩 글이 많아 피로)
 export function Onboarding({ nickname, onDone }: { nickname: string; onDone: () => void }) {
   const [i, setI] = useState(0);
   const slides = [
@@ -25,25 +25,6 @@ export function Onboarding({ nickname, onDone }: { nickname: string; onDone: () 
           <blockquote className="ws-callout">"AI가 만든 결과물의 검증 책임은 담당자에게 있다."</blockquote>
           <p>오디는 유능하지만 가끔 자신 있게 틀립니다. 팀장님은 오디가 아니라 {nickname} 씨를 봅니다.</p>
         </>
-      ),
-    },
-    {
-      title: "사용법",
-      body: (
-        <ul>
-          <li>
-            왼쪽 <b>팀원 목록</b>에서 이름을 누르면 대화. 팀장에게 질문, 이하늘 선배에게 힌트.
-          </li>
-          <li>
-            왼쪽 메뉴의 <b>오디</b>에서 일을 시키고, 쓸 만한 답은 <b>결과물로 담기</b>.
-          </li>
-          <li>
-            <b>첨부 데이터</b>에서 원본을 직접 봅니다. 다운로드는 없어요.
-          </li>
-          <li>
-            <b>제출하기</b>를 누르면 "무엇을 어떻게 확인했는지" 검증 메모를 씁니다.
-          </li>
-        </ul>
       ),
     },
   ];
