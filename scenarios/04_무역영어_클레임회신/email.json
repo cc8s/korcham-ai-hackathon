@@ -1,0 +1,12 @@
+{
+  "_설명": "결과물 제출 메일의 F축(보고 커뮤니케이션 10점) 채점 재료. server/src/email.ts 가 코드로 채점. 받는 사람=담당 팀장(2), 참조=cc_required 전원·그 밖의 사람 없음(2), 결과물 첨부(2), 제목에 subject 정규식(1), 본문 첫 3줄에 lead_fields 중 하나의 제출값(3). 2026-11-18 회의 결정. cc_why 는 도전 종료 후 리포트에만",
+  "cc_required": [
+    "lee"
+  ],
+  "cc_why": "사수 이하늘은 모든 보고에 참조. 클레임 회신은 무역팀(정우진) 담당 업무라 다른 팀 참조는 필요 없음",
+  "subject": "Hausmann|클레임|파손|회신",
+  "lead_fields": [
+    "damage_qty",
+    "claim_route"
+  ]
+}

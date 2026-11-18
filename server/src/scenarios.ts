@@ -3,6 +3,7 @@ import path from "node:path";
 import { config } from "./config.js";
 import { validateSpec, type SubmissionSpec } from "./grading.js";
 import { parseCsv } from "./tools/csv.js";
+import type { EmailConfig } from "./email.js";
 
 // scenarios/{NN}_{slug}/prompts.json 의 형태. scenarios/README.md 참고
 export interface ScenarioPrompts {
@@ -68,6 +69,7 @@ export interface Scenario {
   submission?: SubmissionSpec; // submission.json (선택). 있으면 구조화 제출 + 코드 채점
   odiTools?: OdiToolsConfig;
   evalCfg: EvalConfig;
+  email: EmailConfig; // email.json. 결과물 제출 메일의 F축 채점 재료
 }
 
 export type NpcId = "kang" | "park" | "jung" | "lee";
@@ -111,7 +113,15 @@ export function loadScenarios(): Map<string, Scenario> {
       const { label, explain } = evalCfg.traps[t.id];
       if (!label || !explain?.where || !explain?.how || !explain?.impact) throw new Error(`${e.name}/eval.json: 함정 ${t.id} 의 label·explain(where·how·impact) 없음`);
     }
-    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission, evalCfg, ...(odiTools ? { odiTools } : {}) });
+    const emailFile = path.join(dir, "email.json");
+    if (!fs.existsSync(emailFile)) throw new Error(`${e.name}: email.json 없음 (보고 메일 F축 채점 재료)`);
+    const email = JSON.parse(fs.readFileSync(emailFile, "utf8")) as EmailConfig;
+    new RegExp(email.subject);
+    for (const id of email.lead_fields) {
+      if (!submission?.fields.some((f) => f.id === id)) throw new Error(`${e.name}/email.json: lead_fields '${id}' 가 submission.json 에 없음`);
+    }
+    if (email.cc_required.includes(ownerNpcId)) throw new Error(`${e.name}/email.json: 담당 팀장은 참조가 아니라 받는 사람`);
+    cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission, evalCfg, email, ...(odiTools ? { odiTools } : {}) });
   }
   if (cache.size === 0) throw new Error(`시나리오 폴더가 비어 있음: ${config.scenariosDir}`);
   return cache;
