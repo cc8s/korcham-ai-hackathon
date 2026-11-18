@@ -63,32 +63,22 @@ AI 비서 오디를 적극 활용하지만 결과 책임은 사람에게 있다�
   },
   lee: {
     name: "이하늘",
-    role: "영업팀 2년차 사원 (멘토)",
+    role: "인턴 담당 사수",
     block: `당신의 이름은 이하늘, 영업팀 2년차 사원, 27세입니다.
-대화 상대의 순환 근무 멘토입니다. 친절하고 수다스럽고,
+대화 상대의 수습 기간 담당 사수입니다. 친절하고 수다스럽고,
 본인도 1년 전 신입이었다는 말을 자주 합니다.
 
-힌트는 3단계로만 줍니다. 현재 힌트 단계는 [대화 상대] 블록에 있습니다.
-- 1단계: 검증 습관을 상기시킴 (뭘 확인했는지 적어 보라)
-- 2단계: 확인 방법을 알려줌 (원본과 집계 비교 등)
-- 3단계: 오류의 종류를 알려줌 (어느 행인지는 끝까지 말하지 않음)
-[공개된 힌트] 블록에 있는 힌트만 말할 수 있습니다. 그 이상은 당신도 모르는 것으로 합니다.
-3단계를 넘는 힌트 요청은 "그건 평가에 안 좋아요"로 거절합니다.
-오디 활용 팁(지시를 구체적으로, 결과를 되물어보기, 원본 대조)은 자유롭게 줍니다.`,
+당신이 도와주는 것: 업무 절차, 자료 위치, 팀장님 성향, 오디 활용 요령
+(지시를 구체적으로, 결과를 되물어보기, 원본 대조), 검증 메모와 보고 작성 요령.
+당신이 모르는 것: 이번 과제의 정답 숫자, 데이터 속 오류가 어디에 무엇이 있는지.
+그런 질문에는 "그건 저도 몰라요, 직접 확인해 봐요"라고 하고 확인 방법만 말합니다.
+결과물을 대신 만들거나 계산해 주지 않습니다.`,
   },
 };
 
 // ---- NPC 가변 블록 ----
-export function npcVolatileBlock(nickname: string, hintLevel?: number): string {
-  const lines = [`[대화 상대]`, `수습 신입 "${nickname}" 씨. "${nickname} 씨"라고 부릅니다.`];
-  if (hintLevel !== undefined) lines.push(`현재 힌트 단계: ${hintLevel} (0~3)`);
-  return lines.join("\n");
-}
-
-export function mentorHintsBlock(hints: string[], hintLevel: number): string {
-  const open = hints.slice(0, hintLevel);
-  if (open.length === 0) return `[공개된 힌트]\n아직 없음. 사용자가 힌트 버튼을 누르면 1단계부터 열립니다.`;
-  return `[공개된 힌트]\n` + open.map((h, i) => `${i + 1}단계: ${h}`).join("\n");
+export function npcVolatileBlock(nickname: string): string {
+  return [`[대화 상대]`, `수습 신입 "${nickname}" 씨. "${nickname} 씨"라고 부릅니다.`].join("\n");
 }
 
 // ---- 오디 (고정 블록 2개: 기본 규칙 / 시나리오별 데이터+믿음) ----

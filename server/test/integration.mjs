@@ -52,18 +52,23 @@ try {
   check("ODI-01 16th call 429", r16.status === 429, `status=${r16.status}`);
   check("ODI-01 odi history has 30 messages", (await api("GET", `/run/${rid}`)).json.messages.filter((m) => m.agent === "odi").length === 30);
 
-  // NPC-02: 힌트 1·2·3 단계, 4회째 429. NPC-04: 이력 agent 별 분리
-  for (let lvl = 1; lvl <= 3; lvl++) {
-    const h = await api("POST", `/run/${rid}/npc/lee`, { hint_request: true });
-    check(`NPC-02 hint level ${lvl}`, h.status === 200 && h.json.hint_level === lvl, JSON.stringify(h.json));
-  }
-  const h4 = await api("POST", `/run/${rid}/npc/lee`, { hint_request: true });
-  check("NPC-02 4th hint 429", h4.status === 429, `status=${h4.status}`);
+  // MNT-05: 수습 흐름 (하늘 인사 → 담당 팀장 지시) + 추천 질문. 고정 대사는 LLM 호출 없음. NPC-04: 이력 agent 별 분리
+  const before = (await api("GET", `/run/${rid}`)).json;
+  check("MNT-05 GET run has flow + mentor_questions (답 없음)", before.flow && Array.isArray(before.mentor_questions) && before.mentor_questions.length > 0 && !JSON.stringify(before.mentor_questions).includes('"a"'));
+  const intro = await api("POST", `/run/${rid}/npc/lee/scripted`, { kind: "intro" });
+  check("MNT-05 intro ok", intro.status === 200 && intro.json.flow.met_mentor === true && intro.json.text.includes("박소연"), JSON.stringify(intro.json).slice(0, 200));
+  check("MNT-05 intro twice 409", (await api("POST", `/run/${rid}/npc/lee/scripted`, { kind: "intro" })).status === 409);
+  const brief = await api("POST", `/run/${rid}/npc/park/scripted`, { kind: "brief" });
+  check("MNT-05 brief ok", brief.status === 200 && brief.json.flow.briefed === true);
+  const faq = await api("POST", `/run/${rid}/npc/lee/scripted`, { kind: "faq", faq_id: "data_where" });
+  check("MNT-05 faq ok", faq.status === 200 && faq.json.question && faq.json.text.includes("sales_2026_10.csv"));
+  check("MNT-05 unknown faq 404", (await api("POST", `/run/${rid}/npc/lee/scripted`, { kind: "faq", faq_id: "nope" })).status === 404);
+  check("NPC-02 hint removed 410", (await api("POST", `/run/${rid}/npc/lee`, { hint_request: true })).status === 410);
   const chatLee = await api("POST", `/run/${rid}/npc/lee`, { message: "오디 팁 있어요?" });
-  check("NPC-02 free chat still ok after hint cap", chatLee.status === 200 && chatLee.json.hint_level === 3);
+  check("NPC-02 free chat with mentor ok", chatLee.status === 200);
   await api("POST", `/run/${rid}/npc/park`, { message: "마감 언제예요?" });
   const msgs = (await api("GET", `/run/${rid}`)).json.messages;
-  check("NPC-04 history split by agent", msgs.filter((m) => m.agent === "lee").length === 8 && msgs.filter((m) => m.agent === "park").length === 2);
+  check("NPC-04 history split by agent", msgs.filter((m) => m.agent === "lee").length === 5 && msgs.filter((m) => m.agent === "park").length === 3);
 
   // PII: 대회 규정 (외부 AI API 에 실제 개인정보 금지). 별도 run 에서 확인 (위 run 은 오디 상한 소진)
   {

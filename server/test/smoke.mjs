@@ -39,7 +39,9 @@ try {
   check("SUB-01 memo 9 chars 400", (await api("POST", `/run/${rid}/submit`, { verify_memo: "123456789" })).status === 400);
 
   check("NPC-01 unknown npc 404", (await api("POST", `/run/${rid}/npc/kim`, { message: "안녕하세요" })).status === 404);
-  check("NPC-02 hint to non-mentor 400", (await api("POST", `/run/${rid}/npc/park`, { hint_request: true })).status === 400);
+  check("NPC-02 hint removed 410", (await api("POST", `/run/${rid}/npc/lee`, { hint_request: true })).status === 410);
+  check("MNT-05 brief before mentor 409", (await api("POST", `/run/${rid}/npc/park/scripted`, { kind: "brief" })).status === 409);
+  check("MNT-05 brief from non-owner 400", (await api("POST", `/run/${rid}/npc/kang/scripted`, { kind: "brief" })).status === 400);
   check("NPC-01 empty message 400", (await api("POST", `/run/${rid}/npc/park`, { message: "" })).status === 400);
 
   // 더미 키 → 인증 실패. 오디는 SSE error 이벤트, NPC 는 500 JSON

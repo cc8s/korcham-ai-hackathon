@@ -93,7 +93,7 @@ export function npcCallsForRun(runId: string): number {
     db
       .prepare(
         `SELECT COUNT(*) AS n FROM message WHERE run_id = ? AND role = 'user' AND agent IN ('kang','park','jung','lee')
-         AND (meta IS NULL OR meta NOT LIKE '%"submission"%')`,
+         AND (meta IS NULL OR (meta NOT LIKE '%"submission"%' AND meta NOT LIKE '%"scripted"%'))`,
       )
       .get(runId) as { n: number }
   ).n;

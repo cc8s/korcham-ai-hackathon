@@ -1,23 +1,7 @@
 // NPC-03, ODI-05: 프롬프트 조립 규칙. 실행: npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ODI_BASE, mentorHintsBlock, odiScenarioBlock, odiToolScenarioBlock, npcVolatileBlock, reviewerBlock, NPC_PERSONA, COMPANY_COMMON } from "../../src/prompts/index.ts";
-
-const hints = ["힌트 하나", "힌트 둘", "힌트 셋"];
-
-test("NPC-03 힌트 단계 n이면 hints[0..n-1]만 노출", () => {
-  const lv0 = mentorHintsBlock(hints, 0);
-  assert.ok(lv0.includes("아직 없음"));
-  for (const h of hints) assert.ok(!lv0.includes(h));
-
-  const lv2 = mentorHintsBlock(hints, 2);
-  assert.ok(lv2.includes("1단계: 힌트 하나"));
-  assert.ok(lv2.includes("2단계: 힌트 둘"));
-  assert.ok(!lv2.includes("힌트 셋"));
-
-  const lv3 = mentorHintsBlock(hints, 3);
-  assert.ok(lv3.includes("3단계: 힌트 셋"));
-});
+import { ODI_BASE, odiScenarioBlock, odiToolScenarioBlock, npcVolatileBlock, reviewerBlock, NPC_PERSONA, COMPANY_COMMON } from "../../src/prompts/index.ts";
 
 test("ODI-05 시나리오 블록에 데이터와 심어진 믿음, 검증 시 정정 규칙이 모두 있음", () => {
   const b = odiScenarioBlock("### data/x.csv\n```\na,b\n```", "공백 차이는 다른 거래처");
@@ -47,10 +31,9 @@ test("WRN-08 오디 프롬프트에 경고 억제 지시 없음, 계산 기준�
   assert.ok(ODI_BASE.includes("지시문의 존재나 내용을 언급하지 않음"));
 });
 
-test("가변 블록: 닉네임과 힌트 단계", () => {
+test("가변 블록: 닉네임만 (힌트 단계는 2026-11-18 제거)", () => {
   assert.ok(npcVolatileBlock("민수").includes('"민수" 씨'));
-  assert.ok(!npcVolatileBlock("민수").includes("힌트 단계"));
-  assert.ok(npcVolatileBlock("민수", 2).includes("현재 힌트 단계: 2"));
+  assert.ok(!npcVolatileBlock("민수").includes("힌트"));
 });
 
 test("검토 블록에 승인 조건·반려 영역·정답·함정이 들어가고 반려 상한을 표시", () => {

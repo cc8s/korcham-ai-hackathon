@@ -25,7 +25,6 @@ import {
   COMPANY_COMMON,
   NPC_PERSONA,
   npcVolatileBlock,
-  mentorHintsBlock,
   ODI_BASE,
   odiScenarioBlock,
   odiToolScenarioBlock,
@@ -40,6 +39,7 @@ import { emit } from "../events.js";
 import { checkBudget, recordSpend, npcCallsForRun, trimTurns } from "../guard.js";
 import { odiToolsFor, mockToolInput, TOOL_REGISTRY, type OdiToolLog } from "../tools/index.js";
 import { maskPii, maskNotice } from "../pii.js";
+import { flowOf, mentorIntro, mentorAnswer, mentorQuestions, leaderBrief, mentorContextBlock } from "../mentor.js";
 
 export const runRouter = Router();
 
@@ -85,6 +85,9 @@ runRouter.get("/run/:rid", (req, res) => {
       closed: isClosed(run),
     },
     scenario: { id: sc.id, title: sc.prompts.title, owner_npc_id: sc.ownerNpcId },
+    // 수습 흐름 (이하늘 → 담당 팀장 지시 → 업무)와 이하늘 추천 질문 (답은 누른 뒤에만)
+    flow: flowOf(listMessages(run.id), sc.ownerNpcId),
+    mentor_questions: mentorQuestions(sc, nickname),
     // 구조화 제출 칸 (submission.json 있는 시나리오만). 정답·허용오차·함정은 빼고 보냄
     submission_fields: sc.submission ? publicFields(sc.submission) : null,
     task_card: { ...sc.prompts.task_card, body: sc.prompts.task_card.body.replaceAll("{nickname}", nickname) },
@@ -262,7 +265,54 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
   }
 });
 
-// POST /run/:rid/npc/:npc { message, hint_request? } → NPC 응답 (비스트리밍)
+// POST /run/:rid/npc/:npc/scripted { kind: "intro" | "brief" | "faq", faq_id? } → 고정 대사 (LLM 없음, 비용 0)
+// intro: 이하늘 첫 만남 / brief: 담당 팀장 업무 지시 / faq: 이하늘 추천 질문. 원문은 scenarios/_shared/mentor.json
+runRouter.post("/run/:rid/npc/:npc/scripted", (req, res) => {
+  const ctx = resolve(req, res);
+  if (!ctx) return;
+  const { run, sc, nickname } = ctx;
+  const npc = req.params.npc as NpcId;
+  const kind = req.body?.kind;
+  const flow = flowOf(listMessages(run.id), sc.ownerNpcId);
+  let question: string | null = null;
+  let text: string;
+  if (kind === "intro" && npc === "lee") {
+    if (flow.met_mentor) {
+      res.status(409).json({ error: "이미 인사했어요", flow });
+      return;
+    }
+    text = mentorIntro(sc, nickname);
+  } else if (kind === "brief" && npc === sc.ownerNpcId) {
+    if (!flow.met_mentor) {
+      res.status(409).json({ error: "먼저 이하늘 선배를 만나 보세요", flow });
+      return;
+    }
+    if (flow.briefed) {
+      res.status(409).json({ error: "이미 지시를 받았어요", flow });
+      return;
+    }
+    text = leaderBrief(sc, nickname);
+  } else if (kind === "faq" && npc === "lee") {
+    const ans = mentorAnswer(sc, nickname, String(req.body?.faq_id ?? ""));
+    if (!ans) {
+      res.status(404).json({ error: "없는 질문" });
+      return;
+    }
+    question = ans.q;
+    text = ans.a;
+  } else {
+    res.status(400).json({ error: "kind 는 intro(이하늘) / brief(담당 팀장) / faq(이하늘)" });
+    return;
+  }
+  const meta = { scripted: kind, ...(kind === "faq" ? { faq_id: String(req.body.faq_id) } : {}) };
+  if (question) addMessage(run.id, npc, "user", question, meta);
+  addMessage(run.id, npc, "assistant", text, meta);
+  emit({ type: "npc.call.end", run_id: run.id, npc_id: npc, text: text.split(/(?<=[.!?。])\s/)[0] });
+  res.json({ npc, text, question, flow: flowOf(listMessages(run.id), sc.ownerNpcId) });
+});
+
+// POST /run/:rid/npc/:npc { message } → NPC 응답 (비스트리밍)
+// 힌트 3단계는 2026-11-18 회의 결정으로 없앰. 이하늘은 함정을 모르는 사수로 답하고, 묻는 것은 감점하지 않는다
 runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
@@ -272,41 +322,29 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     res.status(404).json({ error: "NPC 없음" });
     return;
   }
-  const hintRequest = req.body?.hint_request === true;
+  if (req.body?.hint_request === true) {
+    res.status(410).json({ error: "힌트 기능은 없어졌어요. 이하늘 선배에게 직접 물어보세요." });
+    return;
+  }
   const npcMasked = maskPii(typeof req.body?.message === "string" ? req.body.message.trim() : "");
-  let message = npcMasked.text;
-  if (hintRequest && npc !== "lee") {
-    res.status(400).json({ error: "힌트는 이하늘에게만" });
-    return;
-  }
-  if (hintRequest && run.hint_level >= limits.hints) {
-    res.status(429).json({ error: `힌트 상한 ${limits.hints}회 소진`, hint_level: run.hint_level });
-    return;
-  }
-  if (!message && !hintRequest) {
+  const message = npcMasked.text;
+  if (!message) {
     res.status(400).json({ error: "message 필요" });
     return;
   }
-  if (hintRequest && !message) message = "힌트 좀 주세요.";
   if (npcCallsForRun(run.id) >= config.guard.npcCallsPerRun) {
     res.status(429).json({ error: "오늘은 팀원들이 바빠요. 지금까지 확인한 내용으로 마무리해 보세요.", code: "npc_calls" });
     return;
   }
   if (!checkBudget(res)) return;
 
-  // 힌트 요청이면 단계를 먼저 올리고, 그 단계까지의 힌트만 프롬프트에 공개
-  const hintLevel = hintRequest ? run.hint_level + 1 : run.hint_level;
   const persona = NPC_PERSONA[npc];
+  // 이하늘에게는 함정·정답이 든 scenario_context_for_npc 대신 과제 정보만 준다
   const system: SystemBlock[] = [
     { text: `${COMPANY_COMMON}\n\n${persona.block}`, cache: false },
-    { text: `[현재 시나리오]\n${sc.prompts.scenario_context_for_npc}`, cache: true },
+    { text: npc === "lee" ? mentorContextBlock(sc, nickname) : `[현재 시나리오]\n${sc.prompts.scenario_context_for_npc}`, cache: true },
+    { text: npcVolatileBlock(nickname), cache: false },
   ];
-  if (npc === "lee") {
-    system.push({ text: mentorHintsBlock(sc.prompts.hints, hintLevel), cache: false });
-    system.push({ text: npcVolatileBlock(nickname, hintLevel), cache: false });
-  } else {
-    system.push({ text: npcVolatileBlock(nickname), cache: false });
-  }
   const turns = trimTurns([...toTurns(run.id, npc), { role: "user" as const, content: message }], config.guard.npcHistoryChars);
   const model = npc === "lee" ? models.mentor : models.npc;
 
@@ -322,19 +360,14 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     recordSpend({ runId: run.id, kind: "npc", model, usage: out.usage });
     // 정답 숫자 마스킹. 저장도 가린 문장으로 해서 새로고침 복구·다음 턴 이력에도 안 남게
     const text = maskAnswers(out.text, sc.answerKey);
-    addMessage(run.id, npc, "user", message, hintRequest ? { hint_request: true, hint_level: hintLevel } : undefined);
+    addMessage(run.id, npc, "user", message);
     addMessage(run.id, npc, "assistant", text, { usage: out.usage, ...(text !== out.text ? { masked: true } : {}) });
-    const updated = updateRun(run.id, {
-      ...(hintRequest ? { hint_level: hintLevel } : {}),
-      ...(run.state === "assigned" ? { state: "working" as const } : {}),
-    });
+    if (run.state === "assigned") updateRun(run.id, { state: "working" });
     emit({ type: "npc.call.end", run_id: run.id, npc_id: npc, text: text.split(/(?<=[.!?。])\s/)[0] });
     res.json({
       npc,
       name: persona.name,
       text,
-      hint_level: updated.hint_level,
-      hint_limit: limits.hints,
       ...(npcMasked.found.length ? { masked: npcMasked.found, notice: maskNotice(npcMasked.found) } : {}),
     });
   } catch (err) {
