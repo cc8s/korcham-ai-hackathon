@@ -8,6 +8,7 @@ import { readAttachment, type Scenario } from "../scenarios.js";
 import { aggregateSalesTool } from "./sales.js";
 import { vatSummaryTool } from "./vat.js";
 import { orderQuantityTool } from "./order.js";
+import { itineraryKstTool } from "./itinerary.js";
 import type { AnyOdiTool, OdiToolLog } from "./types.js";
 
 export type { OdiToolLog } from "./types.js";
@@ -16,6 +17,7 @@ export const TOOL_REGISTRY: Record<string, AnyOdiTool> = {
   [aggregateSalesTool.name]: aggregateSalesTool,
   [vatSummaryTool.name]: vatSummaryTool,
   [orderQuantityTool.name]: orderQuantityTool,
+  [itineraryKstTool.name]: itineraryKstTool,
 };
 
 export interface OdiToolset {
@@ -93,6 +95,9 @@ export function mockToolInput(tool: AnyOdiTool, userText: string): Record<string
     use_last_year_same_month: /전년|작년|동월|시즌|계절|성수기/,
     include_pre_arrival_demand: /입고\s*전|입고되기\s*전|소진/,
     convert_stock_units: /단위|환산|낱개|입수|\d+\s*입(?!고)|box|(?<!리빙)박스/i,
+    // 05: "시차 확인해 줘" 처럼 막연한 말은 안 켠다. 서머타임·UTC·시각기준을 특정해야 켬
+    use_event_date_offset: /서머\s*타임|썸머\s*타임|DST|일광\s*절약|날짜별\s*시차/,
+    use_time_basis_column: /UTC|시각\s*기준/,
   };
   const defaults = tool.parse({});
   return Object.fromEntries(Object.keys(defaults).map((k) => [k, want[k]?.test(userText) ?? false]));

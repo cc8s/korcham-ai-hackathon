@@ -1,0 +1,91 @@
+{
+  "_설명": "구조화 제출 칸. 일정표·회의록 본문을 LLM 이 읽고 판정하지 않고, 함정이 갈리는 시각과 회의록 분류를 보기로 받아 코드가 정답과 대조한다. 강지훈은 판정을 받아 멘트만 쓴다. 시각 보기는 시간순이라 순서로 정답이 드러나지 않는다. 칸 정의는 scenarios/README.md 참고",
+  "fields": [
+    {
+      "id": "lh276_departure_kst",
+      "label": "10/30 LH276 출발 (한국시간)",
+      "type": "choice",
+      "unit": "",
+      "required": true,
+      "options": [
+        { "id": "t1610", "label": "10/30 16:10" },
+        { "id": "t1710", "label": "10/30 17:10" },
+        { "id": "t1810", "label": "10/30 18:10" },
+        { "id": "t1910", "label": "10/30 19:10" }
+      ],
+      "answer": { "path": "제출_칸_정답.LH276_출발_한국시간" },
+      "tolerance": 0,
+      "reject_area": "항공편 오류",
+      "proves": ["T1"],
+      "why": "T1 만 가른다. 이 행은 UTC 라 UTC+9 = 18:10 (서머타임과 무관 → T2 영향 없음). 시각기준을 놓치고 현지로 보면 -7h 고정 16:10, 서머타임 반영 17:10"
+    },
+    {
+      "id": "expo_meeting_kst",
+      "label": "10/29 전시장 14:00 미팅 (한국시간)",
+      "type": "choice",
+      "unit": "",
+      "required": true,
+      "options": [
+        { "id": "t2000", "label": "10/29 20:00" },
+        { "id": "t2100", "label": "10/29 21:00" },
+        { "id": "t2200", "label": "10/29 22:00" },
+        { "id": "t2300", "label": "10/29 23:00" }
+      ],
+      "answer": { "path": "제출_칸_정답.전시장_14시_미팅_한국시간" },
+      "tolerance": 0,
+      "reject_area": "시차 오류",
+      "proves": ["T2"],
+      "why": "T2 만 가른다. 서머타임 종료(10/25) 뒤라 CET+8 = 22:00. 작성일(10/23) 기준 -7h 고정이면 21:00. 항공편이 아니라 T1 영향 없음"
+    },
+    {
+      "id": "hausmann_call_kst",
+      "label": "10/28 Hausmann 회의 후 보고 전화 (한국시간)",
+      "type": "choice",
+      "unit": "",
+      "required": true,
+      "options": [
+        { "id": "t1900", "label": "10/28 19:00" },
+        { "id": "t2000", "label": "10/28 20:00" },
+        { "id": "t2100", "label": "10/28 21:00" },
+        { "id": "t2200", "label": "10/28 22:00" }
+      ],
+      "answer": { "path": "제출_칸_정답.Hausmann_보고전화_한국시간" },
+      "tolerance": 0,
+      "reject_area": "보고 전화 오류",
+      "proves": [],
+      "derived": true,
+      "why": "함정 아님. 회의 종료 12:00 + 1h = 13:00 CET = 21:00 KST. 시차(T2)에 따라 20:00/21:00 이 갈리므로 derived: 시차 칸이 맞는데 이 칸만 틀리면 '보고 전화 오류'(+1h 누락 등)"
+    },
+    {
+      "id": "payment_terms_status",
+      "label": "회의록: 결제 조건 T/T 45일 건의 분류",
+      "type": "choice",
+      "unit": "",
+      "required": true,
+      "options": [
+        { "id": "decided", "label": "결정 (합의됨)" },
+        { "id": "pending", "label": "보류 (상대 검토 후 회신)" },
+        { "id": "rejected", "label": "결렬 (거절됨)" }
+      ],
+      "answer": { "path": "제출_칸_정답.결제조건_45일_분류" },
+      "tolerance": 0,
+      "reject_area": "회의록 왜곡",
+      "proves": [],
+      "why": "함정 아님(루브릭). 녹취에서 Casa Lumi 는 '본사 재무 검토 후 11월 중 회신'이라고만 했다. '검토하겠다'를 합의로 요약하면 결정을 고른다"
+    }
+  ],
+  "text_checks": [
+    {
+      "id": "action_owner",
+      "label": "액션 항목 담당",
+      "target": "basket",
+      "pattern": "담당|무역팀|영업팀|물류팀|경영지원팀",
+      "reject_area": "액션 담당 없음",
+      "why": "approve_if '액션 항목 담당 지정'. 담당 팀을 적은 말이 있는지만 본다"
+    }
+  ],
+  "extra_reject_area": {
+    "보고 전화 오류": "보고 전화 시각 다시 보세요. 회의 끝나고 한 시간 뒤라고 했잖아요.",
+    "액션 담당 없음": "액션 항목에 누가 할지가 없어요. 담당 팀 붙여 주세요."
+  }
+}

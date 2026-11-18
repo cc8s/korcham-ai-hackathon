@@ -213,7 +213,7 @@ export function addSubmission(
   attempt: number,
   basketText: string,
   verifyMemo: string,
-  fields?: Record<string, number>,
+  fields?: Record<string, number | string>, // 숫자 칸은 number, 선택 칸은 보기 id
   grading?: unknown,
 ): number {
   const r = db

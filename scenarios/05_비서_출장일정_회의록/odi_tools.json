@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "name": "itinerary_kst",
+      "sources": {
+        "itinerary": "data/itinerary_raw.md",
+        "flights": "data/flights.csv"
+      }
+    }
+  ],
+  "include_raw_data": true
+}

@@ -58,7 +58,7 @@ export const api = {
       hint_request,
     }),
   // fields: 구조화 제출 칸 {id: 값}. 칸이 없는 시나리오는 생략
-  submit: (rid: string, verify_memo: string, fields?: Record<string, number>) =>
+  submit: (rid: string, verify_memo: string, fields?: Record<string, number | string>) =>
     req<SubmitResult>("POST", `/run/${rid}/submit`, fields ? { verify_memo, fields } : { verify_memo }),
   evaluate: (rid: string) => req<Report>("POST", `/run/${rid}/evaluate`),
 };

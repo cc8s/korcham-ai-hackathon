@@ -55,9 +55,10 @@ export interface Review {
 export interface SubmissionField {
   id: string;
   label: string;
-  type: "integer" | "number";
+  type: "integer" | "number" | "choice";
   unit: string;
   required: boolean;
+  options?: { id: string; label: string }[]; // choice 전용. 정답 표시는 서버가 보내지 않음
 }
 
 export interface RunInfo {
@@ -75,7 +76,7 @@ export interface RunInfo {
   submission_fields: SubmissionField[] | null;
   task_card: TaskCard;
   messages: Message[];
-  submissions: { attempt: number; verify_memo: string; fields: Record<string, number> | null; review: Review | null; at: string }[];
+  submissions: { attempt: number; verify_memo: string; fields: Record<string, number | string> | null; review: Review | null; at: string }[];
   evaluation: Report | null;
 }
 

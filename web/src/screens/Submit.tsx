@@ -3,7 +3,7 @@ import { api, ApiError } from "../api";
 import type { NpcId, SubmissionField, SubmitResult } from "../types";
 
 // 입력 중인 숫자를 천 단위 쉼표로. 숫자·소수점·앞쪽 - 만 남김 (붙여 넣은 "580,300,000원" 도 허용)
-function formatNumberInput(raw: string, type: SubmissionField["type"]): string {
+function formatNumberInput(raw: string, type: "integer" | "number"): string {
   const neg = raw.trim().startsWith("-") ? "-" : "";
   const cleaned = raw.replace(type === "integer" ? /[^\d]/g : /[^\d.]/g, "");
   const [int, ...rest] = cleaned.split(".");
@@ -42,7 +42,11 @@ export function SubmitScreen(props: {
       const last = r.submissions.at(-1)?.fields;
       if (r.submission_fields && last) {
         const init: Record<string, string> = {};
-        for (const f of r.submission_fields) if (last[f.id] !== undefined) init[f.id] = formatNumberInput(String(last[f.id]), f.type);
+        for (const f of r.submission_fields) {
+          if (last[f.id] === undefined) continue;
+          // 선택 칸은 보기 id 그대로, 숫자 칸은 쉼표 형식으로
+          init[f.id] = f.type === "choice" ? String(last[f.id]) : formatNumberInput(String(last[f.id]), f.type);
+        }
         setValues(init);
       }
     });
@@ -57,10 +61,22 @@ export function SubmitScreen(props: {
       setErr("결과물이 비어 있어요.");
       return;
     }
-    let parsed: Record<string, number> | undefined;
+    let parsed: Record<string, number | string> | undefined;
     if (fields) {
       parsed = {};
       for (const f of fields) {
+        if (f.type === "choice") {
+          const id = values[f.id];
+          if (!id) {
+            if (f.required) {
+              setErr(`${f.label}: 하나를 골라 주세요.`);
+              return;
+            }
+            continue;
+          }
+          parsed[f.id] = id;
+          continue;
+        }
         const n = parseNumberInput(values[f.id] ?? "");
         if (n === null) {
           if (f.required) {
@@ -102,10 +118,30 @@ export function SubmitScreen(props: {
           <div className="ws-stack">
             {fields && (
               <section className="ws-card">
-                <h3>보고 숫자 (필수)</h3>
-                <p className="ws-fine">결과물의 핵심 숫자를 칸에 옮겨 적어 주세요. 팀장님이 이 숫자부터 대조합니다.</p>
+                <h3>보고 항목 (필수)</h3>
+                <p className="ws-fine">결과물의 핵심 숫자와 판단을 칸에 옮겨 주세요. 팀장님이 이것부터 대조합니다.</p>
                 <div className="ws-stack">
-                  {fields.map((f) => (
+                  {fields.map((f) =>
+                    f.type === "choice" ? (
+                      <div key={f.id} className="ws-field" role="radiogroup" aria-label={f.label}>
+                        <span>{f.label}</span>
+                        <div className="ws-choices">
+                          {(f.options ?? []).map((o) => (
+                            <button
+                              key={o.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={values[f.id] === o.id}
+                              className={`ws-choice${values[f.id] === o.id ? " on" : ""}`}
+                              onClick={() => setValues((v) => ({ ...v, [f.id]: o.id }))}
+                              disabled={busy}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
                     <label key={f.id} className="ws-field">
                       <span>
                         {f.label} ({f.unit})
@@ -115,11 +151,12 @@ export function SubmitScreen(props: {
                         inputMode={f.type === "integer" ? "numeric" : "decimal"}
                         value={values[f.id] ?? ""}
                         placeholder="숫자만"
-                        onChange={(e) => setValues((v) => ({ ...v, [f.id]: formatNumberInput(e.target.value, f.type) }))}
+                        onChange={(e) => setValues((v) => ({ ...v, [f.id]: formatNumberInput(e.target.value, f.type === "number" ? "number" : "integer") }))}
                         disabled={busy}
                       />
                     </label>
-                  ))}
+                    ),
+                  )}
                 </div>
               </section>
             )}

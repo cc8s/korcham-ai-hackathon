@@ -1,0 +1,75 @@
+{
+  "_설명": "구조화 제출 칸. 회신 본문을 LLM 이 읽고 판정하면 오디가 쓴 문장을 사용자의 판단으로 쳐 주게 되므로, 회신의 핵심 판단(수량·위험 이전·청구 방향)을 칸으로 받아 코드가 정답과 대조한다. 정우진은 판정을 받아 멘트만 쓴다. 칸 정의는 scenarios/README.md 참고",
+  "fields": [
+    {
+      "id": "damage_qty",
+      "label": "회신에 적을 손상 수량",
+      "type": "integer",
+      "unit": "ea",
+      "required": true,
+      "answer": { "path": "제출_칸_정답.손상_수량" },
+      "tolerance": 0,
+      "reject_area": "수량 오류",
+      "proves": ["T1"],
+      "why": "T1 만 가른다. 1차 통지·수신 메일·내부 메모는 24, 검정보고서는 18. FOB·보험 판단(T2)과 무관"
+    },
+    {
+      "id": "risk_transfer",
+      "label": "물품 위험이 Hausmann 에서 오름으로 넘어온 시점",
+      "type": "choice",
+      "unit": "",
+      "required": true,
+      "options": [
+        { "id": "factory", "label": "Hausmann 공장에서 출고될 때" },
+        { "id": "hamburg_on_board", "label": "함부르크항에서 본선에 적재될 때" },
+        { "id": "busan_discharge", "label": "부산항에서 양하될 때" },
+        { "id": "oreum_warehouse", "label": "오름 창고에 입고될 때" }
+      ],
+      "answer": { "path": "제출_칸_정답.위험_이전_시점" },
+      "tolerance": 0,
+      "reject_area": "조건 오류",
+      "proves": ["T2"],
+      "why": "T2(FOB 보험 오해)의 절반. FOB 를 '도착지까지 매도인 책임'으로 오해하면 부산 양하·창고 입고를 고른다. 수량(T1)과 무관. 보기는 물류 순서대로라 순서로 정답이 드러나지 않음"
+    },
+    {
+      "id": "claim_route",
+      "label": "이번 손해를 어디에 청구하나",
+      "type": "choice",
+      "unit": "",
+      "required": true,
+      "options": [
+        { "id": "hausmann_pay", "label": "Hausmann 에 배상 요구" },
+        { "id": "hausmann_insurance", "label": "Hausmann 측 적하보험으로 처리 요청" },
+        { "id": "oreum_insurance", "label": "오름이 가입한 적하보험사에 청구" },
+        { "id": "carrier_only", "label": "선사·하역 터미널에만 청구" }
+      ],
+      "answer": { "path": "제출_칸_정답.청구_방향" },
+      "tolerance": 0,
+      "reject_area": "조건 오류",
+      "proves": ["T2"],
+      "why": "T2 의 나머지 절반. 오디의 기본 초안(매도인 보험·보상 요구)을 그대로 따르면 Hausmann 쪽 보기를 고른다. 위 칸과 둘 다 맞아야 T2 발견"
+    }
+  ],
+  "text_checks": [
+    {
+      "id": "english_email",
+      "label": "영문 메일 형식",
+      "target": "basket",
+      "pattern": "\\bDear\\b|\\bRegards\\b|\\bSincerely\\b|\\bBest\\b",
+      "reject_area": "영문 아님",
+      "why": "deliverable 이 영문 회신 메일. 인사·맺음말이 있는지만 본다 (영작 품질은 코드로 안 봄)"
+    },
+    {
+      "id": "document_request",
+      "label": "보험 청구 서류 요청",
+      "target": "basket",
+      "pattern": "packing ?list|B/?L|bill of lading|commercial invoice|invoice|loading photo|photo|carton",
+      "reject_area": "서류 요청 없음",
+      "why": "approve_if '서류 요청 포함'. 보험 청구에 필요한 서류를 요청하는 말이 있는지만 본다"
+    }
+  ],
+  "extra_reject_area": {
+    "영문 아님": "Hausmann 에 보낼 메일입니다. 영문으로 써 오세요.",
+    "서류 요청 없음": "보험 청구하려면 서류가 있어야 합니다. 상대에게 뭘 받을지 메일에 넣으세요."
+  }
+}
