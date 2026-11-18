@@ -39,13 +39,13 @@ npm run dev                  # :5173
 - 시나리오 첫 진입 시 담당 팀장 알림 "잠깐 봅시다." + 업무 카드 자동 오픈
 - 데이터 뷰어는 열람·첫 정렬·첫 검색을 서버에 기록 (평가 B축)
 - 오디 호출 0회가 되면 입력창 대신 "지금까지 결과로 제출하세요"
-- 리포트 화면은 서버가 501 이면 "다음 단계에서 열립니다" 표시
+- 리포트 화면은 평가가 실패해 코드 점수만 있으면 "부분 리포트" 표시 (다시 열면 재시도), 등급 상한이 걸리면 그 이유 표시
 
 ## 배포 (Vercel)
 
-- Root Directory `web`, Build `npm run build`, Output `dist`
-- 환경변수 `VITE_API_BASE=https://<railway 도메인>`
-- 서버 쪽 `CORS_ORIGIN` 에 Vercel 도메인 추가
+- Root Directory `web`, Framework Vite, Build `npm run build`, Output `dist`
+- 환경변수 `VITE_API_BASE=https://<railway 도메인>` (끝에 / 없이). 빌드 때 박히는 값이라 바꾸면 재배포
+- 서버 쪽 `CORS_ORIGIN` 에 Vercel 도메인 추가 (예 `https://xxx.vercel.app`, 쉼표로 여러 개)
 
 ## 도구 버전
 

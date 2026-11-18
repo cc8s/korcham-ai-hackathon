@@ -93,6 +93,10 @@ npm run dev              # tsx watch, :8787
 
 ## 배포 (Railway)
 
-- Node 20+. `npm run build` → `npm start`.
-- 환경변수: `ANTHROPIC_API_KEY`, `PORT`(Railway가 줌), 비용 방어 값(위 표, 기본값으로 충분하면 생략), `CORS_ORIGIN`(Vercel 도메인), `DB_PATH`(volume 경로, 예 `/data/oreum.db`), `SCENARIOS_DIR`(레포 루트 기준 `../scenarios`이므로 모노레포 루트에서 빌드하거나 scenarios를 함께 배포)
+- **레포 루트의 `Dockerfile` 로 빌드** (Railway 가 자동 인식). Root Directory 는 비워 둔다. `server` 로 두면 `scenarios/` 가 빌드에 안 들어간다.
+- 이미지: Node 20, `npm ci` → `tsc` → `node dist/index.js`. 시나리오는 `/app/scenarios` (기본 `SCENARIOS_DIR` 그대로 맞음).
+- **Volume**: 마운트 경로 `/data`, 환경변수 `DB_PATH=/data/oreum.db`. volume 이 없으면 재배포마다 플레이·지출 기록이 사라지고 하루 예산 집계도 초기화된다.
+- 환경변수: `ANTHROPIC_API_KEY`(필수), `DB_PATH`, `CORS_ORIGIN`(Vercel 도메인, 쉼표로 여러 개), 비용 방어 값(위 표, 기본값이면 생략). `PORT` 는 Railway 가 준다.
+- 배포 후: `/health` 가 `open: true` 와 시나리오 5개를 주는지, 그리고 위 "배포 후 확인"(`your_ip`, `TRUST_PROXY`).
+- 로컬 이미지 확인: `docker build -t oreum-server .` → `docker run -p 8899:8899 -e PORT=8899 -e LLM_MOCK=1 -e DB_PATH=/data/oreum.db oreum-server`
 - better-sqlite3는 12.x 고정 (13.x는 Node 22 이상만 지원, Node 20에서 세그폴트)
