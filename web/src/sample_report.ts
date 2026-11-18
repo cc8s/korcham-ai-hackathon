@@ -4,7 +4,7 @@ import type { Report } from "./types";
 export const SAMPLE_REPORT: Report = {
   run_id: "sample",
   scenario: { id: "01", title: "10월 거래처별 매출 집계표", cert: "컴퓨터활용능력" },
-  total: 78,
+  total: 82,
   grade: "A",
   summary: "검증 습관이 있어요. 지시를 처음부터 더 구체적으로 주면 호출을 반으로 줄일 수 있습니다.",
   axes: {
@@ -25,15 +25,28 @@ export const SAMPLE_REPORT: Report = {
       llm: { score: 6, quote: "중복 주문번호 있는지 확인해 줘." },
     },
     C_traps: {
-      score: 22.5,
+      score: 21.25,
       max: 25,
       traps: [
         { id: "T1", desc: "중복 주문 3건", found: true, path: "self", coef: 1.0, score: 12.5 },
-        { id: "T2", desc: "거래처명 표기 변형", found: true, path: "hint1", coef: 0.8, score: 10 },
+        { id: "T2", desc: "거래처명 표기 변형", found: true, path: "ai_warned", coef: 0.7, score: 8.75 },
       ],
     },
-    D_deliverable: { score: 16, max: 20, approved: true, reject_count: 1, format_ok: true },
-    E_efficiency: { score: 7, max: 10, odi_calls: 8, hints: 1, redundant_questions: 0 },
+    D_deliverable: { score: 13, max: 15, approved: true, reject_count: 1, format_ok: true },
+    E_efficiency: { score: 4, max: 5, odi_calls: 8, redundant_questions: 0 },
+    F_report: {
+      score: 9,
+      max: 10,
+      to: 2,
+      cc: 1,
+      attach: 2,
+      subject: 1,
+      lead: 3,
+      cc_missing: ["kang"],
+      cc_extra: [],
+      cc_why: "사수 이하늘은 모든 보고에 참조. 이 집계는 대표 보고용이고 대표 보고·매출 회계는 경영지원팀(강지훈) 업무라 참조",
+      sent: true,
+    },
   },
   highlights: {
     good: {
@@ -46,5 +59,5 @@ export const SAMPLE_REPORT: Report = {
     "첫 지시에 '무엇을, 어떤 형식으로, 왜'를 한 문장에 넣어 보세요.",
     "집계 결과를 받으면 행 수·그룹 수를 원본과 먼저 비교하는 습관을 들이세요.",
   ],
-  resources: { odi_calls: "8/15", hints: "1/3", rejects: "1/3", duration_min: 14 },
+  resources: { odi_calls: "8/15", mentor_questions: 3, rejects: "1/3", duration_min: 14 },
 };

@@ -1547,3 +1547,140 @@ body {
     animation: none;
   }
 }
+
+/* 보고 메일 작성 (제출 화면) */
+.ws-mail {
+  display: grid;
+  gap: 0;
+  align-content: start;
+}
+.ws-mail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+}
+.ws-mail-row > span {
+  flex: none;
+  width: 64px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ws-mail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0;
+}
+.ws-mail-chips em {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: 13px;
+}
+.ws-mail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 4px 0 4px;
+  border-radius: 99px;
+  background: #eef1f4;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ws-mail-chip button {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--text-3);
+}
+.ws-mail-chip button:hover {
+  background: #dde2e8;
+}
+.ws-mail-chip .ws-ico,
+.ws-mail-file .ws-ico {
+  width: 12px;
+  height: 12px;
+}
+.ws-mail-subject {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-size: 14px;
+  background: transparent;
+}
+.ws-mail-body {
+  width: 100%;
+  margin: 12px 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  background: transparent;
+}
+.ws-mail-attach {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--line);
+}
+.ws-mail-attach > span:first-child {
+  width: 64px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ws-mail-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-radius: var(--r-ctl);
+  box-shadow: 0 0 0 1px var(--line-strong) inset;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ws-mail-file button {
+  color: var(--accent);
+  font-weight: 600;
+}
+.ws-mail-file button[aria-label] {
+  color: var(--text-3);
+}
+.ws-mail .ws-btn.primary {
+  margin-top: 8px;
+}
+.ws-book {
+  display: grid;
+  gap: 8px;
+}
+.ws-book-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ws-book-name {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.ws-book-name small {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.ws-book-row .ws-choice {
+  flex: none;
+  padding: 4px 10px;
+  font-size: 12px;
+}

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
-import type { Explanation, Report } from "../types";
+import { NPC_INFO, type Explanation, type NpcId, type Report } from "../types";
 import { Icon } from "../ui/kit";
 
 const PATH_LABEL: Record<string, string> = {
   self: "스스로",
+  // hint1~3 은 2026-11-18 힌트 제거 전 리포트용
   hint1: "힌트 1단계 후",
   hint2: "힌트 2단계 후",
   hint3: "힌트 3단계 후",
@@ -64,7 +65,10 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
     { name: "C 오류 발견", score: a.C_traps.score, max: a.C_traps.max },
     { name: "D 결과물", score: a.D_deliverable.score, max: a.D_deliverable.max },
     { name: "E 자원 효율", score: a.E_efficiency.score, max: a.E_efficiency.max },
+    ...(a.F_report ? [{ name: "F 보고 메일", score: a.F_report.score, max: a.F_report.max }] : []),
   ];
+  const F = a.F_report;
+  const names = (ids: NpcId[]) => ids.map((id) => NPC_INFO[id].name).join(", ");
 
   return (
     <div className="ws ws-col">
@@ -160,6 +164,39 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
           )}
         </section>
 
+        {F && (
+          <section className="ws-card">
+            <h3>보고 메일</h3>
+            {!F.sent && <p className="ws-fine">이 도전은 메일 없이 제출된 기록이라 점수가 없어요.</p>}
+            {F.sent && (
+              <ul className="ws-checks">
+                {[
+                  { ok: F.to === 2, text: F.to === 2 ? "받는 사람: 지시한 팀장님" : F.to === 1 ? "받는 사람: 팀장님 외에 다른 사람도 받는 사람에 있어요" : "받는 사람에 지시한 팀장님이 없어요", s: `${F.to}/2` },
+                  {
+                    ok: F.cc === 2,
+                    text:
+                      F.cc === 2
+                        ? "참조: 필요한 사람만 정확히"
+                        : [F.cc_missing.length ? `참조에 빠진 사람: ${names(F.cc_missing)}` : "", F.cc_extra.length ? `필요 없는 참조: ${names(F.cc_extra)}` : ""].filter(Boolean).join(" · "),
+                    s: `${F.cc}/2`,
+                  },
+                  { ok: F.attach === 2, text: F.attach === 2 ? "결과물 첨부" : "결과물을 첨부하지 않았어요", s: `${F.attach}/2` },
+                  { ok: F.subject === 1, text: F.subject === 1 ? "제목만 봐도 무슨 건인지 보여요" : "제목에 업무 내용이 없어요", s: `${F.subject}/1` },
+                  { ok: F.lead === 3, text: F.lead === 3 ? "결론부터 (첫 줄에 핵심 숫자·판단)" : "본문 앞부분에 핵심 결과가 없어요. 결론부터 써 보세요", s: `${F.lead}/3` },
+                ].map((r) => (
+                  <li key={r.text}>
+                    <Icon name={r.ok ? "check" : "close"} />
+                    <span>
+                      {r.text} <em>{r.s}</em>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="ws-fine">참조 기준: {F.cc_why}</p>
+          </section>
+        )}
+
         <section className="ws-card">
           <h3>오디에게 한 지시</h3>
           <div className="ws-quote">
@@ -199,6 +236,7 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
 
         <div className="ws-chips">
           <span className="ws-tag">오디 {report.resources.odi_calls}</span>
+          {report.resources.mentor_questions !== undefined && <span className="ws-tag">하늘 선배 질문 {report.resources.mentor_questions}</span>}
           <span className="ws-tag">반려 {report.resources.rejects}</span>
           <span className="ws-tag">{report.resources.duration_min}분</span>
         </div>
