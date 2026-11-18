@@ -32,7 +32,7 @@ import {
   reviewerBlock,
   reviewCommentBlock,
 } from "../prompts/index.js";
-import { publicFields, parseFields, grade, areaLine, type Grading } from "../grading.js";
+import { publicFields, parseFields, grade, areaLine, displayValue, type FieldValue, type Grading } from "../grading.js";
 import { maskAnswers } from "../mask.js";
 import { chat, chatStream, chatStreamTools, structured, describeLlmError, models, type ChatTurn, type SystemBlock, type Usage } from "../llm.js";
 import { config, limits } from "../config.js";
@@ -391,7 +391,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     res.status(400).json({ error: "바구니가 비어 있음" });
     return;
   }
-  let values: Record<string, number> | undefined;
+  let values: Record<string, FieldValue> | undefined;
   if (sc.submission) {
     const parsed = parseFields(sc.submission, req.body?.fields);
     if ("error" in parsed) {
@@ -444,7 +444,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
       },
       { text: npcVolatileBlock(nickname), cache: false },
     ];
-    const fieldLines = spec.fields.map((f) => `- ${f.label}: ${f.id in vals ? vals[f.id].toLocaleString("ko-KR") + f.unit : "(빈칸)"}`);
+    const fieldLines = spec.fields.map((f) => `- ${f.label}: ${displayValue(f, vals[f.id])}`);
     const turns: ChatTurn[] = [
       {
         role: "user",
