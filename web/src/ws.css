@@ -1397,6 +1397,11 @@ body {
   margin-left: auto;
   font-style: normal;
 }
+.ws-trap-note {
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 600;
+}
 .ws-quote {
   margin-top: 10px;
   padding: 14px 16px;

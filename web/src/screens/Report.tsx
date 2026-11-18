@@ -8,6 +8,7 @@ const PATH_LABEL: Record<string, string> = {
   hint1: "힌트 1단계 후",
   hint2: "힌트 2단계 후",
   hint3: "힌트 3단계 후",
+  ai_warned: "AI 경고 후",
   reject: "반려 후",
   none: "미발견",
 };
@@ -113,6 +114,7 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
                   <em>{t.score}점</em>
                 </div>
                 {t.desc}
+                {t.warned_ignored && <span className="ws-trap-note">오디가 경고했지만 확인하지 않음</span>}
               </div>
             ))}
           </div>

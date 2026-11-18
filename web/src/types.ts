@@ -114,7 +114,7 @@ export interface Report {
       code: { data_viewed: number; active_explore: number; ask_back: number; memo_consistent: number };
       llm: { score: number; quote: string };
     };
-    C_traps: { score: number; max: number; traps: { id: string; desc: string; found: boolean; path: string; coef: number; score: number }[] };
+    C_traps: { score: number; max: number; traps: { id: string; desc: string; found: boolean; path: string; coef: number; score: number; warned_ignored?: boolean }[] };
     D_deliverable: { score: number; max: number; approved: boolean; reject_count: number; format_ok: boolean };
     E_efficiency: { score: number; max: number; odi_calls: number; hints: number; redundant_questions: number };
   };
