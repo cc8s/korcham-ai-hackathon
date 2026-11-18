@@ -19,12 +19,13 @@ for (const c of golden.cases) {
 
     const code = scoreCode(ev, sc);
     const redundant = judgeMock(ev).redundant_npc.length;
-    const E = code.E_partial.odi_score + code.E_partial.hint_score + redundantScore(redundant);
+    const E = code.E_partial.odi_score + redundantScore(redundant);
     const got = {
       B_code: code.B.total,
       C: code.C.total,
       D: code.D.total,
       E,
+      F: code.F.total,
       trap_paths: Object.fromEntries(code.C.traps.map((t) => [t.id, t.path])),
     };
     assert.deepEqual(got, c.expected.code, `${c.id} B=${JSON.stringify(code.B)}`);
@@ -90,7 +91,7 @@ test("EVL-12 평가 에이전트 실패 시 부분 리포트: A·B-LLM 0, 코드
 // ---- EVL-13~18: 오디가 먼저 경고한 함정 (발견 경로 ai_warned, 경고 무시) ----
 const s01 = getScenario("01")!;
 const oTurn = (at: number, text: string, aiWarned: string[] = []) => ({ at, text, reply: "", toolCalls: [] as OdiToolLog[], aiWarned });
-const hintAt = (at: number) => ({ at, to: "lee" as NpcId, text: "힌트 주세요", hint: true });
+const askLee = (at: number) => ({ at, to: "lee" as NpcId, text: "어디부터 보면 좋을까요?", hint: false });
 const subAt = (at: number, caught: Record<string, boolean>, decision: "approve" | "reject" = "approve") => ({
   at,
   attempt: 1,
@@ -99,6 +100,8 @@ const subAt = (at: number, caught: Record<string, boolean>, decision: "approve" 
   decision,
   trapCaught: caught,
   checks: null,
+  values: null,
+  email: null,
 });
 const evOf = (o: Partial<Evidence>): Evidence => ({ startedAt: 0, odi: [], npc: [], views: [], subs: [], odiCallsUsed: 0, hintLevel: 0, rejectCount: 0, ...o });
 const trapOf = (ev: Evidence, id: string) => scoreCode(ev, s01).C.traps.find((t) => t.id === id)!;
@@ -128,12 +131,14 @@ test("EVL-15 사용자가 이미 짚은 뒤의 경고는 발견 경로로 치지
   assert.equal(trapOf(ev, "T2").coef, 1);
 });
 
-test("EVL-16 힌트 계수가 0.7 보다 낮으면 힌트 경로가 이김, 높으면 ai_warned", () => {
+test("EVL-16 이하늘(사수)에게 물어도 발견 경로·점수 그대로 (힌트 제거, 감점 없음)", () => {
   const odi = [oTurn(1, "합계표 만들어 줘", ["T2"]), oTurn(5, "띄어쓰기 정리해서 다시")];
-  const two = trapOf(evOf({ odi, npc: [hintAt(2), hintAt(3)], subs: [subAt(6, BOTH)], hintLevel: 2 }), "T2");
-  assert.deepEqual([two.path, two.coef], ["hint2", 0.6]);
-  const one = trapOf(evOf({ odi, npc: [hintAt(2)], subs: [subAt(6, BOTH)], hintLevel: 1 }), "T2");
-  assert.deepEqual([one.path, one.coef], ["ai_warned", 0.7]);
+  const asked = trapOf(evOf({ odi, npc: [askLee(2), askLee(3)], subs: [subAt(6, BOTH)] }), "T2");
+  assert.deepEqual([asked.path, asked.coef], ["ai_warned", 0.7]);
+  const self = trapOf(evOf({ odi: [oTurn(5, "띄어쓰기 정리해서 다시")], npc: [askLee(2), askLee(3), askLee(4)], subs: [subAt(6, BOTH)] }), "T2");
+  assert.deepEqual([self.path, self.coef], ["self", 1]);
+  const e = (npc: ReturnType<typeof askLee>[]) => scoreCode(evOf({ npc, subs: [subAt(6, BOTH)] }), s01).E_partial.odi_score;
+  assert.equal(e([askLee(1), askLee(2), askLee(3), askLee(4)]), e([]));
 });
 
 test("EVL-17 반려 뒤 발견은 경고가 있어도 reject (0.5 가 더 낮음)", () => {

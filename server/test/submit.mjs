@@ -68,14 +68,35 @@ try {
   const sub2 = (await api("GET", `/run/${rid}`)).json.submissions[1];
   check("SUB-12 keywords only -> reject, traps not caught", r2.json?.decision === "reject" && sub2.review.trap_caught.every((t) => t.caught === false), JSON.stringify(sub2.review));
 
-  // SUB-13: 정답 칸 → 승인, T1·T2 발견
+  // EML-10: 메일 형식이 틀리면 400 (code=email), 제출 기록 안 남음
+  const badMail = await api("POST", `/run/${rid}/submit`, {
+    verify_memo: "주문번호 중복 3건 제거, 거래처명 공백 정리했습니다",
+    fields: { total_sales: "580,300,000", customer_count: 10, min_customer_sales: 9480000 },
+    email: { to: [], cc: [], subject: "", body: "짧음", attach_result: true },
+  });
+  check("EML-10 bad email 400", badMail.status === 400 && badMail.json?.code === "email", JSON.stringify(badMail.json));
+  check("EML-10 no submission row on bad email", (await api("GET", `/run/${rid}`)).json.submissions.length === 2);
+
+  // SUB-13: 정답 칸 → 승인, T1·T2 발견. 보고 메일 같이 (EML-10)
+  const mail = {
+    to: ["park"],
+    cc: ["lee", "kang"],
+    subject: "[보고] 10월 거래처별 매출 집계",
+    body: "박소연 팀장님, 김수습입니다.\n10월 총매출은 580,300,000원입니다.\n거래처별 표는 첨부를 봐 주세요. 연락처 010-1234-5678",
+    attach_result: true,
+  };
   const r3 = await api("POST", `/run/${rid}/submit`, {
     verify_memo: "주문번호 중복 3건 제거, 거래처명 공백 정리했습니다",
     fields: { total_sales: "580,300,000", customer_count: 10, min_customer_sales: 9480000 },
+    email: mail,
   });
   const sub3 = (await api("GET", `/run/${rid}`)).json.submissions[2];
   check("SUB-13 correct fields -> approve", r3.json?.decision === "approve" && r3.json?.state === "approved" && r3.json?.area === null, JSON.stringify(r3.json));
   check("SUB-13 both traps caught", sub3.review.trap_caught.every((t) => t.caught === true));
+  check("EML-10 email stored, PII masked", sub3.email?.subject === mail.subject && sub3.email?.cc.join() === "lee,kang" && !sub3.email.body.includes("010-1234-5678"), JSON.stringify(sub3.email));
+  const rep3 = await api("POST", `/run/${rid}/evaluate`);
+  const F = rep3.json?.axes?.F_report;
+  check("EML-10 report F axis 10/10", F?.score === 10 && F?.max === 10 && F?.sent === true && rep3.json.axes.D_deliverable.max === 15 && rep3.json.axes.E_efficiency.max === 5, JSON.stringify(F));
 
   // SUB-13: 02 수입 부가세를 오디 값으로 → 수입 불일치 (납부세액은 따라 틀린 것이라 안 보고), T2 미발견
   const rid02 = await start("02");

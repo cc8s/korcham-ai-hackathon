@@ -4,7 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getScenario, type Scenario, type NpcId } from "../src/scenarios.ts";
-import { grade, expectedValue } from "../src/grading.ts";
+import { grade, expectedValue, displayValue } from "../src/grading.ts";
+import type { Email } from "../src/email.ts";
 import { odiToolsFor, type OdiToolLog } from "../src/tools/index.ts";
 import type { Evidence } from "../src/evaluation/evidence.ts";
 
@@ -15,7 +16,9 @@ type Flags = Record<string, boolean>;
 interface GOdi { user: string; tool: Flags | null; changed: boolean; after?: string }
 interface GNpc { to: NpcId; user: string; hint?: boolean; after?: string }
 interface GView { file: string; sort: boolean; search: boolean; after?: string }
-interface GSub { fields: string | Record<string, string>; memo: string; result: "approve" | "reject"; basket?: string }
+// email: 생략 = "good" (지시한 팀장에게, 필요한 참조 전원, 결과물 첨부, 업무명 제목, 첫 줄에 결론), "none" = 메일 없이 제출(예전 API)
+type GEmail = "good" | "none" | { to?: NpcId[]; cc?: NpcId[]; subject?: string; body?: string; attach_result?: boolean; lead?: boolean };
+interface GSub { fields: string | Record<string, string>; memo: string; result: "approve" | "reject"; basket?: string; email?: GEmail }
 
 // 시점: (앞선 반려 수, 앞선 힌트 수, 종류) 를 숫자 하나로. after="reject1,hint2" 면 반려 1·힌트 2 다음
 const parseAfter = (after?: string) => ({
@@ -62,6 +65,26 @@ function fieldValues(sc: Scenario, spec: GSub["fields"]): Record<string, number>
   return Object.fromEntries(fields.map((f) => [f.id, pick(f.id, typeof spec === "string" ? spec : spec[f.id])]));
 }
 
+const NAME: Record<NpcId, string> = { kang: "강지훈", park: "박소연", jung: "정우진", lee: "이하늘" };
+
+// 골든셋 메일 → Email. 모범 메일을 기본으로 두고 사례가 지정한 부분만 바꾼다
+function emailOf(sc: Scenario, e: GEmail, values: Record<string, number | string>): Email | null {
+  if (e === "none") return null;
+  const o = e === "good" ? {} : e;
+  const leadField = sc.submission!.fields.find((f) => f.id === sc.email.lead_fields[0])!;
+  const leadLine = `결론부터 말씀드리면 ${leadField.label}은 ${displayValue(leadField, values[leadField.id])}입니다.`;
+  const body =
+    o.body ??
+    [`${NAME[sc.ownerNpcId]} 팀장님, 수습 김수습입니다.`, o.lead === false ? "요청하신 건 정리해서 보내 드립니다." : leadLine, "자세한 표는 첨부한 결과물을 봐 주세요.", "감사합니다."].join("\n");
+  return {
+    to: o.to ?? [sc.ownerNpcId],
+    cc: o.cc ?? sc.email.cc_required,
+    subject: o.subject ?? `[보고] ${sc.prompts.task_card.title}`,
+    body,
+    attach_result: o.attach_result ?? true,
+  };
+}
+
 export function evidenceOf(c: { scenario: string; log: { odi: GOdi[]; npc: GNpc[]; data_views: GView[]; submissions: GSub[] } }) {
   const sc = getScenario(c.scenario)!;
   const tools = odiToolsFor(sc)!;
@@ -105,6 +128,7 @@ export function evidenceOf(c: { scenario: string; log: { odi: GOdi[]; npc: GNpc[
 
   const subs = c.log.submissions.map((s, i) => {
     const values = fieldValues(sc, s.fields);
+    const email = emailOf(sc, s.email ?? "good", values);
     const basket = s.basket ? BASKETS[s.basket] : defaultBasket(sc);
     assert.ok(basket, `모르는 basket ${s.basket}`);
     const g = grade({ spec: sc.submission!, answerKey: sc.answerKey, traps: sc.prompts.traps, values, basket, memo: s.memo });
@@ -116,6 +140,8 @@ export function evidenceOf(c: { scenario: string; log: { odi: GOdi[]; npc: GNpc[
       decision: g.decision,
       trapCaught: Object.fromEntries(g.trap_caught.map((t) => [t.id, t.caught])),
       checks: g.checks,
+      values,
+      email,
       expectedResult: s.result,
     };
   });
