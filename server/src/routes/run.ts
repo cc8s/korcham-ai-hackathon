@@ -620,3 +620,28 @@ runRouter.post("/run/:rid/evaluate", async (req, res) => {
     evaluating.delete(run.id);
   }
 });
+
+// GET /run/:rid/explanation → '해설 보기'. 함정이 어디 있었고 어떻게 찾는지, 숫자 영향 (정답 포함).
+// 도전이 끝난 뒤(승인·평가 완료·반려 상한)에만 연다. 진행 중에 열리면 그 자체가 정답 공개라서
+runRouter.get("/run/:rid/explanation", (req, res) => {
+  const ctx = resolve(req, res);
+  if (!ctx) return;
+  const { run, sc } = ctx;
+  if (!isClosed(run)) {
+    res.status(409).json({ error: "해설은 도전이 끝난 뒤에 열 수 있어요", state: run.state });
+    return;
+  }
+  // 발견 여부: 마지막 검토 결과 기준 (한 번이라도 잡았으면 발견)
+  const caught = new Set<string>();
+  for (const s of listSubmissions(run.id)) {
+    const review = s.review_json ? (JSON.parse(s.review_json) as { trap_caught?: { id: string; caught: boolean }[] }) : null;
+    for (const t of review?.trap_caught ?? []) if (t.caught) caught.add(t.id);
+  }
+  res.json({
+    scenario: { id: sc.id, title: sc.prompts.title },
+    traps: sc.prompts.traps.map((t) => {
+      const cfg = sc.evalCfg.traps[t.id];
+      return { id: t.id, label: cfg.label, found: caught.has(t.id), ...cfg.explain };
+    }),
+  });
+});

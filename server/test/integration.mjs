@@ -115,6 +115,14 @@ try {
   const ev2 = await api("POST", `/run/${rid}/evaluate`);
   check("EVL-07 second call returns saved report", ev2.status === 200 && JSON.stringify(ev2.json) === JSON.stringify(rep));
   check("EVL-08 run state evaluated", (await api("GET", `/run/${rid}`)).json.run.state === "evaluated");
+  // 리포트 함정 카드는 범주만 (정답이 든 desc 는 해설에서만)
+  check("EXP-01 report trap shows label only", rep.axes.C_traps.traps.map((t) => t.desc).join() === "중복 주문,거래처명 표기", JSON.stringify(rep.axes.C_traps.traps));
+  const ex = await api("GET", `/run/${rid}/explanation`);
+  check(
+    "EXP-02 explanation after close: where/how/impact + found from reviews",
+    ex.status === 200 && ex.json.traps.length === 2 && ex.json.traps.every((t) => t.where && t.how && t.impact) && ex.json.traps[0].found === true && ex.json.traps[1].found === false,
+    JSON.stringify(ex.json)?.slice(0, 300),
+  );
   check("SUB-02 submit after evaluated 409", (await api("POST", `/run/${rid}/submit`, { verify_memo: "확인 메모 5차 입니다", fields: wrong })).status === 409);
 
   // SUB-04: 검토 JSON 저장 형태
@@ -123,6 +131,7 @@ try {
 
   // 승인 경로: 새 run
   const rid2 = (await api("POST", "/scenario/01/start", { session_id: sid })).json.run_id;
+  check("EXP-03 explanation before close 409 (진행 중엔 정답 비공개)", (await api("GET", `/run/${rid2}/explanation`)).status === 409);
   await api("PUT", `/run/${rid2}/basket`, { text: "거래처 10곳 합계표. 중복 3건 제거, 비중 차트" });
   const ok = await api("POST", `/run/${rid2}/submit`, {
     verify_memo: "원본 대조하고 중복 제거했습니다",

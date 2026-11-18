@@ -91,7 +91,7 @@ export function scoreCode(ev: Evidence, sc: Scenario): CodeScore {
     const caughtSub = ev.subs.find((s) => s.trapCaught[t.id]);
     const warnIdx = ev.odi.findIndex((turn) => turn.aiWarned.includes(t.id));
     if (!caughtSub) {
-      return { id: t.id, desc: t.desc, found: false, path: "none", coef: 0, score: 0, ...(warnIdx >= 0 ? { warned_ignored: true } : {}) };
+      return { id: t.id, desc: sc.evalCfg.traps[t.id].label, found: false, path: "none", coef: 0, score: 0, ...(warnIdx >= 0 ? { warned_ignored: true } : {}) };
     }
     // 발견 시점 = 정답 제출, 교정 옵션으로 숫자가 바뀐 턴, 함정 키워드가 처음 나온 턴 중 가장 이른 것
     const candidates = [caughtSub.at];
@@ -124,7 +124,7 @@ export function scoreCode(ev: Evidence, sc: Scenario): CodeScore {
       coef = REJECT_COEF;
       path = "reject";
     }
-    return { id: t.id, desc: t.desc, found: true, path, coef, score: per * coef };
+    return { id: t.id, desc: sc.evalCfg.traps[t.id].label, found: true, path, coef, score: per * coef };
   });
 
   // ---- D 20 ----
