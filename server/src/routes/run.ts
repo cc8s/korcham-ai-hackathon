@@ -457,7 +457,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     let fallback = false;
     try {
       const out = await structured({
-        model: models.main,
+        model: models.review,
         system,
         turns,
         schema: CommentSchema,
@@ -465,7 +465,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
         effort: "medium",
         mock: () => ({ message: commentFallback(wrongAreas.map((w) => w.line), memo) }),
       });
-      recordSpend({ runId: run.id, kind: "review", model: models.main, usage: out.usage });
+      recordSpend({ runId: run.id, kind: "review", model: models.review, usage: out.usage });
       message = out.parsed.message;
       usage = out.usage;
     } catch {
@@ -516,7 +516,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
     ];
     try {
       const { parsed: review, usage } = await structured({
-        model: models.main,
+        model: models.review,
         system,
         turns,
         schema: ReviewSchema,
@@ -524,7 +524,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
         effort: "high",
         mock: reviewMock,
       });
-      recordSpend({ runId: run.id, kind: "review", model: models.main, usage });
+      recordSpend({ runId: run.id, kind: "review", model: models.review, usage });
       outcome = { review: { ...review, message: maskAnswers(review.message, sc.answerKey), graded_by: "llm", usage } };
     } catch (err) {
       updateRun(run.id, { state: run.state }); // reviewing 해제. 제출 기록은 남음
