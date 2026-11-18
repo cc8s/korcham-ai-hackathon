@@ -1106,6 +1106,32 @@ body {
   font-size: 13px;
   font-weight: 600;
 }
+/* 구조화 제출의 선택 칸. 보기를 버튼으로 나열, 고른 것만 강조색 */
+.ws-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ws-choice {
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.ws-choice:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.ws-choice.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
 .ws-input,
 .ws-textarea {
   display: block;
