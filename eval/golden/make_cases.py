@@ -92,9 +92,9 @@ cases.append({"id": "G01-05", "scenario": "01", "behavior": "오디 1회만, 수
     "data_views": [{"file": CSV01, "sort": True, "search": True}],
     "submissions": [sub("correct", "원본을 주문번호로 정렬해 중복 3건을 지우고, 거래처명을 직접 정리해 피벗으로 다시 합계를 냈습니다.", "approve", "user_written_with_share")]},
   "expected": {"code": {"B_code": 11, "C": 25, "D": 20, "E": 10, "trap_paths": {"T1": "self", "T2": "self"}},
-    "llm": {"A": A([2, 3], [0, 1], [0, 1], [0, 1]), "B_llm": [3, 7]}, "total": [71, 79], "grade": ["B"],
+    "llm": {"A": A([2, 3], [0, 1], [0, 1], [0, 1]), "B_llm": [0, 2]}, "total": [68, 74], "grade": ["B"],
     "must_mention_any": ["오디", "맡기", "역할"], "must_not_contain": NL01,
-    "note": "루브릭 긴장 확인용. 점수는 A 구간이지만 AI 결과를 고치게 한 기록이 없어 등급 상한 B (10 문서 7절 결정 1, 2026-11-18)"}})
+    "note": "루브릭 긴장 확인용. AI 결과를 고치게 한 기록이 없어 등급 상한 B (10 문서 7절 결정 1). B-LLM 은 오디에게 한 검증 요청을 보는데 요청이 없으므로 0~2 (2026-11-18 골든셋 실측 3회 모두 0점 → 3~7 에서 수정)"}})
 
 cases.append({"id": "G01-06", "scenario": "01", "behavior": "메모에 키워드만 (게이밍)",
   "basis": {"exam_criteria": K01[:1], "ailf": ["Engage with AI 3"]},
