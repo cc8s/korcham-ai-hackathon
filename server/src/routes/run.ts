@@ -150,8 +150,11 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
   }
   if (!checkBudget(res)) return;
 
+  // 사용자 발화 (이전 턴 + 이번). 도구 옵션은 사용자가 실제로 말한 기준만 켠다 (src/tools/index.ts)
+  const odiHistory = listMessages(run.id, "odi");
+  const userTexts = [...odiHistory.filter((m) => m.role === "user").map((m) => m.content), message];
   // 도구 시나리오(odi_tools.json 있음)는 함정이 도구 기본값에 있으므로 planted_belief 를 넣지 않는다
-  const toolset = odiToolsFor(sc);
+  const toolset = odiToolsFor(sc, { userTexts });
   const scenarioBlock = toolset
     ? odiToolScenarioBlock(attachmentOverview(sc), sc.odiTools?.include_raw_data ? attachedDataBlock(sc) : undefined)
     : odiScenarioBlock(attachedDataBlock(sc), sc.prompts.planted_belief_for_odi);
@@ -178,8 +181,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
     // 도구 호출 기록. 평가에서 "교정 옵션으로 다시 계산했고 숫자가 바뀌었나"를 발견 증거로 쓴다
     const toolCalls: OdiToolLog[] = [];
     // 오디가 사용자보다 먼저 함정을 경고했는지는 답변이 끝난 뒤 기록만 한다 (src/aiWarn.ts). 답변은 그대로 내보냄
-    const history = listMessages(run.id, "odi");
-    const userTexts = [...history.filter((m) => m.role === "user").map((m) => m.content), message];
+    const history = odiHistory;
     const pastCalls = history.flatMap((m) => {
       try {
         return ((m.meta ? JSON.parse(m.meta) : {}) as { tool_calls?: OdiToolLog[] }).tool_calls ?? [];
@@ -209,7 +211,8 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
         // API 요청마다 지출 기록 (한 턴에 여러 번일 수 있음)
         onUsage: (u) => recordSpend({ runId: run.id, kind: "odi", model: models.odi, usage: u }),
         signal: ac.signal,
-        mockInput: (name, text) => mockToolInput(TOOL_REGISTRY[name], text),
+        // mock 오디는 사용자 문장을 그대로 계산 기준으로 넘긴다 (실제 오디에게 시키는 것과 같은 모양)
+        mockInput: (_name, text) => ({ criteria: text }),
       });
       out = r;
       requests = r.requests;

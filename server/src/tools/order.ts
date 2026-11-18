@@ -150,8 +150,7 @@ export const orderQuantityTool: OdiTool<OrderInput, OrderResult> = {
   description:
     "판매 실적(monthly_sales_2025_11_2026_10.csv)·현재고(inventory_2026_10_31.csv)·제품 정보(products.csv)로 SKU별 발주량을 계산한다. " +
     "발주량 = 예측 수요 + 안전재고 − 현재고 (음수면 0). SKU별 예측 수요·현재고·발주량과 발주량 합계를 돌려준다. " +
-    "발주량, 예측 수요, 발주 합계처럼 발주 숫자가 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다. " +
-    "옵션은 사용자가 그 처리를 요청했을 때만 켠다.",
+    "발주량, 예측 수요, 발주 합계처럼 발주 숫자가 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다.",
   inputSchema: {
     type: "object",
     properties: {

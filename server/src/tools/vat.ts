@@ -113,9 +113,8 @@ export function vatSummary(transactionsCsv: string, importsCsv: string, input: V
 export const vatSummaryTool: OdiTool<VatInput, VatResult> = {
   name: "vat_summary",
   description:
-    "10월 거래 내역(transactions_2026_10.csv)과 수입신고필증(import_declarations_2026_10.csv)으로 매출세액·매입세액(경비/수입 구분)·납부세액을 집계한다. " +
-    "부가세 집계, 납부세액, 분개에 쓸 금액처럼 세액 숫자가 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다. " +
-    "옵션은 사용자가 그 처리를 요청했을 때만 켠다.",
+    "10월 거래 내역(transactions_2026_10.csv) 등 첨부 자료로 매출세액·매입세액(경비/수입 구분)·납부세액을 집계한다. " +
+    "부가세 집계, 납부세액, 분개에 쓸 금액처럼 세액 숫자가 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다.",
   inputSchema: {
     type: "object",
     properties: {

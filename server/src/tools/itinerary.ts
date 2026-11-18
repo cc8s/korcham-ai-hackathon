@@ -132,8 +132,7 @@ export const itineraryKstTool: OdiTool<ItineraryInput, ItineraryResult> = {
   name: "itinerary_kst",
   description:
     "출장 일정 원문(itinerary_raw.md)과 항공편 표(flights.csv)의 시각을 현지시간·한국시간(KST)으로 나란히 변환하고, 보고 전화 시각을 계산한다. " +
-    "일정표, 한국시간 병기, 통화 가능 시간처럼 시각 변환이 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다. " +
-    "옵션은 사용자가 그 처리를 요청했을 때만 켠다.",
+    "일정표, 한국시간 병기, 통화 가능 시간처럼 시각 변환이 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다.",
   inputSchema: {
     type: "object",
     properties: {

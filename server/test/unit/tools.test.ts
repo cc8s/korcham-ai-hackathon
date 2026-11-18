@@ -258,3 +258,42 @@ test("TOOL-07 itinerary_kst mock: 막연한 '시차 확인해 줘'는 옵션을 
   assert.deepEqual(mockToolInput(tool, "서머타임 끝난 거 반영해서 다시"), { use_event_date_offset: true, use_time_basis_column: false });
   assert.deepEqual(mockToolInput(tool, "항공편 시각기준 UTC 인 거 반영해 줘"), { use_event_date_offset: false, use_time_basis_column: true });
 });
+
+// ---- 모델에게 보이는 도구 정의: 옵션 목록 없이 '계산 기준' 문장 하나 (2026-11-18) ----
+test("TOOL-08 모델용 도구 정의에 교정 옵션 이름·설명이 없다 (criteria 하나), 설명에 함정 단서 없음", () => {
+  for (const id of ["01", "02", "03", "05"]) {
+    const sc = getScenario(id)!;
+    for (const def of odiToolsFor(sc, { userTexts: [] })!.defs) {
+      const txt = JSON.stringify(def);
+      assert.deepEqual(Object.keys((def.input_schema as { properties: object }).properties), ["criteria"], `${id} ${def.name}`);
+      for (const flag of Object.keys(TOOL_REGISTRY[def.name].parse({}))) assert.ok(!txt.includes(flag), `${id} ${flag}`);
+      for (const banned of ["신고필증", "import_declarations", "서머타임", "UTC", "전년", "환산", "중복", "정규화"]) assert.ok(!txt.includes(banned), `${id} ${banned}`);
+    }
+  }
+});
+
+test("TOOL-09 criteria 해석: 사용자가 실제로 말한 기준만 켠다 (오디가 지어낸 기준·질문 속 '근거'는 무시)", () => {
+  const sc = getScenario("02")!;
+  const run = (criteria: string, userTexts: string[]) => odiToolsFor(sc, { userTexts })!.run("vat_summary", { criteria }).log;
+  // 사용자가 신고필증 기준을 말함 → 켜짐
+  assert.deepEqual(run("신고필증 기준으로", ["수입은 신고필증 기준으로 다시 계산해 줘"]).changed_flags, ["use_import_declarations"]);
+  // 오디가 criteria 에 지어 넣었지만 사용자는 말 안 함 → 안 켜짐
+  assert.deepEqual(run("신고필증 기준, 부가세율 10% 검산", ["다시 확인해 줘"]).changed_flags, []);
+  // 근거를 물은 것만으로는 안 켜짐
+  assert.deepEqual(run("근거 확인", ["수입 부가세는 무슨 근거로 계산했어?"]).changed_flags, []);
+  // 옵션을 직접 넣으려 하면 입력 오류
+  const bad = odiToolsFor(sc, { userTexts: ["신고필증 기준"] })!.run("vat_summary", { use_import_declarations: true });
+  assert.equal(bad.isError, true);
+  // 기록에는 criteria 원문이 남음 (평가·디버깅용)
+  assert.equal(run("신고필증 기준으로", ["신고필증 기준으로 해 줘"]).input.criteria, "신고필증 기준으로");
+});
+
+test("TOOL-10 모델에게 주는 도구 결과에 옵션 이름이 없다 (적용_옵션 제외, 기록에는 남음)", () => {
+  for (const [id, name] of [["01", "aggregate_sales"], ["02", "vat_summary"], ["03", "order_quantity"], ["05", "itinerary_kst"]] as const) {
+    const r = odiToolsFor(getScenario(id)!, { userTexts: [] })!.run(name, {});
+    assert.ok(!r.isError, r.content);
+    assert.ok(!r.content.includes("적용_옵션"), id);
+    for (const flag of Object.keys(TOOL_REGISTRY[name].parse({}))) assert.ok(!r.content.includes(flag), `${id} ${flag}`);
+    assert.ok(Object.keys(TOOL_REGISTRY[name].parse({})).every((k) => k in r.log.input), `${id} log`);
+  }
+});

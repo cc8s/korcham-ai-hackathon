@@ -89,8 +89,7 @@ export const aggregateSalesTool: OdiTool<SalesInput, SalesResult> = {
   // 언제 부르는지를 설명에 분명히 둔다 (Opus 계열은 도구를 보수적으로 부름. tool_choice 강제는 400)
   description:
     "10월 매출 원본(sales_2026_10.csv)을 거래처별로 집계해 거래처별 합계·건수·비중(%)·거래처 수·총매출을 돌려준다. " +
-    "거래처별 합계표, 총매출, 비중, 차트용 숫자처럼 매출 숫자가 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다. " +
-    "옵션은 사용자가 그 처리를 요청했을 때만 켠다.",
+    "거래처별 합계표, 총매출, 비중, 차트용 숫자처럼 매출 숫자가 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다.",
   inputSchema: {
     type: "object",
     properties: {
