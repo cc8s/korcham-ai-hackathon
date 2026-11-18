@@ -147,7 +147,10 @@ export function attachedDataBlock(s: Scenario): string {
 export function attachmentOverview(s: Scenario): string {
   return s.prompts.task_card.attachments
     .map((rel) => {
-      const { header, rows } = parseCsv(readAttachment(s, rel));
+      const text = readAttachment(s, rel);
+      // 표(csv)만 열·행 수로 요약. 문서(md·txt)를 csv 로 읽으면 제목 줄이 열 이름처럼 나와 오디가 헷갈린다 (05)
+      if (!rel.endsWith(".csv")) return `- ${rel}: 문서 ${text.trim().split(/\r?\n/).length}줄`;
+      const { header, rows } = parseCsv(text);
       return `- ${rel}: 데이터 ${rows.length}행, 열: ${header.join(",")}`;
     })
     .join("\n");
