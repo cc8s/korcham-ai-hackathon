@@ -87,6 +87,8 @@ scenarios/
 | traps.{id}.keywords | 사용자가 오디에게 이 함정을 짚었다고 볼 표현 (정규식). 발견 **시점**만 정한다. 발견 **여부**는 제출 숫자(구조화 제출)나 팀장 검토가 정한다 → 키워드만 써서는 점수가 안 오름 |
 | traps.{id}.tool_flags | 이 함정을 바로잡는 오디 도구 옵션. 켜서 숫자가 바뀐 턴도 발견 시점 후보 |
 | traps.{id}.ai_warns | (선택) 오디가 이 함정을 경고할 때 쓰는 말 (정규식). 사용자가 아직 짚지 않았는데(keywords·tool_flags 기준) 오디 답변에 걸리면 지우지 않고 assistant 메시지 meta.ai_warned 에 기록하고, 평가에서 발견 경로 `ai_warned`(계수 0.7)로 친다. 경고했는데 끝내 못 잡으면 리포트에 "오디가 경고했지만 확인하지 않음". `server/src/aiWarn.ts`, 테스트 `test/unit/aiWarn.test.ts`. 함정 위치를 직접 적지 말고 "설명할 때 쓰는 말"로 쓴다 |
+| traps.{id}.label | (필수) 리포트 함정 카드에 보이는 이름. 범주만 쓴다 ("재고 단위"). prompts.json 의 `desc` 는 정답이 들어 있어 리포트에 안 쓴다 (재도전 공정성) |
+| traps.{id}.explain | (필수) '해설 보기'(도전이 끝난 뒤에만, `GET /run/:rid/explanation`): `where` 어디에 있었나 / `how` 어떻게 찾나 / `impact` 숫자 영향(정답 포함) |
 | memo_files | 검증 메모 한 문장에 "이 단어 + 원본/대조/파일" 이 있으면 그 첨부(값은 경로 일부)를 실제로 열었어야 메모 신뢰성 점수를 줌 |
 
 함정 경로 계수(스스로 1.0 / 힌트 1·2·3단계 후 0.8·0.6·0.4 / 반려 후 0.5)는 발견 시점 이전의 힌트·반려 수로 정한다. 기대 점수는 `eval/golden/cases.json`, 확인은 `server/test/unit/evaluation.test.ts`.

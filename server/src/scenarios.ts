@@ -48,6 +48,10 @@ export interface EvalConfig {
       // (선택) 오디가 이 함정을 경고할 때 쓰는 말 (정규식). 사용자가 짚기 전에 답변에 걸리면 meta.ai_warned 로 기록.
       // 지우지 않고 별도 발견 경로(ai_warned)로 채점한다. src/aiWarn.ts
       ai_warns?: string;
+      // 리포트에 보이는 함정 이름 (범주만). prompts.json 의 desc 는 정답이 들어 있어 재도전 공정성을 위해 리포트에 안 씀
+      label: string;
+      // '해설 보기' (도전이 끝난 뒤에만): 어디에 있었나 / 어떻게 찾나 / 숫자 영향
+      explain: { where: string; how: string; impact: string };
     }
   >;
   // 검증 메모에서 "이 단어 + 원본/대조/파일" 이면 그 첨부를 실제로 열었어야 함 (값은 첨부 경로의 일부)
@@ -104,6 +108,8 @@ export function loadScenarios(): Map<string, Scenario> {
       if (!evalCfg.traps[t.id]) throw new Error(`${e.name}/eval.json: 함정 ${t.id} 정의 없음`);
       new RegExp(evalCfg.traps[t.id].keywords); // 정규식이 틀리면 기동 시 실패
       if (evalCfg.traps[t.id].ai_warns) new RegExp(evalCfg.traps[t.id].ai_warns!);
+      const { label, explain } = evalCfg.traps[t.id];
+      if (!label || !explain?.where || !explain?.how || !explain?.impact) throw new Error(`${e.name}/eval.json: 함정 ${t.id} 의 label·explain(where·how·impact) 없음`);
     }
     cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission, evalCfg, ...(odiTools ? { odiTools } : {}) });
   }
