@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
-import type { NpcId, SubmissionField, SubmitResult } from "../types";
+import { NPC_INFO, NPC_DUTY, type NpcId, type SubmissionField, type SubmitResult } from "../types";
+import { Avatar, Icon } from "../ui/kit";
 
 // 입력 중인 숫자를 천 단위 쉼표로. 숫자·소수점·앞쪽 - 만 남김 (붙여 넣은 "580,300,000원" 도 허용)
 function formatNumberInput(raw: string, type: "integer" | "number"): string {
@@ -17,7 +18,12 @@ function parseNumberInput(text: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// S3 제출: 결과물(바구니) 편집 + 구조화 제출 칸(시나리오별) + 검증 메모 필수
+// S3 제출 = 담당 팀장에게 보고 메일 보내기 (2026-11-18 회의 결정).
+// 받는 사람·참조(주소록), 제목, 본문, 결과물 첨부는 F축(보고 커뮤니케이션)으로 코드 채점 (server/src/email.ts).
+// 보고서 양식 칸은 메일에 붙는 첨부, 검증 메모는 평가 담당자에게만 가는 기록
+const BOOK: NpcId[] = ["park", "kang", "jung", "lee"];
+const MEMO_GUIDE = ["이렇게 적어 보세요", "· 어떤 자료를 열어 봤는지", "· 오디 결과와 무엇을 비교했는지", "· 다른 점이 있었다면 무엇이고, 어떻게 고쳤는지"].join("\n");
+
 export function SubmitScreen(props: {
   runId: string;
   onBack: () => void;
@@ -29,6 +35,12 @@ export function SubmitScreen(props: {
   const [deliverable, setDeliverable] = useState("");
   const [fields, setFields] = useState<SubmissionField[] | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [to, setTo] = useState<NpcId[]>([]);
+  const [cc, setCc] = useState<NpcId[]>([]);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [attached, setAttached] = useState(false);
+  const [openResult, setOpenResult] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -38,8 +50,9 @@ export function SubmitScreen(props: {
       setOwner(r.scenario.owner_npc_id);
       setDeliverable(r.task_card.deliverable);
       setFields(r.submission_fields);
-      // 재제출이면 지난 입력값을 채워 둠
-      const last = r.submissions.at(-1)?.fields;
+      // 재제출이면 지난 입력값·메일을 채워 둠
+      const prev = r.submissions.at(-1);
+      const last = prev?.fields;
       if (r.submission_fields && last) {
         const init: Record<string, string> = {};
         for (const f of r.submission_fields) {
@@ -49,18 +62,35 @@ export function SubmitScreen(props: {
         }
         setValues(init);
       }
+      if (prev?.email) {
+        setTo(prev.email.to);
+        setCc(prev.email.cc);
+        setSubject(prev.email.subject);
+        setBody(prev.email.body);
+        setAttached(prev.email.attach_result);
+      }
     });
   }, [props.runId]);
 
+  // 주소록: 한 사람은 받는 사람·참조 중 한 곳에만
+  const place = (id: NpcId, where: "to" | "cc") => {
+    const inTo = to.includes(id);
+    const inCc = cc.includes(id);
+    if (where === "to") {
+      setTo(inTo ? to.filter((x) => x !== id) : [...to, id]);
+      if (inCc) setCc(cc.filter((x) => x !== id));
+    } else {
+      setCc(inCc ? cc.filter((x) => x !== id) : [...cc, id]);
+      if (inTo) setTo(to.filter((x) => x !== id));
+    }
+  };
+
   const submit = async () => {
-    if (memo.trim().length < 10) {
-      setErr("검증 메모를 10자 이상 써 주세요. 무엇을 어떻게 확인했는지.");
-      return;
-    }
-    if (!basket.trim()) {
-      setErr("결과물이 비어 있어요.");
-      return;
-    }
+    if (to.length === 0) return setErr("받는 사람을 주소록에서 골라 주세요.");
+    if (!subject.trim()) return setErr("제목을 써 주세요.");
+    if (body.trim().length < 20) return setErr("본문을 20자 이상 써 주세요.");
+    if (memo.trim().length < 10) return setErr("검증 메모를 10자 이상 써 주세요. 무엇을 어떻게 확인했는지.");
+    if (!basket.trim()) return setErr("결과물이 비어 있어요. 오디 답을 담거나 직접 써 주세요.");
     let parsed: Record<string, number | string> | undefined;
     if (fields) {
       parsed = {};
@@ -68,10 +98,7 @@ export function SubmitScreen(props: {
         if (f.type === "choice") {
           const id = values[f.id];
           if (!id) {
-            if (f.required) {
-              setErr(`${f.label}: 하나를 골라 주세요.`);
-              return;
-            }
+            if (f.required) return setErr(`보고서 양식 · ${f.label}: 하나를 골라 주세요.`);
             continue;
           }
           parsed[f.id] = id;
@@ -79,10 +106,7 @@ export function SubmitScreen(props: {
         }
         const n = parseNumberInput(values[f.id] ?? "");
         if (n === null) {
-          if (f.required) {
-            setErr(`${f.label} 칸을 채워 주세요.`);
-            return;
-          }
+          if (f.required) return setErr(`보고서 양식 · ${f.label} 칸을 채워 주세요.`);
           continue;
         }
         parsed[f.id] = n;
@@ -92,13 +116,23 @@ export function SubmitScreen(props: {
     setErr(null);
     try {
       await api.putBasket(props.runId, basket);
-      const r = await api.submit(props.runId, memo.trim(), parsed);
+      const r = await api.submit(props.runId, memo.trim(), parsed, { to, cc, subject: subject.trim(), body: body.trim(), attach_result: attached });
       props.onResult(r, owner);
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "제출 실패");
+      setErr(e instanceof ApiError ? e.message : "보내기 실패");
       setBusy(false);
     }
   };
+
+  const chip = (id: NpcId, where: "to" | "cc") => (
+    <span className="ws-mail-chip" key={id}>
+      <Avatar who={id} size={18} />
+      {NPC_INFO[id].name}
+      <button type="button" aria-label={`${NPC_INFO[id].name} 빼기`} onClick={() => place(id, where)} disabled={busy}>
+        <Icon name="close" />
+      </button>
+    </span>
+  );
 
   return (
     <div className="ws ws-col">
@@ -106,20 +140,80 @@ export function SubmitScreen(props: {
         <button className="ws-btn" onClick={props.onBack} disabled={busy}>
           ← 사무실
         </button>
-        <b>팀장 검토 요청</b>
+        <b>보고 메일 쓰기</b>
+        <small>{NPC_INFO[owner].name} 팀장님께 결과를 보고합니다</small>
       </header>
       <div className="ws-page">
         <div className="ws-cols lean">
-          <section className="ws-card">
-            <h3>결과물</h3>
-            <p className="ws-fine">요구 형식: {deliverable}</p>
-            <textarea className="ws-textarea" rows={20} value={basket} onChange={(e) => setBasket(e.target.value)} placeholder="오디 답변을 담거나 직접 작성" />
+          <section className="ws-card ws-mail">
+            <div className="ws-mail-row">
+              <span>받는 사람</span>
+              <div className="ws-mail-chips">{to.length ? to.map((id) => chip(id, "to")) : <em>오른쪽 주소록에서 추가</em>}</div>
+            </div>
+            <div className="ws-mail-row">
+              <span>참조</span>
+              <div className="ws-mail-chips">{cc.length ? cc.map((id) => chip(id, "cc")) : <em>없음</em>}</div>
+            </div>
+            <label className="ws-mail-row">
+              <span>제목</span>
+              <input className="ws-mail-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} disabled={busy} />
+            </label>
+            <textarea className="ws-mail-body" rows={14} value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} disabled={busy} aria-label="본문" />
+            <div className="ws-mail-attach">
+              <span>첨부</span>
+              {attached ? (
+                <span className="ws-mail-file">
+                  <Icon name="task" />
+                  결과물 ({basket.length.toLocaleString()}자)
+                  <button type="button" onClick={() => setOpenResult(!openResult)} disabled={busy}>
+                    {openResult ? "접기" : "열어 보기"}
+                  </button>
+                  <button type="button" aria-label="첨부 빼기" onClick={() => setAttached(false)} disabled={busy}>
+                    <Icon name="close" />
+                  </button>
+                </span>
+              ) : (
+                <button type="button" className="ws-btn" onClick={() => setAttached(true)} disabled={busy}>
+                  결과물 첨부하기
+                </button>
+              )}
+            </div>
+            {attached && openResult && (
+              <>
+                <p className="ws-fine">요구 형식: {deliverable}</p>
+                <textarea className="ws-textarea" rows={12} value={basket} onChange={(e) => setBasket(e.target.value)} placeholder="오디 답변을 담거나 직접 작성" disabled={busy} />
+              </>
+            )}
+            {err && <p className="ws-notice flat">{err}</p>}
+            <button className="ws-btn primary block lg" disabled={busy} onClick={submit}>
+              {busy ? "팀장님이 보는 중…" : "보내기"}
+            </button>
           </section>
           <div className="ws-stack">
+            <section className="ws-card">
+              <h3>주소록</h3>
+              <div className="ws-book">
+                {BOOK.map((id) => (
+                  <div className="ws-book-row" key={id}>
+                    <Avatar who={id} size={28} />
+                    <span className="ws-book-name">
+                      <b>{NPC_INFO[id].name}</b>
+                      <small>{NPC_DUTY[id]}</small>
+                    </span>
+                    <button type="button" className={`ws-choice${to.includes(id) ? " on" : ""}`} aria-pressed={to.includes(id)} onClick={() => place(id, "to")} disabled={busy}>
+                      받는 사람
+                    </button>
+                    <button type="button" className={`ws-choice${cc.includes(id) ? " on" : ""}`} aria-pressed={cc.includes(id)} onClick={() => place(id, "cc")} disabled={busy}>
+                      참조
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
             {fields && (
               <section className="ws-card">
-                <h3>보고 항목 (필수)</h3>
-                <p className="ws-fine">결과물의 핵심 숫자와 판단을 칸에 옮겨 주세요. 팀장님이 이것부터 대조합니다.</p>
+                <h3>보고서 양식 (필수)</h3>
+                <p className="ws-fine">결과물의 핵심 숫자와 판단을 칸에 옮겨 주세요. 메일에 함께 붙고, 팀장님이 이것부터 대조합니다.</p>
                 <div className="ws-stack">
                   {fields.map((f) =>
                     f.type === "choice" ? (
@@ -142,19 +236,19 @@ export function SubmitScreen(props: {
                         </div>
                       </div>
                     ) : (
-                    <label key={f.id} className="ws-field">
-                      <span>
-                        {f.label} ({f.unit})
-                      </span>
-                      <input
-                        className="ws-input"
-                        inputMode={f.type === "integer" ? "numeric" : "decimal"}
-                        value={values[f.id] ?? ""}
-                        placeholder="숫자만"
-                        onChange={(e) => setValues((v) => ({ ...v, [f.id]: formatNumberInput(e.target.value, f.type === "number" ? "number" : "integer") }))}
-                        disabled={busy}
-                      />
-                    </label>
+                      <label key={f.id} className="ws-field">
+                        <span>
+                          {f.label} ({f.unit})
+                        </span>
+                        <input
+                          className="ws-input"
+                          inputMode={f.type === "integer" ? "numeric" : "decimal"}
+                          value={values[f.id] ?? ""}
+                          placeholder="숫자만"
+                          onChange={(e) => setValues((v) => ({ ...v, [f.id]: formatNumberInput(e.target.value, f.type === "number" ? "number" : "integer") }))}
+                          disabled={busy}
+                        />
+                      </label>
                     ),
                   )}
                 </div>
@@ -162,20 +256,8 @@ export function SubmitScreen(props: {
             )}
             <section className="ws-card">
               <h3>검증 메모 (필수)</h3>
-              <p className="ws-fine">무엇을, 어떻게 확인했는지. 팀장과 평가 담당자가 봅니다. 실제 열람·대화 기록과 대조됩니다.</p>
-              <div className="ws-stack">
-                <textarea
-                  className="ws-textarea"
-                  rows={8}
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  placeholder={"이렇게 적어 보세요\n· 어떤 자료를 열어 봤는지\n· 오디 결과와 무엇을 비교했는지\n· 다른 점이 있었다면 무엇이고, 어떻게 고쳤는지"}
-                />
-                {err && <p className="ws-notice flat">{err}</p>}
-                <button className="ws-btn primary block lg" disabled={busy} onClick={submit}>
-                  {busy ? "팀장님이 보는 중…" : "제출"}
-                </button>
-              </div>
+              <p className="ws-fine">무엇을, 어떻게 확인했는지. 메일에는 안 들어가고 평가 담당자만 봅니다. 실제 열람·대화 기록과 대조됩니다.</p>
+              <textarea className="ws-textarea" rows={6} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={MEMO_GUIDE} disabled={busy} />
             </section>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import type { Explanation, NpcId, PixelEvent, RunInfo, SessionInfo, SubmitResult, TaskCard, ScenarioSummary, Report, Flow } from "./types";
+import type { Explanation, NpcId, PixelEvent, RunInfo, SessionInfo, SubmitResult, TaskCard, ScenarioSummary, Report, Flow, Email } from "./types";
 
 // 서버 주소. 로컬은 server/.env 의 PORT, 배포는 Railway 도메인 (VITE_API_BASE)
 // import.meta.env 는 Vite 가 넣어 줌. 테스트(tsx)에서는 process.env 로 대체
@@ -58,8 +58,9 @@ export const api = {
   scripted: (rid: string, npc: NpcId, kind: "intro" | "brief" | "faq", faq_id?: string) =>
     req<{ npc: NpcId; text: string; question: string | null; flow: Flow }>("POST", `/run/${rid}/npc/${npc}/scripted`, { kind, faq_id }),
   // fields: 구조화 제출 칸 {id: 값}. 칸이 없는 시나리오는 생략
-  submit: (rid: string, verify_memo: string, fields?: Record<string, number | string>) =>
-    req<SubmitResult>("POST", `/run/${rid}/submit`, fields ? { verify_memo, fields } : { verify_memo }),
+  // email: 보고 메일 (받는 사람·참조·제목·본문·결과물 첨부). F축 채점 재료
+  submit: (rid: string, verify_memo: string, fields?: Record<string, number | string>, email?: Email) =>
+    req<SubmitResult>("POST", `/run/${rid}/submit`, { verify_memo, ...(fields ? { fields } : {}), ...(email ? { email } : {}) }),
   evaluate: (rid: string) => req<Report>("POST", `/run/${rid}/evaluate`),
   explanation: (rid: string) => req<Explanation>("GET", `/run/${rid}/explanation`),
 };
