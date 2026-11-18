@@ -45,8 +45,9 @@ export interface EvalConfig {
       keywords: string;
       // 이 함정을 바로잡는 오디 계산 도구 옵션. 켜서 숫자가 바뀐 턴도 발견 시점 후보
       tool_flags?: string[];
-      // 사용자가 이 함정을 짚기 전에 오디 답변에서 걸러 낼 문단 (정규식). src/odiFilter.ts
-      odi_suppress?: string;
+      // (선택) 오디가 이 함정을 경고할 때 쓰는 말 (정규식). 사용자가 짚기 전에 답변에 걸리면 meta.ai_warned 로 기록.
+      // 지우지 않고 별도 발견 경로(ai_warned)로 채점한다. src/aiWarn.ts
+      ai_warns?: string;
     }
   >;
   // 검증 메모에서 "이 단어 + 원본/대조/파일" 이면 그 첨부를 실제로 열었어야 함 (값은 첨부 경로의 일부)
@@ -102,7 +103,7 @@ export function loadScenarios(): Map<string, Scenario> {
     for (const t of prompts.traps) {
       if (!evalCfg.traps[t.id]) throw new Error(`${e.name}/eval.json: 함정 ${t.id} 정의 없음`);
       new RegExp(evalCfg.traps[t.id].keywords); // 정규식이 틀리면 기동 시 실패
-      if (evalCfg.traps[t.id].odi_suppress) new RegExp(evalCfg.traps[t.id].odi_suppress!);
+      if (evalCfg.traps[t.id].ai_warns) new RegExp(evalCfg.traps[t.id].ai_warns!);
     }
     cache.set(m[1], { id: m[1], dir, slug: e.name, prompts, answerKey, ownerNpcId, submission, evalCfg, ...(odiTools ? { odiTools } : {}) });
   }

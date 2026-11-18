@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run test:unit && npm run test:smoke && npm run test:integration && npm run test:submit && npm run test:guard && npm run test:odi-tools",
-    "test:unit": "node --import tsx --test test/unit/db.test.ts test/unit/prompts.test.ts test/unit/scenarios.test.ts test/unit/guard.test.ts test/unit/grading.test.ts test/unit/mask.test.ts test/unit/tools.test.ts test/unit/evaluation.test.ts test/unit/odiFilter.test.ts",
+    "test:unit": "node --import tsx --test test/unit/db.test.ts test/unit/prompts.test.ts test/unit/scenarios.test.ts test/unit/guard.test.ts test/unit/grading.test.ts test/unit/mask.test.ts test/unit/tools.test.ts test/unit/evaluation.test.ts test/unit/aiWarn.test.ts",
     "test:smoke": "node test/smoke.mjs",
     "test:integration": "node test/integration.mjs",
     "test:guard": "node test/guard.mjs",

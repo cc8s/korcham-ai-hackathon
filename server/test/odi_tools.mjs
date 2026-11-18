@@ -57,6 +57,16 @@ try {
   const msgs = (await api("GET", `/run/${rid}`)).json.messages.filter((m) => m.agent === "odi");
   check("TOOL-08 history text-only, 2 turns", msgs.length === 4 && msgs.every((m) => typeof m.content === "string" && !m.content.includes("tool_use")));
 
+  // WRN-07 오디 답변에 함정 경고 표현이 있으면 지우지 않고 그대로 보내고, meta.ai_warned 에 기록
+  // (mock 답변은 사용자 말을 따라 하므로, T2 키워드에는 안 걸리고 ai_warns 에만 걸리는 말을 보냄)
+  check("WRN-07 no warning → no ai_warned", m1.ai_warned === undefined && lastOdiMeta(rid).ai_warned === undefined, JSON.stringify(m1));
+  const ridW = (await api("POST", "/scenario/01/start", { session_id: sid })).json.run_id;
+  const rw = await api("POST", `/run/${ridW}/odi`, { message: "같은 곳이 따로 나뉘어 있는지 표로 줘" });
+  const tw = deltaText(rw.text);
+  const storedW = ro.prepare("SELECT content FROM message WHERE run_id = ? AND agent = 'odi' AND role = 'assistant' ORDER BY id DESC LIMIT 1").get(ridW).content;
+  check("WRN-07 warning streamed unchanged = stored text", tw.includes("같은 곳이 따로 나뉘어") && tw === storedW, tw);
+  check("WRN-07 meta.ai_warned = [T2], no suppressed", JSON.stringify(lastOdiMeta(ridW).ai_warned) === '["T2"]' && lastOdiMeta(ridW).suppressed === undefined, JSON.stringify(lastOdiMeta(ridW)));
+
   // 02: vat_summary
   const rid2 = (await api("POST", "/scenario/02/start", { session_id: sid })).json.run_id;
   await api("POST", `/run/${rid2}/odi`, { message: "10월 부가세 집계해 줘" });

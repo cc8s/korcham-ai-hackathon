@@ -19,7 +19,7 @@ import { collectEvidence } from "../evaluation/evidence.js";
 import { scoreCode } from "../evaluation/score.js";
 import { runJudge, type Judge } from "../evaluation/judge.js";
 import { buildReport } from "../evaluation/report.js";
-import { OdiParagraphFilter, raisedTraps } from "../odiFilter.js";
+import { aiWarnedTraps, raisedTraps } from "../aiWarn.js";
 import { getScenario, readAttachment, attachedDataBlock, attachmentOverview, type Scenario, type NpcId } from "../scenarios.js";
 import {
   COMPANY_COMMON,
@@ -177,7 +177,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
   try {
     // 도구 호출 기록. 평가에서 "교정 옵션으로 다시 계산했고 숫자가 바뀌었나"를 발견 증거로 쓴다
     const toolCalls: OdiToolLog[] = [];
-    // 사용자가 아직 짚지 않은 함정을 오디가 먼저 말하는 문단은 내보내지 않는다 (src/odiFilter.ts)
+    // 오디가 사용자보다 먼저 함정을 경고했는지는 답변이 끝난 뒤 기록만 한다 (src/aiWarn.ts). 답변은 그대로 내보냄
     const history = listMessages(run.id, "odi");
     const userTexts = [...history.filter((m) => m.role === "user").map((m) => m.content), message];
     const pastCalls = history.flatMap((m) => {
@@ -187,9 +187,6 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
         return [];
       }
     });
-    const filter = new OdiParagraphFilter(sc, () => raisedTraps(sc, userTexts, [...pastCalls, ...toolCalls]), (t) =>
-      send("delta", { text: t }),
-    );
     let requests = 1;
     let out: { text: string; usage: Usage; stopReason: string | null };
     if (toolset) {
@@ -206,7 +203,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
         maxToolRounds: ODI_MAX_TOOL_ROUNDS,
         maxTokens: config.maxTokens.odi,
         effort: "medium",
-        onText: (d) => filter.push(d),
+        onText: (d) => send("delta", { text: d }),
         // 옵션 값은 보내지 않는다 (사용자에게 함정을 알려 주는 셈이라). "계산 중" 표시용 신호만
         onToolStart: () => send("tool", { phase: "start" }),
         // API 요청마다 지출 기록 (한 턴에 여러 번일 수 있음)
@@ -223,20 +220,21 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
         turns,
         maxTokens: config.maxTokens.odi,
         effort: "medium",
-        onText: (d) => filter.push(d),
+        onText: (d) => send("delta", { text: d }),
         signal: ac.signal,
       });
       recordSpend({ runId: run.id, kind: "odi", model: models.odi, usage: out.usage });
     }
-    filter.end();
+    // 이 답변까지의 사용자 발화·도구 옵션 기준으로 아직 안 짚은 함정 중 오디가 경고한 것
+    const aiWarned = aiWarnedTraps(sc, out.text, raisedTraps(sc, userTexts, [...pastCalls, ...toolCalls]));
     // 성공한 호출만 차감. 실패는 차감 안 함 (04 문서 7절). 도구 루프 전체가 1회
-    // 이력은 글만 저장 (다음 턴에 도구 블록·thinking 은 다시 보내지 않음). 걸러 낸 문단은 이력에도 넣지 않는다
+    // 이력은 글만 저장 (다음 턴에 도구 블록·thinking 은 다시 보내지 않음)
     addMessage(run.id, "odi", "user", message);
-    addMessage(run.id, "odi", "assistant", filter.kept, {
+    addMessage(run.id, "odi", "assistant", out.text, {
       usage: out.usage,
       stop_reason: out.stopReason,
       ...(toolset ? { tool_calls: toolCalls, api_requests: requests } : {}),
-      ...(filter.dropped.length > 0 ? { suppressed: filter.dropped } : {}),
+      ...(aiWarned.length > 0 ? { ai_warned: aiWarned } : {}),
     });
     const updated = updateRun(run.id, {
       odi_calls_used: run.odi_calls_used + 1,
