@@ -188,8 +188,8 @@ w(f"{ROOT}/01_컴활_매출집계/README.md", f"""# 01. 컴퓨터활용능력 �
 2. 원본 행 수랑 주문번호 개수 비교해 봤어요?
 3. 거래처 이름 띄어쓰기 다른 거 없는지 보세요.
 
-## 심사위원 데모 경로 (5분)
-오디 "거래처별 합계표" → 12곳 나옴 → 데이터 뷰어에서 "성실" 검색 → 오디 "공백 정리 + 중복 제거해서 다시" → 담기 → 검증 메모 → 제출 → 승인 → 리포트
+## 심사위원 데모 경로 (3분)
+오디 "거래처별 합계표" → 12곳·584,030,000 (도구 기본값) → 데이터 뷰어에서 주문번호 정렬·"성실" 검색 → 오디 "주문번호 중복은 빼고, 띄어쓰기만 다른 거래처명은 합쳐서 다시" (하나만 말하면 다른 칸 때문에 반려) → 담기 → 제출 칸 3개(총매출·거래처 수·최소 매출) + 검증 메모 → 승인 → 리포트 → 해설 보기
 """)
 
 # ───────────────────────── 02 전산회계 ─────────────────────────
@@ -590,11 +590,9 @@ Dear Oreum Trading Team,
 
 Thank you for your notice of 12 October regarding damage to 24 units of DE-001 in the above shipment.
 
-We are sorry to hear about the damage. However, we would like to remind you that the shipment was sold on FOB Hamburg terms under contract OR-HM-2026-01. Risk passed to you upon loading on board at Hamburg, and the goods left our warehouse in sound condition as confirmed by our loading inspection.
+We are sorry to hear about the damage. The goods left our warehouse in sound condition as confirmed by our loading inspection at Hamburg, so we would like to understand what happened during transit.
 
-We therefore understand that any claim for transit damage should be directed to your cargo insurer. We are of course willing to support your insurance claim with our packing list, loading photos, and carton specifications.
-
-Could you please send us the independent survey report and confirm the final number of damaged units so that we can prepare the supporting documents?
+Could you please send us the independent survey report and confirm the final number of damaged units? Please also let us know how you would like to proceed with this claim, so that we can prepare the necessary documents on our side.
 
 Kind regards,
 Lena Vogt
@@ -665,7 +663,7 @@ w(f"{S4}/README.md", """# 04. 무역영어 — Hausmann 파손 클레임 회신 
 "{nickname} 씨, Hausmann에서 파손 건 회신 왔습니다. 답장 초안 영문으로 작성해 주세요. 발송 전에 제가 봅니다. 계약 조건은 첨부 확인하고, 수량이랑 손상 원인은 검정보고서 기준으로. 메일 한 통이 계약입니다."
 
 첨부
-- `data/inbound_email.txt` — Hausmann 회신 (FOB 상기, 검정보고서·최종 수량 요청)
+- `data/inbound_email.txt` — Hausmann 회신 (적재 시 이상 없었다, 검정보고서·최종 수량·처리 방향 요청). FOB 결론은 쓰지 않음 (2026-11-18: 메일이 정답을 말해 버려 함정이 성립하지 않았음)
 - `data/contract_summary.md` — FOB Hamburg, 적하보험은 오름 부담 (ICC(A)), 포장 조항
 - `data/survey_report.md` — 손상 18ea, 원인은 부산 양하 중 컨테이너 외부 충격, 포장은 계약 규격 충족
 - `data/internal_memo.md` — 입고 당일 "대략 24개", "포장 문제 아닐까" (둘 다 확인 안 된 추정, 1차 통지 근거)
@@ -686,8 +684,15 @@ w(f"{S4}/README.md", """# 04. 무역영어 — Hausmann 파손 클레임 회신 
 ## 함정 2개
 | ID | 종류 | 내용 | 발견 방법 | 함정이 사는 곳 |
 |---|---|---|---|---|
-| T1 | 데이터 | 24ea(메모·1차 통지) vs 18ea(검정보고서) | 검정보고서 열람 | 첨부 문서 (프롬프트 없음) |
-| T2 | AI | 오디는 FOB에서 보험이 매도인 부담이라 믿고 Hausmann에 보상 요구 초안 작성 | 계약 요약 열람, 오디에게 "FOB면 보험 누가 들어?" | 아직 `planted_belief_for_odi` (계약 요약이 정답을 말하고 있어 데이터로 옮길 곳이 없음) |
+| T1 | 데이터 | 24ea(메모·1차 통지) vs 18ea(검정보고서) | 검정보고서 열람, 오디에게 "검정보고서 기준으로" | 첨부 문서 + 오디 문서 도구 기본값(검정보고서 안 읽음) |
+| T2 | AI | 오디가 계약을 안 읽고 메모만 보고 Hausmann 에 책임을 묻는 초안 작성 | 계약 요약 열람, 오디에게 "계약 조건(FOB) 확인하고" | 오디 문서 도구 기본값(계약 요약 안 읽음) |
+
+## 오디의 문서 읽기 방식 (도구 기본값이 함정)
+오디는 문서를 `read_documents` 도구로만 읽는다 (`odi_tools.json`, 서버 `server/src/tools/docs.ts`). 프롬프트에 함정 설명도, 틀리라는 지시도 없다.
+- 기본: 최근 서신(수신 메일·물류 메모)만 읽음 → 계약 요약(T2)·검정보고서(T1)를 반영하지 않은 초안
+- 사용자가 계약·검정보고서를 짚어 지시해야 그 문서를 읽는다 (막연한 "확인해 줘"로는 안 켜짐)
+- 실무로 치면 "최근 메일함만 검색하는 AI 비서". 업무 카드는 처음부터 "계약 조건은 첨부 확인, 수량·원인은 검정보고서 기준"이라고 지시한다 → AI 에게 그 문서를 보게 했는지가 검증 행동
+- `planted_belief_for_odi` 는 도구 파일이 없을 때의 대비로만 prompts.json 에 남긴다
 
 ## 구조화 제출과 코드 채점
 `submission.json`. 승인/반려와 함정 발견은 서버 코드가 칸 값으로 정하고, 정우진은 판정을 받아 멘트만 쓴다 (회신 본문을 LLM 이 읽고 판정하지 않음).
