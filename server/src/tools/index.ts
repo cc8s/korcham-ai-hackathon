@@ -7,6 +7,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { readAttachment, type Scenario } from "../scenarios.js";
 import { aggregateSalesTool } from "./sales.js";
 import { vatSummaryTool } from "./vat.js";
+import { itineraryKstTool } from "./itinerary.js";
 import type { AnyOdiTool, OdiToolLog } from "./types.js";
 
 export type { OdiToolLog } from "./types.js";
@@ -14,6 +15,7 @@ export type { OdiToolLog } from "./types.js";
 export const TOOL_REGISTRY: Record<string, AnyOdiTool> = {
   [aggregateSalesTool.name]: aggregateSalesTool,
   [vatSummaryTool.name]: vatSummaryTool,
+  [itineraryKstTool.name]: itineraryKstTool,
 };
 
 export interface OdiToolset {
@@ -92,6 +94,9 @@ export function mockToolInput(tool: AnyOdiTool, userText: string): Record<string
     normalize_customer_names: /정규화|이름\s*정리|표기|띄어쓰기|공백/,
     recheck_vat_rate: /10\s*%|부가세\s*확인/,
     use_import_declarations: /신고필증|근거/,
+    // 05: "시차 확인해 줘" 처럼 막연한 말은 안 켠다. 서머타임·UTC·시각기준을 특정해야 켬
+    use_event_date_offset: /서머\s*타임|썸머\s*타임|DST|일광\s*절약|날짜별\s*시차/,
+    use_time_basis_column: /UTC|시각\s*기준/,
   };
   const defaults = tool.parse({});
   return Object.fromEntries(Object.keys(defaults).map((k) => [k, want[k]?.test(userText) ?? false]));
