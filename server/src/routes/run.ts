@@ -341,10 +341,17 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   if (!checkBudget(res)) return;
 
   const persona = NPC_PERSONA[npc];
-  // 이하늘에게는 함정·정답이 든 scenario_context_for_npc 대신 과제 정보만 준다
+  // 대화에는 함정·정답이 든 scenario_context_for_npc 를 주지 않는다 (팀장도 마찬가지, 2026-11-19).
+  // 팀장은 npc_chat_context(업무 정보만), 이하늘은 과제 정보만. 정답 컨텍스트는 검토 호출에서만 쓴다
   const system: SystemBlock[] = [
     { text: `${COMPANY_COMMON}\n\n${persona.block}`, cache: false },
-    { text: npc === "lee" ? mentorContextBlock(sc, nickname) : `[현재 시나리오]\n${sc.prompts.scenario_context_for_npc}`, cache: true },
+    {
+      text:
+        npc === "lee"
+          ? mentorContextBlock(sc, nickname)
+          : `[현재 시나리오]\n${sc.prompts.npc_chat_context}\n첨부 파일(이것뿐): ${sc.prompts.task_card.attachments.map((a) => a.split("/").pop()).join(", ")}`,
+      cache: true,
+    },
     { text: npcVolatileBlock(nickname), cache: false },
   ];
   const turns = trimTurns([...toTurns(run.id, npc), { role: "user" as const, content: message }], config.guard.npcHistoryChars);

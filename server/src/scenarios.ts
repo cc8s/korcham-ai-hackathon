@@ -18,7 +18,8 @@ export interface ScenarioPrompts {
     attachments: string[]; // "data/xxx.csv" 또는 "_shared/xxx.csv"
     deliverable: string;
   };
-  scenario_context_for_npc: string;
+  scenario_context_for_npc: string; // 정답·함정 포함. 팀장 LLM 검토(03~05) 전용
+  npc_chat_context: string; // 팀장 대화용. 업무 정보만, 함정·정답 없음 (test/unit/prompts.test.ts LDR-01)
   planted_belief_for_odi: string;
   hints: string[];
   review_rules: {
@@ -95,6 +96,7 @@ export function loadScenarios(): Map<string, Scenario> {
     const answerKey = JSON.parse(fs.readFileSync(path.join(dir, "answer_key.json"), "utf8"));
     const ownerNpcId = NPC_NAME_TO_ID[prompts.owner_npc];
     if (!ownerNpcId) throw new Error(`${e.name}: owner_npc '${prompts.owner_npc}' 를 모르는 NPC`);
+    if (!prompts.npc_chat_context?.trim()) throw new Error(`${e.name}/prompts.json: npc_chat_context 가 없음 (팀장 대화용, 함정·정답 없이)`);
     const subPath = path.join(dir, "submission.json");
     let submission: SubmissionSpec | undefined;
     if (fs.existsSync(subPath)) {

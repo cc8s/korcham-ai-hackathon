@@ -24,7 +24,8 @@ scenarios/
 | 필드 | 쓰이는 곳 |
 |---|---|
 | task_card | P1 업무 카드. `{nickname}` 치환 |
-| scenario_context_for_npc | 담당 팀장·이하늘 system prompt의 `{scenario_context}` |
+| scenario_context_for_npc | 정답·함정이 든 맥락. 팀장 LLM 검토(submission.json 없는 시나리오)에서만 씀. 대화에는 안 들어감 |
+| npc_chat_context | 담당 팀장 대화 system prompt의 `[현재 시나리오]`. 업무 정보만, 함정 키워드·정답 숫자 금지 (LDR-01 테스트) |
 | planted_belief_for_odi | 오디 system prompt의 `{planted_belief}` |
 | hints[0..2] | 이하늘 `{scenario_hints}`. hint_level에 따라 누적 공개 |
 | review_rules | 팀장 검토 호출 시 구조화 출력 기준 |

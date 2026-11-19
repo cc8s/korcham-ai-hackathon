@@ -55,3 +55,23 @@ test("공통 규칙과 4명 페르소나 존재, 정답 비공개 규칙 포함"
   assert.deepEqual(Object.keys(NPC_PERSONA).sort(), ["jung", "kang", "lee", "park"]);
   assert.equal(NPC_PERSONA.kang.name, "강지훈");
 });
+
+// LDR-01: 팀장 대화 맥락(npc_chat_context)과 담당 팀장 성격에 함정 단서·정답 숫자가 없음.
+// 업무 카드에 이미 공개된 단어(예: 04 "검정보고서", 02 "수입신고필증")는 허용
+test("LDR-01 팀장 대화 맥락에 업무 카드에 없는 함정 키워드·정답 숫자가 없음 (5개 시나리오)", async () => {
+  const { getScenario } = await import("../../src/scenarios.ts");
+  const { maskAnswers } = await import("../../src/mask.ts");
+  for (const id of ["01", "02", "03", "04", "05"]) {
+    const sc = getScenario(id)!;
+    const card = [sc.prompts.task_card.title, sc.prompts.task_card.body, sc.prompts.task_card.deliverable].join("\n");
+    const chat = `${NPC_PERSONA[sc.ownerNpcId].block}\n${sc.prompts.npc_chat_context}`;
+    for (const [tid, cfg] of Object.entries(sc.evalCfg.traps)) {
+      const re = new RegExp(cfg.keywords, "g");
+      const pub = new Set([...card.matchAll(re)].map((m) => m[0]));
+      const leaked = [...chat.matchAll(re)].map((m) => m[0]).filter((w) => !pub.has(w));
+      assert.deepEqual(leaked, [], `${id} ${tid} 팀장 대화 맥락에 함정 키워드: ${leaked.join(", ")}`);
+    }
+    assert.equal(maskAnswers(sc.prompts.npc_chat_context, sc.answerKey), sc.prompts.npc_chat_context, `${id} 정답 숫자`);
+    assert.notEqual(sc.prompts.npc_chat_context, sc.prompts.scenario_context_for_npc);
+  }
+});
