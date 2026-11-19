@@ -403,7 +403,7 @@ export function reviewMock(turns: ChatTurn[]): Review {
   return {
     decision: reject ? "reject" : "approve",
     area: reject ? "거래처 초과" : null,
-    message: reject ? "[mock] 거래처가 왜 12개예요? 다시 보세요." : "[mock] 확인했습니다. 이 정도면 올려도 되겠네요.",
+    message: reject ? "[mock] 거래처가 12곳으로 나왔네요. 다시 한번 확인해 줄래요?" : "[mock] 확인했습니다. 이 정도면 올려도 되겠네요.",
     trap_caught: [
       { id: "T1", caught: /중복/.test(text), evidence: /중복/.test(text) ? "중복" : "" },
       { id: "T2", caught: !reject, evidence: reject ? "" : "거래처 10곳" },
