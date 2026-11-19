@@ -1295,3 +1295,7 @@
     width: 100%;
   }
 }
+/* 오디 첫 화면: 로고도 가운데 (img 는 block 이라 text-align 이 안 먹음) */
+.ws-intro .ws-avatar {
+  margin: 0 auto 12px;
+}
