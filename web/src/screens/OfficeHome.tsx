@@ -1,6 +1,9 @@
 import { NPC_INFO, type Message, type NpcId, type RunInfo, type RunState } from "../types";
-import { Avatar, Icon } from "../ui/kit";
+import { Avatar } from "../ui/kit";
 import { hhmm } from "../panels/OdiPanel";
+
+// 업무 카드의 분류 (시나리오 → 연계 자격증)
+export const CERT_LABEL: Record<string, string> = { "01": "컴퓨터활용능력", "02": "전산회계운용사", "03": "유통관리사", "04": "무역영어", "05": "비서" };
 
 export type CharState = "idle" | "thinking" | "talking" | "working";
 export type CharStatus = { state: CharState; bubble?: string };
@@ -14,8 +17,6 @@ export const RUN_STATUS: Record<RunState, { label: string; tone: "" | "info" | "
   evaluated: { label: "완료", tone: "accent" },
 };
 
-const STEPS = ["업무 확인", "오디와 작업", "제출", "팀장 검토", "완료"];
-const STEP_OF: Record<RunState, number> = { assigned: 0, working: 1, rejected: 1, reviewing: 3, approved: 5, evaluated: 5 };
 
 // 사무실 홈. 오늘 업무 요약, 팀원 상태, 최근 활동. 서버 이벤트로 바뀌는 팀원 상태는 행의 한 줄로 보여 준다
 export function OfficeHome(props: {
@@ -32,114 +33,79 @@ export function OfficeHome(props: {
   const { run, scenario, task_card: card } = props.info;
   const owner = scenario.owner_npc_id;
   const st = RUN_STATUS[run.state];
-  const step = STEP_OF[run.state];
   const recent = props.messages.slice(-6).reverse();
   const speaking = props.npcOrder.find((id) => props.status[id].state === "talking" && props.status[id].bubble);
 
   return (
     <>
-      <div className="ws-home">
-        <header className="ws-hello">
-          <h1>{props.nickname} 님, 오늘 업무가 도착했어요</h1>
-          <p>
-            {NPC_INFO[owner].name} {NPC_INFO[owner].role.replace(/ \(.*\)$/, "")}이 맡긴 일입니다. 오디와 함께 처리하고, 결과는 직접 검증해서 제출하세요.
-          </p>
+      <div className="ws-home sk-home">
+        <header className="sk-hello">
+          <h1 className="sk-display">{props.nickname} 님, 오늘 업무가 도착했어요</h1>
+          <p>오디와 맡은 업무를 처리하고, 결과는 직접 검증해서 제출하세요!</p>
         </header>
 
-        <section className="ws-card">
-          <div className="ws-card-head">
-            <h2>오늘 업무</h2>
-            <span className={`ws-tag ${st.tone}`}>{st.label}</span>
-          </div>
-          <h3 className="ws-task-title">{card.title}</h3>
-          <div className="ws-task-meta">
-            <span>
-              <Icon name="clock" />
-              {card.due}
-            </span>
-            <span>
-              <Icon name="user" />
-              {NPC_INFO[owner].name} 요청
-            </span>
-            <span>
-              <Icon name="clip" />
-              첨부 {card.attachments.length}개
-            </span>
-          </div>
-          <div className="ws-task-actions">
-            <button className="ws-btn primary" onClick={props.onOpenOdi}>
-              <Icon name="spark" />
-              오디에게 맡기기
-            </button>
-            <button className="ws-btn" onClick={props.onOpenTask}>
-              업무 카드 보기
-            </button>
-            <button className="ws-btn" onClick={() => props.onOpenData(card.attachments[0])}>
-              첨부 데이터 열기
-            </button>
-          </div>
-          <div className="ws-steps">
-            {STEPS.map((s, i) => (
-              <div key={s} className={`ws-step ${i < step ? "done" : i === step ? `now ${run.state === "rejected" ? "warn" : ""}` : ""}`}>
-                {i === step && run.state === "rejected" ? "보완 중" : s}
+        <section className="sk-task">
+          <div className="sk-task-row">
+            <div className="sk-task-main">
+              <div className="sk-task-tags">
+                <span className="sk-cert">{CERT_LABEL[scenario.id] ?? "수습 과제"}</span>
+                {run.state !== "assigned" && <span className={`sk-state ${st.tone}`}>{st.label}</span>}
               </div>
+              <h2 className="sk-display">{card.title}</h2>
+              <div className="sk-task-meta">
+                <span>
+                  <img src="/assets/ui/ic-user.svg" width={18} height={18} alt="" />
+                  {NPC_INFO[owner].name} {NPC_INFO[owner].role}
+                </span>
+                <span>
+                  <img src="/assets/ui/ic-clock.svg" width={18} height={18} alt="" />
+                  {card.due}
+                </span>
+              </div>
+            </div>
+            <button className="sk-btn lg sk-odi-btn" onClick={props.onOpenOdi}>
+              <img src="/assets/ui/ic-odi-btn.svg" width={23} height={24} alt="" />
+              오디와 함께하기
+            </button>
+          </div>
+          <div className="sk-task-links">
+            <button className="sk-link" onClick={props.onOpenTask}>
+              <img src="/assets/ui/ic-clipboard.svg" width={18} height={18} alt="" />
+              업무 내용 보기
+            </button>
+            {card.attachments.map((f) => (
+              <button key={f} className="sk-link file" onClick={() => props.onOpenData(f)}>
+                <img src="/assets/ui/ic-paperclip.svg" width={18} height={18} alt="" />
+                {f.replace(/^data\//, "")}
+              </button>
             ))}
           </div>
         </section>
 
-        <div className="ws-cols">
-          <section className="ws-card">
-            <div className="ws-card-head">
-              <h2>팀원</h2>
-            </div>
-            <div className="ws-rows">
-              {props.npcOrder.map((id) => {
-                const s = props.status[id];
-                const live = s.state === "thinking" || (s.state === "talking" && !!s.bubble);
-                const sub = s.state === "thinking" ? "답변 작성 중…" : s.state === "talking" && s.bubble ? s.bubble : NPC_INFO[id].role;
+        <section className="sk-recent">
+          <h2>최근 활동</h2>
+          {recent.length === 0 ? (
+            <p className="sk-empty">아직 활동이 없어요. 하늘 선배에게 인사하고, 팀장님 지시를 받아 보세요.</p>
+          ) : (
+            <div className="sk-recent-list">
+              {recent.map((m) => {
+                const agent = m.agent as NpcId | "odi";
+                const agentName = agent === "odi" ? "AI오디" : NPC_INFO[agent]?.name ?? m.agent;
+                const mine = m.role === "user";
                 return (
-                  <button key={id} className={`ws-row ${live ? "live" : ""}`} onClick={() => props.onOpenNpc(id)}>
-                    <span className={`ws-presence ${s.state === "thinking" ? "busy" : ""}`}>
-                      <Avatar who={id} size={36} />
+                  <button key={m.id} className="sk-recent-row" onClick={() => (agent === "odi" ? props.onOpenOdi() : props.onOpenNpc(agent))}>
+                    <Avatar who={mine ? "me" : agent} name={props.nickname} size={34} />
+                    <span className="sk-recent-main">
+                      <b>{mine ? `${agentName}에게` : agentName}</b>
+                      <span>{m.content.replace(/\s+/g, " ").slice(0, 120)}</span>
                     </span>
-                    <span className="ws-row-main">
-                      <b>{NPC_INFO[id].name}</b>
-                      <span className="ws-row-sub">{sub}</span>
-                    </span>
-                    {id === owner && <span className="ws-tag accent">담당</span>}
+                    <time>{hhmm(m.at)}</time>
                   </button>
                 );
               })}
             </div>
-          </section>
-
-          <section className="ws-card">
-            <div className="ws-card-head">
-              <h2>최근 활동</h2>
-            </div>
-            {recent.length === 0 ? (
-              <p className="ws-empty">아직 활동이 없어요. 업무 카드를 읽고 오디에게 첫 지시를 내려 보세요.</p>
-            ) : (
-              <div className="ws-rows">
-                {recent.map((m) => {
-                  const agent = m.agent as NpcId | "odi";
-                  const agentName = agent === "odi" ? "오디" : NPC_INFO[agent]?.name ?? m.agent;
-                  const mine = m.role === "user";
-                  return (
-                    <button key={m.id} className="ws-row" onClick={() => (agent === "odi" ? props.onOpenOdi() : props.onOpenNpc(agent))}>
-                      <Avatar who={mine ? "me" : agent} name={props.nickname} size={28} />
-                      <span className="ws-row-main">
-                        <b>{mine ? `${agentName}에게` : agentName}</b>
-                        <span className="ws-row-sub">{m.content.replace(/\s+/g, " ").slice(0, 80)}</span>
-                      </span>
-                      <time>{hhmm(m.at)}</time>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </div>
+          )}
+        </section>
       </div>
 
       {speaking && (

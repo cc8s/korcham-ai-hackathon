@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, connectEvents } from "../api";
 import { NPC_INFO, type Flow, type Message, type NpcId, type PixelEvent, type RunInfo } from "../types";
-import { OfficeHome, RUN_STATUS, type CharStatus } from "./OfficeHome";
+import { OfficeHome, CERT_LABEL, type CharStatus } from "./OfficeHome";
 import { Avatar, Icon } from "../ui/kit";
 import { TaskCard } from "../panels/TaskCard";
 import { OdiPanel } from "../panels/OdiPanel";
@@ -11,8 +11,6 @@ import { NpcChat } from "../panels/NpcChat";
 type Panel = "task" | "odi" | "data" | "npc" | null;
 const IDLE_MS = 3 * 60 * 1000;
 const NPC_ORDER: NpcId[] = ["kang", "jung", "park", "lee"];
-// 업무 카드의 분류 (시나리오 → 연계 자격증)
-const CERT_LABEL: Record<string, string> = { "01": "컴퓨터활용능력", "02": "전산회계운용사", "03": "유통관리사", "04": "무역영어", "05": "비서" };
 
 function Quota(props: { label: string; used: number; total: number; warn?: boolean }) {
   return (
@@ -169,71 +167,89 @@ export function Office(props: {
   return (
     <div className="ws">
       {!flow.met_mentor && panel !== "npc" && <div className="ws-spot-dim" aria-hidden="true" />}
-      <nav className="ws-side">
-        <div className="ws-brand">
-          <span className="ws-brand-mark">오름</span>
+      <nav className="ws-side sk-side">
+        <div className="sk-side-brand">
+          <img src="/assets/ui/oreum-logo-sm.svg" width={30} height={30} alt="" />
           <span>
             <b>(주)오름</b>
-            <small>{props.nickname} · 수습사원</small>
+            <small>
+              <strong>{props.nickname}</strong> 인턴
+            </small>
           </span>
         </div>
 
-        <button className={`ws-nav ${panel === null ? "active" : ""}`} onClick={() => setPanel(null)}>
-          <Icon name="home" />홈
+        <button className={`sk-nav ${panel === null ? "active" : ""}`} onClick={() => setPanel(null)}>
+          <img src="/assets/ui/ic-home.svg" width={14} height={14} alt="" />홈
         </button>
-        <button className={`ws-nav ${panel === "task" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("task")}>
-          <Icon name="task" />
-          업무 카드
-          <span className={`ws-tag ${RUN_STATUS[run.state].tone}`}>{RUN_STATUS[run.state].label}</span>
+        <button className={`sk-nav ${panel === "odi" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("odi")}>
+          <img src="/assets/ui/ic-odi.svg" width={17} height={17} alt="" />
+          AI 오디
+          <span className="sk-count">{status.me.state === "working" ? "응답 중" : `${odiLeft}회 남음`}</span>
         </button>
-        <button className={`ws-nav ${panel === "odi" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("odi")}>
-          <Icon name="spark" />
-          오디
-          <span className={`ws-tag ${status.me.state === "working" ? "info" : ""}`}>{status.me.state === "working" ? "응답 중" : `${odiLeft}회 남음`}</span>
-        </button>
-        <button className={`ws-nav ${panel === "data" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("data")}>
-          <Icon name="table" />
+        <button className={`sk-nav ${panel === "data" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("data")}>
+          <img src="/assets/ui/ic-paperclip.svg" width={16} height={16} alt="" />
           첨부 데이터
-          <span className="ws-tag">{info.task_card.attachments.length}</span>
+          <span className="sk-count">{info.task_card.attachments.length}</span>
         </button>
 
-        <span className="ws-side-label">팀원</span>
-        {NPC_ORDER.map((id) => (
-          <button
-            key={id}
-            className={`ws-nav ${panel === "npc" && npc === id ? "active" : ""} ${npcLocked(id) ? "locked" : ""} ${
-              (!flow.met_mentor && id === "lee") || (flow.met_mentor && !flow.briefed && id === owner) ? "ws-spot" : ""
-            }`}
-            onClick={() => openNpc(id)}
-          >
-            <span className={`ws-presence ${status[id].state === "thinking" ? "busy" : ""}`}>
-              <Avatar who={id} size={28} />
-            </span>
-            <span className="ws-nav-name">
-              {NPC_INFO[id].name}
-              <small>{status[id].state === "thinking" ? "답변 작성 중…" : NPC_INFO[id].role}</small>
-            </span>
-            {id === owner && <span className="ws-tag accent">담당</span>}
-            {!flow.met_mentor && id === "lee" && <span className="ws-spot-tip">먼저 인사해요 ←</span>}
-            {flow.met_mentor && !flow.briefed && id === owner && <span className="ws-spot-tip">지시 받기 ←</span>}
-          </button>
-        ))}
+        <span className="sk-side-label">팀원</span>
+        {NPC_ORDER.map((id) => {
+          const spot = (!flow.met_mentor && id === "lee") || (flow.met_mentor && !flow.briefed && id === owner);
+          return (
+            <button
+              key={id}
+              className={`sk-mate ${panel === "npc" && npc === id ? "active" : ""} ${npcLocked(id) ? "locked" : ""} ${spot ? "sk-spot" : ""}`}
+              onClick={() => openNpc(id)}
+            >
+              <span className={`sk-presence ${status[id].state === "thinking" ? "busy" : ""}`}>
+                <Avatar who={id} size={34} />
+              </span>
+              <span className="sk-mate-name">
+                <b>
+                  {NPC_INFO[id].name}
+                  {id === owner && <em className="sk-owner-tag">담당</em>}
+                </b>
+                <small>{status[id].state === "thinking" ? "답변 작성 중…" : NPC_INFO[id].role}</small>
+              </span>
+              {spot && <span className="sk-alert">1</span>}
+              {spot && <span className="sk-spot-tip">{flow.met_mentor ? "지시 받기!" : "먼저 인사해요!"}</span>}
+            </button>
+          );
+        })}
 
         <span className="ws-grow" />
 
-        <div className="ws-quota" title="사용량은 평가에 반영됩니다">
+        <div className="sk-todo">
+          <img src="/assets/ui/ic-todo.svg" width={25} height={24} alt="" />
+          <span>
+            <small>지금 할 일</small>
+            <b>
+              {!flow.met_mentor
+                ? "하늘 선배에게 인사하세요"
+                : !flow.briefed
+                  ? "담당 팀장님께 지시 받기"
+                  : run.state === "rejected"
+                    ? "반려 내용을 보완하세요"
+                    : run.state === "reviewing"
+                      ? "팀장님이 검토 중이에요"
+                      : "AI오디와 함께 작업하세요"}
+            </b>
+          </span>
+        </div>
+
+        <div className="sk-quota" title="사용량은 평가에 반영됩니다">
           <Quota label="오디" used={run.odi_calls_used} total={run.odi_calls_limit} />
           <Quota label="반려" used={run.reject_count} total={3} warn />
         </div>
 
-        <div className="ws-side-foot">
-          <button className="ws-btn primary block" onClick={() => (workLocked ? nudge() : props.onSubmit())}>
+        <div className="sk-side-foot">
+          <button className="sk-btn block" onClick={() => (workLocked ? nudge() : props.onSubmit())}>
             제출하기
           </button>
-          <small>결과물 {run.basket_text.length.toLocaleString()}자 담김</small>
-          <button className="ws-nav" onClick={props.onLeave}>
-            <Icon name="exit" />
-            배치표로
+          {/* 퇴근하기: 지금은 배치표로 나가기 (퇴근 → 리포트 흐름은 다음 단계) */}
+          <button className="sk-leave" onClick={props.onLeave}>
+            <img src="/assets/ui/ic-logout.svg" width={16} height={16} alt="" />
+            퇴근하기
           </button>
         </div>
       </nav>
