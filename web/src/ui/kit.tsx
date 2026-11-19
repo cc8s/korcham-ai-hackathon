@@ -1,4 +1,4 @@
-import { NPC_INFO, type NpcId } from "../types";
+import type { NpcId } from "../types";
 
 // 새 테마(ws.css)에서 쓰는 작은 부품: 선 아이콘, 이니셜 아바타
 
@@ -36,14 +36,14 @@ export function Avatar(props: { who: NpcId | "me" | "odi"; name?: string; size?:
   const size = props.size ?? 32;
   const box = { width: size, height: size, fontSize: Math.round(size * 0.42) };
   if (props.who === "odi") {
-    return (
-      <span className="ws-avatar odi" style={box}>
-        <Icon name="spark" />
-      </span>
-    );
+    return <img className="ws-avatar odi-img" style={box} src="/assets/ui/odi-avatar.svg" alt="" />;
   }
-  const name = props.who === "me" ? props.name ?? "나" : NPC_INFO[props.who].name;
-  const color = props.who === "me" ? ME_COLOR : NPC_INFO[props.who].color;
+  // 팀원은 사진 (2026-11-19 Figma UI 적용 테스트, 생성형 이미지)
+  if (props.who !== "me") {
+    return <img className="ws-avatar photo" style={box} src={`/assets/ui/npc-${props.who}.jpg`} alt="" />;
+  }
+  const name = props.name ?? "나";
+  const color = ME_COLOR;
   return (
     <span className="ws-avatar" style={{ ...box, background: color }}>
       {name.slice(0, 1)}
