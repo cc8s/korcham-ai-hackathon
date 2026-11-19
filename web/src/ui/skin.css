@@ -889,6 +889,10 @@
   padding: 32px 18px;
   background: #fff;
   border-right: 1px solid var(--sk-line);
+  overflow-y: auto;
+}
+/* 수습 흐름 강조 중에만 말풍선이 사이드바 밖으로 나가야 해서 스크롤을 끈다 (강조 행은 위쪽이라 잘리지 않음) */
+.ws-side.sk-side:has(.sk-spot) {
   overflow: visible;
 }
 .sk-side-brand {
@@ -1154,9 +1158,14 @@
 }
 
 /* ---------- 사무실 홈 ---------- */
+/* ws-home 이 grid 라 열 폭이 내용(줄바꿈 안 되는 최근 활동 문장)만큼 늘어나 본문 밖으로 넘쳤다 → 열을 본문 폭에 고정 */
 .sk-home {
   max-width: 1124px;
   padding: 67px 58px 48px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.sk-home > * {
+  min-width: 0;
 }
 .sk-hello p {
   padding-bottom: 4px;
@@ -1283,9 +1292,13 @@
   font-size: 14px;
   color: var(--sk-text-3);
 }
-@media (max-width: 900px) {
+/* 화면 폭이 아니라 본문 폭 기준 (오른쪽 패널이 열리면 본문이 좁아짐). ws-main 이 container */
+@container (max-width: 760px) {
   .sk-home {
-    padding: 32px 16px;
+    padding: 32px 20px;
+  }
+  .sk-task {
+    padding: 24px 20px;
   }
   .sk-task-row {
     flex-direction: column;
@@ -1294,6 +1307,11 @@
   .sk-odi-btn {
     width: 100%;
   }
+}
+
+/* 오디 첫 화면: 로고도 가운데 (img 는 block 이라 text-align 이 안 먹음) */
+.ws-intro .ws-avatar {
+  margin: 0 auto 12px;
 }
 /* 오디 첫 화면: 로고도 가운데 (img 는 block 이라 text-align 이 안 먹음) */
 .ws-intro .ws-avatar {
