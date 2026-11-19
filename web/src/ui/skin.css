@@ -2,7 +2,8 @@
    오디·제출·리포트 등 디자인이 아직 없는 화면은 ws.css 그대로 */
 .ws {
   --sk-brand: #3541ef;
-  --sk-brand-hover: #2a35d6;
+  --sk-brand-hover: #2b35c4;
+  --sk-brand-soft: #eceefe;
   --sk-navy: #122662;
   --sk-text: #191f28;
   --sk-text-2: #4e5968;
@@ -1141,6 +1142,10 @@
   display: grid;
   gap: 10px;
 }
+/* Figma QA 11-19: 제출하기 버튼과 퇴근하기 사이 16 */
+.sk-side-foot .sk-leave {
+  margin-top: 6px;
+}
 .sk-side-foot .sk-btn {
   height: 38px;
 }
@@ -1309,10 +1314,26 @@
   }
 }
 
-/* 오디 첫 화면: 로고도 가운데 (img 는 block 이라 text-align 이 안 먹음) */
-.ws-intro .ws-avatar {
-  margin: 0 auto 12px;
+/* ---------- 예전 화면(ws.css)에 남은 초록 강조를 브랜드 파랑으로 (Figma QA 11-19) ---------- */
+.ws :focus-visible {
+  outline-color: var(--sk-brand);
 }
+.ws-compose:focus-within,
+.ws-input:focus,
+.ws-textarea:focus {
+  border-color: var(--sk-brand);
+  box-shadow: 0 0 0 3px var(--sk-brand-soft);
+}
+.ws-send {
+  background: var(--sk-brand);
+}
+.ws-send:hover:not(:disabled) {
+  background: var(--sk-brand-hover);
+}
+.ws-send:disabled {
+  background: #e3e6ea;
+}
+
 /* 오디 첫 화면: 로고도 가운데 (img 는 block 이라 text-align 이 안 먹음) */
 .ws-intro .ws-avatar {
   margin: 0 auto 12px;
