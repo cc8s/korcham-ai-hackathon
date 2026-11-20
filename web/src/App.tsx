@@ -6,7 +6,7 @@ import { Office } from "./screens/Office";
 import { SubmitScreen } from "./screens/Submit";
 import { ReviewScreen } from "./screens/Review";
 import { ReportScreen } from "./screens/Report";
-import type { NpcId, Report, SubmitResult } from "./types";
+import type { NpcId, SubmitResult } from "./types";
 
 // 04 문서 1절 흐름: S0 입장 → S1 온보딩 → S6 선택 → S2 오피스 → S3 제출 → S4 검토 → S5 리포트
 type Screen = "enter" | "onboarding" | "select" | "office" | "submit" | "review" | "report";
@@ -44,14 +44,12 @@ export default function App() {
     return load(LS.run) ? "office" : "select";
   });
   const [review, setReview] = useState<{ result: SubmitResult; owner: NpcId } | null>(null);
-  const [report, setReport] = useState<Report | null>(null);
 
   useEffect(() => save(LS.session, session), [session]);
   useEffect(() => save(LS.run, runId), [runId]);
 
   const goSelect = () => {
     setRunId(null);
-    setReport(null);
     setScreen("select");
   };
 
@@ -88,10 +86,6 @@ export default function App() {
             setRunId(rid);
             setScreen("office");
           }}
-          onSampleReport={(r) => {
-            setReport(r);
-            setScreen("report");
-          }}
           onLogout={() => {
             setSession(null);
             setRunId(null);
@@ -108,7 +102,6 @@ export default function App() {
           onClosed={(owner) => {
             // 이미 종료된 run 을 다시 열었을 때
             setReview(null);
-            setReport(null);
             void owner;
             setScreen("report");
           }}
@@ -125,7 +118,6 @@ export default function App() {
             setScreen("review");
           }}
           onReport={() => {
-            setReport(null);
             setScreen("report");
           }}
         />
@@ -137,12 +129,11 @@ export default function App() {
           owner={review!.owner}
           onRetry={() => setScreen("office")}
           onReport={() => {
-            setReport(null);
             setScreen("report");
           }}
         />
       );
     case "report":
-      return <ReportScreen runId={report ? null : runId} report={report} onDone={goSelect} />;
+      return <ReportScreen runId={runId} report={null} onDone={goSelect} />;
   }
 }

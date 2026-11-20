@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
-import { SAMPLE_REPORT } from "../sample_report";
-import { NPC_INFO, type Report, type SessionInfo } from "../types";
+import { NPC_INFO, type SessionInfo } from "../types";
 import { Avatar } from "../ui/kit";
 
 const STATE_LABEL: Record<string, { label: string; tone: string }> = {
@@ -19,7 +18,6 @@ export function Select(props: {
   nickname: string;
   onStart: (rid: string) => void;
   onResume: (rid: string) => void;
-  onSampleReport: (r: Report) => void;
   onLogout: () => void;
 }) {
   const [info, setInfo] = useState<SessionInfo | null>(null);
@@ -56,9 +54,6 @@ export function Select(props: {
           <b>(주)오름</b>
         </span>
         <span className="sk-top-actions">
-          <button className="sk-btn ghost" onClick={() => props.onSampleReport(SAMPLE_REPORT)}>
-            샘플 리포트
-          </button>
           <button className="sk-btn ghost" onClick={props.onLogout}>
             퇴근하기
           </button>
