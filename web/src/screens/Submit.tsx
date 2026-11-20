@@ -133,7 +133,7 @@ export function SubmitScreen(props: {
 
   const chip = (id: NpcId, where: "to" | "cc") => (
     <span className="ws-mail-chip" key={id}>
-      <Avatar who={id} size={18} />
+      <Avatar who={id} size={24} />
       {NPC_INFO[id].name}
       <button type="button" aria-label={`${NPC_INFO[id].name} 빼기`} onClick={() => place(id, where)} disabled={busy}>
         <Icon name="close" />
