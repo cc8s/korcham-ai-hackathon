@@ -774,7 +774,10 @@
 }
 
 /* ---------- 배치표 (업무 선택) ---------- */
+/* ws-page 의 max-width 1080 을 그대로 두면 좌우 여백 137 을 빼고 806 밖에 안 남아 카드가 2열이 됨.
+   Figma 1440 프레임: 여백 137 + 카드 372×3 + 간격 25×2 = 1440 */
 .sk-select-page {
+  max-width: 1440px;
   padding: 78px clamp(16px, 9.5vw, 137px) 60px;
 }
 .sk-page-head p {
@@ -786,7 +789,7 @@
 }
 .sk-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 372px));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 25px;
 }
 .sk-card {
