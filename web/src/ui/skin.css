@@ -1351,3 +1351,12 @@
 .ws-intro .ws-avatar {
   margin: 0 auto 12px;
 }
+
+/* ---------- 제출 작성 (Figma 업무 선택 132:4090) ---------- */
+.sk-top-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.02em;
+  color: #000;
+}

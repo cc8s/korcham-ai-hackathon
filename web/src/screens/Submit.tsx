@@ -28,6 +28,7 @@ export function SubmitScreen(props: {
   runId: string;
   onBack: () => void;
   onResult: (r: SubmitResult, owner: NpcId) => void;
+  onReport: () => void; // 승인 팝업 '확인하기' → AI 리포트
 }) {
   const [basket, setBasket] = useState("");
   const [memo, setMemo] = useState("");
@@ -43,6 +44,7 @@ export function SubmitScreen(props: {
   const [openResult, setOpenResult] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [approved, setApproved] = useState(false);
 
   useEffect(() => {
     api.getRun(props.runId).then((r) => {
@@ -136,12 +138,12 @@ export function SubmitScreen(props: {
 
   return (
     <div className="ws ws-col">
-      <header className="ws-top">
-        <button className="ws-btn" onClick={props.onBack} disabled={busy}>
-          ← 사무실
+      <header className="sk-top between">
+        <h1 className="sk-top-title">제출 작성하기</h1>
+        <button className="sk-leave" onClick={props.onBack} disabled={busy}>
+          <img src="/assets/ui/ic-logout.svg" width={16} height={16} alt="" />
+          돌아가기
         </button>
-        <b>보고 메일 쓰기</b>
-        <small>{NPC_INFO[owner].name} 팀장님께 결과를 보고합니다</small>
       </header>
       <div className="ws-page">
         <div className="ws-cols lean">
