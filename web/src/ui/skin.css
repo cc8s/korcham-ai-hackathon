@@ -1155,7 +1155,7 @@
 .sk-leave {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;

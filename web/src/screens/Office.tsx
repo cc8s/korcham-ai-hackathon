@@ -246,10 +246,10 @@ export function Office(props: {
           <button className="sk-btn block" onClick={() => (workLocked ? nudge() : props.onSubmit())}>
             제출하기
           </button>
-          {/* 퇴근하기: 지금은 배치표로 나가기 (퇴근 → 리포트 흐름은 다음 단계) */}
+          {/* 배치표(업무 목록)로 돌아가기. Figma 업무카드 Frame 184 (131:2100) */}
           <button className="sk-leave" onClick={props.onLeave}>
-            <img src="/assets/ui/ic-logout.svg" width={16} height={16} alt="" />
-            퇴근하기
+            <img src="/assets/ui/ic-arrow-left.svg" width={16} height={16} alt="" />
+            업무 목록으로
           </button>
         </div>
       </nav>
