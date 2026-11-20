@@ -1360,3 +1360,33 @@
   letter-spacing: -0.02em;
   color: #000;
 }
+/* 승인 팝업 '수고하셨어요!' (Frame 183) */
+.sk-modal-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.36);
+}
+.sk-modal {
+  width: 240px;
+  padding: 28px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+}
+.sk-modal h2 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.02em;
+  color: #000;
+}
+.sk-modal p {
+  margin: 13px 0 16px;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: -0.01em;
+  color: var(--sk-text-3);
+}

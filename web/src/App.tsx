@@ -124,6 +124,10 @@ export default function App() {
             setReview({ result, owner });
             setScreen("review");
           }}
+          onReport={() => {
+            setReport(null);
+            setScreen("report");
+          }}
         />
       );
     case "review":

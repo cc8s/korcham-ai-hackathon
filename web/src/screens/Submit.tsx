@@ -119,7 +119,12 @@ export function SubmitScreen(props: {
     try {
       await api.putBasket(props.runId, basket);
       const r = await api.submit(props.runId, memo.trim(), parsed, { to, cc, subject: subject.trim(), body: body.trim(), attach_result: attached });
-      props.onResult(r, owner);
+      // 승인이면 이 화면 위에 '수고하셨어요' 팝업 → 리포트. 반려·3회 반려 종료는 검토 화면 (Figma 132:4090)
+      if (r.decision === "approve") {
+        setApproved(true);
+        setBusy(false);
+      }
+      else props.onResult(r, owner);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "보내기 실패");
       setBusy(false);
@@ -145,6 +150,17 @@ export function SubmitScreen(props: {
           돌아가기
         </button>
       </header>
+      {approved && (
+        <div className="sk-modal-dim" role="dialog" aria-modal="true" aria-labelledby="sk-done-title">
+          <div className="sk-modal">
+            <h2 id="sk-done-title">수고하셨어요!</h2>
+            <p>바로 ai 리포트 결과를 확인하세요.</p>
+            <button className="sk-btn block" onClick={props.onReport} autoFocus>
+              확인하기
+            </button>
+          </div>
+        </div>
+      )}
       <div className="ws-page">
         <div className="ws-cols lean">
           <section className="ws-card ws-mail">
