@@ -64,7 +64,7 @@ export function OfficeHome(props: {
               </div>
             </div>
             <button className="sk-btn lg sk-odi-btn" onClick={props.onOpenOdi}>
-              <img src="/assets/ui/ic-odi-btn.svg" width={23} height={24} alt="" />
+              <img src="/assets/ui/ic-odi-btn.svg?v=3" width={23} height={24} alt="" />
               오디와 함께하기
             </button>
           </div>

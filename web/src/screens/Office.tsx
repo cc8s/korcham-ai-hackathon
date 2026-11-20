@@ -182,7 +182,7 @@ export function Office(props: {
           <img src="/assets/ui/ic-home.svg" width={14} height={14} alt="" />홈
         </button>
         <button className={`sk-nav ${panel === "odi" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("odi")}>
-          <img src="/assets/ui/ic-odi.svg" width={17} height={17} alt="" />
+          <img src="/assets/ui/ic-odi.svg?v=3" width={17} height={17} alt="" />
           AI 오디
           <span className="sk-count">{status.me.state === "working" ? "응답 중" : `${odiLeft}회 남음`}</span>
         </button>

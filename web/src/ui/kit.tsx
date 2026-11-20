@@ -36,7 +36,7 @@ export function Avatar(props: { who: NpcId | "me" | "odi"; name?: string; size?:
   const size = props.size ?? 32;
   const box = { width: size, height: size, fontSize: Math.round(size * 0.42) };
   if (props.who === "odi") {
-    return <img className="ws-avatar odi-img" style={box} src="/assets/ui/odi-avatar.svg" alt="" />;
+    return <img className="ws-avatar odi-img" style={box} src="/assets/ui/odi-avatar.svg?v=3" alt="" />;
   }
   // 팀원은 사진 (2026-11-19 Figma UI 적용 테스트, 생성형 이미지)
   if (props.who !== "me") {
