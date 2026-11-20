@@ -1336,6 +1336,16 @@
 .ws-send:disabled {
   background: #e3e6ea;
 }
+/* Figma QA Frame 185: 메일 보내기·다시 작업 등 주 버튼과 첨부 '열어 보기'도 파랑 (A안: primary 버튼 전부) */
+.ws-btn.primary {
+  background: var(--sk-brand);
+}
+.ws-btn.primary:hover:not(:disabled) {
+  background: var(--sk-brand-hover);
+}
+.ws-mail-file button:not([aria-label]) {
+  color: var(--sk-brand);
+}
 
 /* 오디 첫 화면: 로고도 가운데 (img 는 block 이라 text-align 이 안 먹음) */
 .ws-intro .ws-avatar {
