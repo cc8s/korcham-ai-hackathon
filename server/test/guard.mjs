@@ -42,6 +42,40 @@ try {
   const s = await api("POST", "/session", { nickname: "라" });
   check("COST-04 지출 상한 도달 시 세션 503 + 안내", s.status === 503 && s.json?.code === "budget" && /내일/.test(s.json?.error), s.text);
   check("COST-04 health open=false", (await api("GET", "/health")).json?.open === false);
+  await srv.stop();
+
+  // 3) 동시 요청·긴 글 (2026-11-22 보안 점검). mock 응답을 늦춰 실제처럼 호출이 겹치게 한다
+  const port3 = testPort(8796);
+  srv = await startServer({ port: port3, dbName: "guard3.db", env: { LLM_MOCK: "1", LLM_MOCK_DELAY_MS: "800", NPC_CALLS_PER_RUN: "3" } });
+  ({ api } = srv);
+  const sess = (await api("POST", "/session", { nickname: "마" })).json.session_id;
+  const run = (await api("POST", "/scenario/01/start", { session_id: sess })).json.run_id;
+  const odiLimit = (await api("GET", `/run/${run}`)).json.run.odi_calls_limit;
+  const odi = (message) =>
+    fetch(`http://localhost:${port3}/run/${run}/odi`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) }).then(
+      async (r) => ({ status: r.status, body: await r.text() }),
+    );
+  const burst = await Promise.all(Array.from({ length: odiLimit + 5 }, () => odi("매출 합계 알려줘")));
+  const ok = burst.filter((r) => r.status === 200 && r.body.includes("event: done")).length;
+  const used = (await api("GET", `/run/${run}`)).json.run.odi_calls_used;
+  check(`COST-06 오디 동시 ${odiLimit + 5}건 → ${odiLimit}건만 성공, 사용 횟수 ${odiLimit}`, ok === odiLimit && used === odiLimit, `ok=${ok} used=${used}`);
+  const npcBurst = await Promise.all(Array.from({ length: 6 }, (_, i) => api("POST", `/run/${run}/npc/park`, { message: `동시 질문 ${i}` })));
+  check(
+    "COST-06 팀원 대화 동시 6건 → 상한 3건만",
+    npcBurst.filter((r) => r.status === 200).length === 3 && npcBurst.filter((r) => r.status === 429).length === 3,
+    npcBurst.map((r) => r.status).join(","),
+  );
+  const run2 = (await api("POST", "/scenario/02/start", { session_id: sess, replace: true })).json.run_id;
+  const longOdi = await fetch(`http://localhost:${port3}/run/${run2}/odi`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "가".repeat(4001) }),
+  });
+  const longNpc = await api("POST", `/run/${run2}/npc/kang`, { message: "가".repeat(1001) });
+  check("COST-07 긴 글 거절 (오디 4,000자 · 팀원 1,000자 초과 → 400)", longOdi.status === 400 && longNpc.status === 400 && longNpc.json?.code === "too_long", `${longOdi.status} ${longNpc.status}`);
+  const huge = await api("POST", `/run/${run2}/npc/kang`, { message: "a".repeat(300_000) });
+  check("COST-07 본문 256KB 초과 → 413 (500 아님)", huge.status === 413, String(huge.status));
+  check("COST-07 거절된 요청은 오디 횟수 안 씀", (await api("GET", `/run/${run2}`)).json.run.odi_calls_used === 0);
 } catch (e) {
   console.error(e);
   fail();

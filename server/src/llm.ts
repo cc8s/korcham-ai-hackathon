@@ -6,6 +6,9 @@ import { config } from "./config.js";
 // API 키는 ANTHROPIC_API_KEY 환경변수에서만 읽음. 사용자는 키를 입력하지 않음 (01 문서 A안)
 // LLM_MOCK=1 이면 Claude 를 호출하지 않고 규칙 기반 가짜 응답을 돌려줌 (07 문서 9-4, CI 용)
 export const MOCK = process.env.LLM_MOCK === "1";
+// mock 응답 지연 (ms). 실제 Claude 처럼 응답을 기다리는 동안 동시 요청이 겹치는 경우를 테스트하려고 (test/guard.mjs)
+const MOCK_DELAY_MS = Number(process.env.LLM_MOCK_DELAY_MS ?? 0);
+const mockWait = () => (MOCK_DELAY_MS > 0 ? new Promise((r) => setTimeout(r, MOCK_DELAY_MS)) : Promise.resolve());
 export const client = new Anthropic({ maxRetries: 2, ...(MOCK ? { apiKey: "sk-ant-mock" } : {}) });
 
 const mockUsage: Usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
@@ -60,7 +63,10 @@ export async function chat(args: {
   maxTokens: number;
   effort?: "low" | "medium" | "high";
 }): Promise<{ text: string; usage: Usage; stopReason: string | null }> {
-  if (MOCK) return { text: mockReply(args.turns), usage: mockUsage, stopReason: "end_turn" };
+  if (MOCK) {
+    await mockWait();
+    return { text: mockReply(args.turns), usage: mockUsage, stopReason: "end_turn" };
+  }
   const res = await client.messages.create({
     model: args.model,
     max_tokens: args.maxTokens,
@@ -86,6 +92,7 @@ export async function chatStream(args: {
   signal?: AbortSignal;
 }): Promise<{ text: string; usage: Usage; stopReason: string | null }> {
   if (MOCK) {
+    await mockWait();
     const text = mockReply(args.turns);
     for (const piece of text.match(/.{1,8}/gs) ?? []) args.onText(piece);
     return { text, usage: mockUsage, stopReason: "end_turn" };
@@ -141,7 +148,10 @@ export async function chatStreamTools(args: {
   // LLM_MOCK=1 일 때 가짜 도구 호출의 입력을 정함 (도구 이름, 사용자 마지막 메시지)
   mockInput: (toolName: string, userText: string) => Record<string, unknown>;
 }): Promise<{ text: string; usage: Usage; stopReason: string | null; requests: number }> {
-  if (MOCK) return mockToolTurn(args);
+  if (MOCK) {
+    await mockWait();
+    return mockToolTurn(args);
+  }
 
   const messages: Anthropic.MessageParam[] = toMessages(args.turns);
   let text = "";
@@ -233,7 +243,10 @@ export async function structured<T extends z.ZodType>(args: {
   // LLM_MOCK=1 일 때 쓰는 규칙 기반 대체. 호출부가 스키마에 맞는 값을 만들어 줌
   mock: (turns: ChatTurn[]) => z.infer<T>;
 }): Promise<{ parsed: z.infer<T>; usage: Usage }> {
-  if (MOCK) return { parsed: args.mock(args.turns), usage: mockUsage };
+  if (MOCK) {
+    await mockWait();
+    return { parsed: args.mock(args.turns), usage: mockUsage };
+  }
   const res = await client.messages.parse({
     model: args.model,
     max_tokens: args.maxTokens,
