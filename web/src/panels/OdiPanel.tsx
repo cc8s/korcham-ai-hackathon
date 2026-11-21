@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useIsMobile } from "../ui/mobile";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, ApiError, odiStream } from "../api";
@@ -23,6 +24,7 @@ export function OdiPanel(props: {
   onSent: (ms: Message[], used: number) => void;
   onBasket: (text: string) => void;
 }) {
+  const isMobile = useIsMobile();
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState<string | null>(null);
   const [pendingText, setPendingText] = useState("");
@@ -176,7 +178,15 @@ export function OdiPanel(props: {
           <div className="ws-compose-tools">
             <span>Enter 전송 · Shift+Enter 줄바꿈</span>
             <button className="ws-send" disabled={streaming !== null || !input.trim()} onClick={send} aria-label="보내기" title="보내기">
-              <Icon name="send" />
+              {isMobile ? (
+                // Figma 오디대화: arrow-up-circle
+                <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+                  <circle cx="13" cy="13" r="13" fill="currentColor" />
+                  <path d="M13 18V8M8.5 12.5L13 8l4.5 4.5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <Icon name="send" />
+              )}
             </button>
           </div>
         </div>

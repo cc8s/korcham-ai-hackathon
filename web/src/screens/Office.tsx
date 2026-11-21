@@ -7,6 +7,8 @@ import { TaskCard } from "../panels/TaskCard";
 import { OdiPanel } from "../panels/OdiPanel";
 import { DataViewer } from "../panels/DataViewer";
 import { NpcChat } from "../panels/NpcChat";
+import { hhmm } from "../panels/OdiPanel";
+import { Bnv, mobileNav, useIsMobile, type MobileTab } from "../ui/mobile";
 
 type Panel = "task" | "odi" | "data" | "npc" | null;
 const IDLE_MS = 3 * 60 * 1000;
@@ -39,6 +41,9 @@ export function Office(props: {
   const [panel, setPanel] = useState<Panel>(null);
   const [npc, setNpc] = useState<NpcId>("lee");
   const [dataFile, setDataFile] = useState<string | null>(null);
+  // 모바일(560px 이하): 사이드바 = 홈 탭, 패널 = 전체 화면, 아래 BNV. 메시지 탭은 대화목록 (Figma 166:4603)
+  const isMobile = useIsMobile();
+  const [mtab, setMtab] = useState<"home" | "msg">("home");
   const [status, setStatus] = useState<Record<NpcId | "me", CharStatus>>({
     kang: { state: "idle" },
     park: { state: "idle" },
@@ -81,6 +86,11 @@ export function Office(props: {
         props.onClosed(r.scenario.owner_npc_id);
         return;
       }
+      // 제출 화면의 BNV 에서 다른 탭을 눌러 돌아왔으면 그 탭으로
+      const want = mobileNav.pending;
+      mobileNav.pending = null;
+      if (want === "msg") setMtab("msg");
+      if (want === "odi" && r.flow.briefed) setPanel("odi");
       // 첫 진입: 하늘이 먼저 부른다 (화면은 어두워지고 하늘만 강조). 업무 카드는 팀장 지시 뒤에
       if (!r.flow.met_mentor) setChar("lee", { state: "talking", bubble: "여기예요! 저부터 만나요." }, 10000);
     });
@@ -163,9 +173,20 @@ export function Office(props: {
   };
   const patchRun = (p: Partial<RunInfo["run"]>) => setInfo((prev) => (prev ? { ...prev, run: { ...prev.run, ...p } } : prev));
   const odiLeft = run.odi_calls_limit - run.odi_calls_used;
+  const mActive: MobileTab = panel === "odi" ? "odi" : panel === "npc" || (mtab === "msg" && panel === null) ? "msg" : "home";
+  const onTab = (t: MobileTab) => {
+    if (t === "home" || t === "msg") {
+      setPanel(null);
+      setMtab(t);
+    } else if (workLocked) nudge();
+    else if (t === "odi") setPanel("odi");
+    else props.onSubmit();
+    touch();
+  };
+  const recent = messages.slice(-12).reverse();
 
   return (
-    <div className="ws">
+    <div className={`ws sk-office${isMobile && mtab === "msg" && panel === null ? " m-msg" : ""}`}>
       {!flow.met_mentor && panel !== "npc" && <div className="ws-spot-dim" aria-hidden="true" />}
       <nav className="ws-side sk-side">
         <div className="sk-side-brand">
@@ -186,7 +207,13 @@ export function Office(props: {
           AI 오디
           <span className="sk-count">{status.me.state === "working" ? "응답 중" : `${odiLeft}회 남음`}</span>
         </button>
-        <button className={`sk-nav ${panel === "data" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("data")}>
+        {/* 모바일 전용: AI 오디 아래 '오늘 업무' 줄 → 업무 화면 (2026-11-22 결정, 첨부 데이터 줄을 대신함) */}
+        <button className={`sk-nav sk-m-only ${workLocked ? "locked" : ""}`} onClick={() => (workLocked ? nudge() : setPanel("task"))}>
+          <img src="/assets/ui/ic-clipboard-gray.svg" width={16} height={16} alt="" />
+          오늘 업무
+          <span className="sk-count">{info.task_card.due.replace(/^오늘\s*/, "")}까지</span>
+        </button>
+        <button className={`sk-nav sk-pc-only ${panel === "data" ? "active" : ""} ${workLocked ? "locked" : ""}`} onClick={() => toggle("data")}>
           <img src="/assets/ui/ic-paperclip.svg" width={16} height={16} alt="" />
           첨부 데이터
           <span className="sk-count">{info.task_card.attachments.length}</span>
@@ -254,6 +281,44 @@ export function Office(props: {
         </div>
       </nav>
 
+      {isMobile && mtab === "msg" && panel === null && (
+        <section className="sk-m-msgs">
+          <h1>메시지</h1>
+          <div className="sk-m-people">
+            {NPC_ORDER.map((id) => (
+              <button key={id} className={npcLocked(id) ? "locked" : ""} onClick={() => openNpc(id)}>
+                <span className="sk-presence">
+                  <Avatar who={id} size={48} />
+                </span>
+                <b>{NPC_INFO[id].name}</b>
+              </button>
+            ))}
+          </div>
+          <h2>최근 활동</h2>
+          {recent.length === 0 ? (
+            <p className="sk-empty">아직 활동이 없어요. 하늘 선배에게 인사하고, 팀장님 지시를 받아 보세요.</p>
+          ) : (
+            <div className="sk-recent-list">
+              {recent.map((m) => {
+                const agent = m.agent as NpcId | "odi";
+                const name = agent === "odi" ? "AI오디" : NPC_INFO[agent]?.name ?? m.agent;
+                const mine = m.role === "user";
+                return (
+                  <button key={m.id} className="sk-recent-row" onClick={() => (agent === "odi" ? onTab("odi") : openNpc(agent))}>
+                    <Avatar who={mine ? "me" : agent} name={props.nickname} size={34} />
+                    <span className="sk-recent-main">
+                      <b>{mine ? `${name}에게` : name}</b>
+                      <span>{m.content.replace(/\s+/g, " ").slice(0, 80)}</span>
+                    </span>
+                    <time>{hhmm(m.at)}</time>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
       <main className="ws-main">
         <OfficeHome
           nickname={props.nickname}
@@ -270,8 +335,31 @@ export function Office(props: {
 
       {panel && (
         <aside className={`ws-panel ${panel === "data" ? "wide" : ""}`}>
+          {isMobile && panel === "odi" ? (
+            // 모바일 오디 탭 머리말 (Figma 오디대화 166:5943): 탭 화면이라 뒤로 없음
+            <div className="sk-m-odi-head">
+              <div>
+                <Avatar who="odi" size={34} />
+                <span>
+                  <b>오디</b>
+                  <small>(주)오름 AI</small>
+                </span>
+              </div>
+              <p>
+                <em>
+                  남은 호출 {odiLeft}/{run.odi_calls_limit}
+                </em>
+                첨부데이터는 오디가 이미 읽고 있어요
+              </p>
+            </div>
+          ) : (
           <div className="ws-panel-head">
-            {panel === "task" && <b>업무 카드</b>}
+            {isMobile && (
+              <button className="sk-m-back" onClick={() => setPanel(null)} aria-label="뒤로">
+                <img src="/assets/ui/ic-arrow-left.svg" width={22} height={22} alt="" />
+              </button>
+            )}
+            {panel === "task" && <b>{isMobile ? "오늘 업무" : "업무 카드"}</b>}
             {panel === "odi" && (
               <>
                 <Avatar who="odi" size={24} />
@@ -287,11 +375,51 @@ export function Office(props: {
                 <small>{NPC_INFO[npc].role}</small>
               </>
             )}
-            <button className="ws-iconbtn" onClick={() => setPanel(null)} aria-label="닫기" title="닫기">
-              <Icon name="close" />
-            </button>
+            {!isMobile && (
+              <button className="ws-iconbtn" onClick={() => setPanel(null)} aria-label="닫기" title="닫기">
+                <Icon name="close" />
+              </button>
+            )}
           </div>
-          {panel === "task" && (
+          )}
+          {panel === "task" && isMobile && (
+            // 모바일 업무 화면 (2026-11-22 목업): 제목·팀장·마감 / 업무 내용 / 첨부 파일 / 오디와 함께하기
+            <div className="ws-panel-body sk-m-task">
+              <section>
+                <span className="sk-cert">{CERT_LABEL[info.scenario.id] ?? "수습 과제"}</span>
+                <h2>{info.task_card.title}</h2>
+                <div className="sk-task-meta">
+                  <span>
+                    <img src="/assets/ui/ic-user.svg" width={16} height={16} alt="" />
+                    {NPC_INFO[owner].name} {NPC_INFO[owner].role}
+                  </span>
+                  <span>
+                    <img src="/assets/ui/ic-clock.svg" width={16} height={16} alt="" />
+                    {info.task_card.due}
+                  </span>
+                </div>
+              </section>
+              <section>
+                <h3>업무 내용</h3>
+                <p>{info.task_card.body}</p>
+              </section>
+              <section>
+                <h3>첨부 파일</h3>
+                {info.task_card.attachments.map((f) => (
+                  <button key={f} className="sk-m-file" onClick={() => openData(f)}>
+                    <img src="/assets/ui/ic-paperclip.svg" width={18} height={18} alt="" />
+                    {f.replace(/^(data|_shared)\//, "")}
+                    <span>열어 보기</span>
+                  </button>
+                ))}
+              </section>
+              <button className="sk-btn lg block sk-odi-btn" onClick={() => setPanel("odi")}>
+                <img src="/assets/ui/ic-odi-btn.svg?v=3" width={22} height={23} alt="" />
+                오디와 함께하기
+              </button>
+            </div>
+          )}
+          {panel === "task" && !isMobile && (
             <TaskCard
               card={info.task_card}
               owner={owner}
@@ -335,6 +463,7 @@ export function Office(props: {
           )}
         </aside>
       )}
+      {isMobile && <Bnv active={mActive} onTab={onTab} locked={(t) => (t === "odi" || t === "submit") && workLocked} />}
     </div>
   );
 }

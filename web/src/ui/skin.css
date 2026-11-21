@@ -239,7 +239,8 @@
   }
 }
 /* 좁은 화면: 사원증은 글 뒤로 흐리게, 아주 좁으면 숨김 */
-@media (max-width: 960px) {
+/* 1024px 이하: 사원증 카드가 왼쪽 폼을 덮기 시작함 (반응형 점검 UI-19, 961px 에서 24px 겹침) → 흐리게 글 뒤로 */
+@media (max-width: 1024px) {
   .sk-badge3d {
     z-index: 0;
     opacity: 0.25;
@@ -1354,4 +1355,470 @@
 }
 .sk-toggle-body {
   margin-top: 16px;
+}
+
+/* ---------- 모바일 사무실 (640px 이하, Figma 모바일 166:4308 · 대화목록 166:4603 · 오디대화 166:5943) ----------
+   사이드바 = 홈 탭(화면 전체), 가운데 홈은 숨김, 패널(업무·오디·팀원 대화·첨부)은 전체 화면, 아래 BNV.
+   알림 말풍선(본문 아래 토스트)은 본문과 함께 숨겨짐 (Figma 메모: 모바일에선 연락 알람 제거, 숫자 1 배지로 충분) */
+.sk-m-only,
+.sk-bnv {
+  display: none;
+}
+@media (max-width: 640px) {
+  .sk-m-only {
+    display: flex;
+  }
+  .sk-pc-only {
+    display: none !important;
+  }
+  .sk-office {
+    padding-bottom: 63px;
+  }
+  .sk-office .ws-side {
+    flex: 1;
+    width: 100%;
+    padding: 24px;
+    border-right: 0;
+    background: #fff;
+  }
+  .sk-office .ws-main,
+  .sk-office.m-msg .ws-side {
+    display: none;
+  }
+  /* 팀원 글씨 (Figma Frame 50 메모: 이름 14, 직책 12) */
+  .sk-office .sk-mate-name b {
+    font-size: 14px;
+  }
+  .sk-office .sk-mate-name small {
+    font-size: 12px;
+  }
+  /* 튜토리얼 말풍선: 옆 공간이 없으니 줄 안쪽 오른쪽(숫자 배지 왼쪽)에 */
+  .sk-office .sk-spot-tip {
+    left: auto;
+    right: 40px;
+  }
+  .sk-office .sk-spot-tip::before {
+    display: none;
+  }
+  .sk-office .ws-panel,
+  .sk-office .ws-panel.wide {
+    position: fixed;
+    inset: 0 0 63px 0;
+    z-index: 45; /* 튜토리얼 가림막(40)·'업무 목록으로'(41)보다 위: 패널이 홈 화면을 완전히 덮도록 */
+    width: auto;
+    border-left: 0;
+  }
+  .sk-office .ws-panel-head {
+    padding: 0 16px 0 12px;
+  }
+  .sk-m-back {
+    display: grid;
+    place-items: center;
+    padding: 4px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  /* BNV (Figma Frame 191): 높이 63, 위 테두리, 아이콘 24, 켜진 탭은 브랜드 파랑 */
+  .sk-bnv {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 46;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 63px;
+    padding: 0 16px;
+    border-top: 1px solid var(--sk-line);
+    background: #fff;
+  }
+  .sk-bnv button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: none;
+    color: var(--sk-text-2);
+    cursor: pointer;
+  }
+  .sk-bnv button.on {
+    color: var(--sk-brand);
+  }
+  .sk-bnv button.locked {
+    opacity: 0.4;
+  }
+
+  /* 메시지 탭 (Figma 대화목록 166:4603) */
+  .sk-m-msgs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background: #fff;
+  }
+  .sk-m-msgs h1 {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 30px;
+    color: var(--sk-text-2);
+  }
+  .sk-m-people {
+    display: flex;
+    justify-content: space-between;
+    margin: 24px 0 40px;
+  }
+  .sk-m-people button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .sk-m-people button.locked {
+    opacity: 0.45;
+  }
+  .sk-m-people b {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--sk-text);
+  }
+  .sk-m-msgs h2 {
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sk-text-3);
+  }
+  .sk-m-msgs .sk-recent-row {
+    gap: 12px;
+    padding: 10px 0;
+    border: 0;
+    background: none;
+  }
+
+  /* 오늘 업무 화면 (2026-11-22 목업) */
+  .sk-m-task {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    overflow-y: auto;
+    background: #f5f6f8;
+  }
+  .sk-m-task section {
+    padding: 20px;
+    border-radius: 14px;
+    background: #fff;
+  }
+  .sk-m-task h2 {
+    margin-top: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    letter-spacing: -0.02em;
+    color: var(--sk-text);
+  }
+  .sk-m-task .sk-task-meta {
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .sk-m-task h3 {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sk-text-3);
+  }
+  .sk-m-task p {
+    font-size: 14px;
+    line-height: 23px;
+    letter-spacing: -0.01em;
+    color: var(--sk-text-2);
+    white-space: pre-wrap;
+  }
+  .sk-m-file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--sk-line);
+    border-radius: 10px;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sk-text);
+    cursor: pointer;
+  }
+  .sk-m-file span {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--sk-brand);
+  }
+  .sk-m-task .sk-odi-btn {
+    margin-top: auto;
+  }
+}
+
+/* ---------- 모바일 제출 (640px 이하, Figma 제출 179:6908 · 받는 사람 고르기 Frame 214) ---------- */
+@media (max-width: 640px) {
+  .sk-submit {
+    padding-bottom: 63px;
+  }
+  .sk-submit .ws-mail-row {
+    position: relative;
+  }
+  .sk-m-chev {
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .sk-m-chev img {
+    transition: transform 0.15s ease;
+  }
+  .sk-m-chev.open img {
+    transform: scaleY(-1);
+  }
+  .sk-m-pick {
+    display: grid;
+    gap: 4px;
+    margin: 4px 0 8px;
+    padding: 12px;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 4px 20px rgb(0 0 0 / 0.1);
+  }
+  .sk-m-pick button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+  }
+  .sk-m-pick button.on {
+    background: var(--sk-fill);
+  }
+  .sk-m-pick b {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--sk-text);
+  }
+  .sk-m-pick small {
+    font-size: 13px;
+    color: var(--sk-text-3);
+  }
+}
+
+/* ---------- 모바일 오디 대화 (640px 이하, Figma 오디대화 166:5943) ---------- */
+@media (max-width: 640px) {
+  .sk-m-odi-head {
+    flex: none;
+    display: grid;
+    gap: 12px;
+    padding: 24px;
+    border-bottom: 0.5px solid var(--sk-line);
+    background: #fff;
+  }
+  .sk-m-odi-head > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+  }
+  .sk-m-odi-head b {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+    color: #000;
+  }
+  .sk-m-odi-head small {
+    display: block;
+    font-size: 11px;
+    line-height: 18px;
+    color: var(--sk-text-3);
+  }
+  .sk-m-odi-head p {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18px;
+    color: var(--sk-text-2);
+  }
+  .sk-m-odi-head em {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--sk-fill);
+    font-style: normal;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 16px;
+    color: var(--sk-text-4);
+  }
+  /* 머리말에 남은 호출이 있으니 패널의 안내 띠는 숨김 */
+  .sk-office .ws-panel .ws-chat-note {
+    display: none;
+  }
+  .sk-office .ws-panel .ws-panel-body {
+    background: #f7f8fa;
+  }
+  .sk-office .ws-msgs:has(.ws-intro) {
+    align-content: center; /* 대화가 없을 때 안내를 화면 가운데에 (Figma) */
+  }
+  .sk-office .ws-intro .ws-avatar,
+  .sk-office .ws-intro .ws-avatar img {
+    width: 46px;
+    height: 46px;
+  }
+  .sk-office .ws-intro b {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--sk-text-2);
+  }
+  .sk-office .ws-intro b + p {
+    margin-top: 18px;
+  }
+  .sk-office .ws-intro p {
+    margin-top: 0;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--sk-text-4);
+  }
+  /* 입력: 한 줄 칸 + 오른쪽 바깥 파란 원 버튼 */
+  .sk-office .ws-compose {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 0;
+    padding: 24px;
+    border: 0;
+    border-radius: 0;
+    background: #f7f8fa;
+    box-shadow: none;
+  }
+  .sk-office .ws-compose:focus-within {
+    box-shadow: none;
+  }
+  .sk-office .ws-compose textarea {
+    flex: 1;
+    height: 44px;
+    padding: 10px;
+    border: 1px solid var(--sk-line);
+    border-radius: 8px;
+    background: #f7f8fa;
+    font-size: 14px;
+    line-height: 22px;
+  }
+  .sk-office .ws-compose textarea::placeholder {
+    font-weight: 600;
+    color: var(--sk-text-4);
+  }
+  .sk-office .ws-compose-tools {
+    padding: 0;
+  }
+  .sk-office .ws-compose-tools > span {
+    display: none;
+  }
+  .sk-office .ws-compose .ws-send {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--sk-brand);
+  }
+  .sk-office .ws-compose .ws-send:disabled {
+    color: var(--sk-brand); /* Figma 는 입력 전에도 파랑. 누르면 아무 일 없음 */
+    opacity: 1;
+    cursor: default;
+  }
+}
+
+/* ---------- 모바일 제출 모양 (640px 이하, Figma 제출 179:6908): 흰 화면 한 장, 좌우 24 ---------- */
+@media (max-width: 640px) {
+  .sk-submit {
+    background: #fff;
+  }
+  .sk-m-head h1 {
+    padding: 40px 24px 12px;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 30px;
+    color: var(--sk-text-2);
+  }
+  .sk-submit .ws-page {
+    padding: 0 24px 32px;
+  }
+  .sk-submit .ws-cols.lean {
+    display: block;
+  }
+  .sk-submit .ws-card {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .sk-submit .ws-stack > .ws-card {
+    margin-top: 36px;
+  }
+  .sk-submit .ws-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--sk-text);
+  }
+  .sk-submit .ws-mail {
+    display: flex;
+    flex-direction: column;
+  }
+  .sk-submit .ws-mail-row {
+    min-height: 61px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  /* 첨부를 본문 위로 (Figma 순서: 받는사람·참조·제목·첨부·본문) */
+  .sk-submit .ws-mail-attach,
+  .sk-submit .ws-mail > .ws-fine,
+  .sk-submit .ws-mail > .ws-textarea {
+    order: 1;
+  }
+  .sk-submit .ws-mail-attach {
+    padding: 20px 10px;
+    border: 0;
+  }
+  .sk-submit .ws-mail-body {
+    order: 2;
+    min-height: 340px;
+    margin-top: 12px;
+    padding: 20px;
+    border: 0;
+    border-radius: 12px;
+    background: #f2f3f5;
+  }
+  .sk-submit .ws-input {
+    height: 48px;
+    border-radius: 8px;
+  }
+  .sk-submit .ws-stack .ws-textarea {
+    min-height: 240px;
+    padding: 20px;
+    border: 0;
+    border-radius: 12px;
+    background: #f2f3f5;
+  }
+  .sk-submit .ws-stack > .ws-btn.primary {
+    margin-top: 24px;
+  }
 }
