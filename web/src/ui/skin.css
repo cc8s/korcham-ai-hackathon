@@ -1839,3 +1839,11 @@
 .sk-btn.ghost.quiet:hover:not(:disabled) {
   color: var(--sk-text-3);
 }
+/* 튜토리얼 가림막 중에도 '업무 목록으로'는 누를 수 있게 (가림막 z-index 40 위로) */
+.sk-side-foot .sk-leave {
+  position: relative;
+  z-index: 41;
+}
+.ws-spot-dim ~ .ws-side .sk-side-foot .sk-leave {
+  color: #fff;
+}
