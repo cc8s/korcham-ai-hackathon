@@ -25,6 +25,12 @@ app.use(runRouter);
 
 // 공통 에러 핸들러. express 5 는 async 핸들러의 reject 도 여기로 옴
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // 본문이 너무 크거나 JSON 이 깨진 요청 (express.json). 서버 오류가 아니라 요청 문제로 돌려준다
+  const status = (err as { status?: number } | null)?.status;
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    if (!res.headersSent) res.status(status).json({ error: status === 413 ? "보낸 글이 너무 길어요" : "요청 형식이 맞지 않아요" });
+    return;
+  }
   console.error(err);
   if (!res.headersSent) res.status(500).json({ error: "서버 오류" });
 });

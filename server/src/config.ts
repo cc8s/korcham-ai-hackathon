@@ -38,6 +38,11 @@ export const config = {
     npcCallsPerRun: Number(env("NPC_CALLS_PER_RUN", "30")),
     odiHistoryChars: Number(env("ODI_HISTORY_CHARS", "60000")),
     npcHistoryChars: Number(env("NPC_HISTORY_CHARS", "16000")),
+    // 한 번에 보내는 글 길이 상한. 이력 상한은 이번 메시지를 항상 남기므로, 이게 없으면
+    // 본문 256KB(한글 약 8만 자)를 한 번에 넣어 하루 지출 상한을 혼자 다 쓸 수 있다 (2026-11-22 점검)
+    odiMessageChars: Number(env("ODI_MESSAGE_CHARS", "4000")),
+    npcMessageChars: Number(env("NPC_MESSAGE_CHARS", "1000")),
+    memoChars: Number(env("MEMO_CHARS", "4000")),
     // 프록시 뒤(Railway)에서 실제 클라이언트 IP 를 읽기 위한 express trust proxy 값 (홉 수)
     trustProxy: Number(env("TRUST_PROXY", "1")),
   },

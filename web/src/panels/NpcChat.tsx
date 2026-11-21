@@ -155,6 +155,7 @@ export function NpcChat(props: {
       <div className="ws-compose">
         <textarea
           rows={2}
+          maxLength={1000} // 서버 상한과 같게 (server config.guard)
           value={input}
           placeholder={`${info.name} 님에게 메시지 보내기`}
           disabled={busy}
