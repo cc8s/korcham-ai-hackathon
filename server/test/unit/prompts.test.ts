@@ -75,3 +75,15 @@ test("LDR-01 팀장 대화 맥락에 업무 카드에 없는 함정 키워드·�
     assert.notEqual(sc.prompts.npc_chat_context, sc.prompts.scenario_context_for_npc);
   }
 });
+
+// LDR-03: 맞장구는 AI 를 부르지 않고 고정 답 (2026-11-22, "넵" 반복에 확인법이 점점 구체화되던 누설)
+test("LDR-03 맞장구 판정: 맞장구만 있으면 고정 답, 질문이 섞이면 AI", async () => {
+  const { isAck, ACK_REPLY } = await import("../../src/npcAck.ts");
+  for (const m of ["넵", "넵!", "네", "네 알겠습니다", "넵넵 감사합니다~", "ㅇㅋ", "알겠어요.", "확인했습니다!", "ok"]) {
+    assert.equal(isAck(m), true, `맞장구여야 함: ${m}`);
+  }
+  for (const m of ["넵 근데 뭘 확인해요?", "네, 행 수 맞나요?", "알겠어요, 근데 뭘 확인하면 돼요?", "네 오디 결과가 이상해요", "총매출이 얼마예요"]) {
+    assert.equal(isAck(m), false, `AI 가 답해야 함: ${m}`);
+  }
+  for (const id of ["kang", "park", "jung", "lee"] as const) assert.ok(ACK_REPLY[id].length > 0 && ACK_REPLY[id].length < 30);
+});
