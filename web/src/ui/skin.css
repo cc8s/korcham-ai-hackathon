@@ -1816,3 +1816,26 @@
     display: none;
   }
 }
+
+/* ---------- 업무 바꾸기 확인 팝업 (Figma 업무 선택 144:1811) ---------- */
+.sk-modal.wide {
+  width: min(374px, calc(100vw - 32px));
+}
+.sk-modal.wide h2 {
+  text-align: center;
+}
+.sk-modal-actions {
+  display: flex;
+  gap: 16px;
+}
+.sk-modal-actions .sk-btn {
+  flex: 1;
+  min-width: 0;
+}
+.sk-btn.ghost.quiet {
+  border-color: var(--sk-line);
+  color: var(--sk-text-4);
+}
+.sk-btn.ghost.quiet:hover:not(:disabled) {
+  color: var(--sk-text-3);
+}

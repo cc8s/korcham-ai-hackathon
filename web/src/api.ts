@@ -41,8 +41,9 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 export const api = {
   createSession: (nickname: string) => req<{ session_id: string; nickname: string }>("POST", "/session", { nickname }),
   getSession: (id: string) => req<SessionInfo>("GET", `/session/${id}`),
-  startScenario: (sid: string, session_id: string) =>
-    req<{ run_id: string; state: string; scenario: ScenarioSummary; task_card: TaskCard }>("POST", `/scenario/${sid}/start`, { session_id }),
+  // replace=true: 진행 중인 업무를 그만두고 이 업무를 시작 (진행 중 업무는 하나만, 서버가 409 active_run 으로 알려 줌)
+  startScenario: (sid: string, session_id: string, replace = false) =>
+    req<{ run_id: string; state: string; scenario: ScenarioSummary; task_card: TaskCard }>("POST", `/scenario/${sid}/start`, { session_id, replace }),
   getRun: (rid: string) => req<RunInfo>("GET", `/run/${rid}`),
   getData: (rid: string, file: string, flags: { sort?: boolean; search?: boolean } = {}) => {
     const q = new URLSearchParams();
