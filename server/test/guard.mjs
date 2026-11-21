@@ -18,7 +18,8 @@ try {
   check("COST-01 IP당 세션 2개까지", a.status === 200 && b.status === 200);
   check("COST-01 세 번째 세션 429 + 안내 문구", c.status === 429 && c.json?.code === "ip_sessions" && /내일/.test(c.json?.error), c.text);
 
-  const start = (sid, sc) => api("POST", `/scenario/${sc}/start`, { session_id: sid });
+  // 진행 중 업무는 하나만이라 바꿔 가며 시작 (replace). 하루 상한은 그보다 먼저 걸린다
+  const start = (sid, sc) => api("POST", `/scenario/${sc}/start`, { session_id: sid, replace: true });
   const r1 = await start(a.json.session_id, "01");
   const r2 = await start(a.json.session_id, "02");
   const r3 = await start(a.json.session_id, "03");
@@ -27,7 +28,7 @@ try {
   const r5 = await start(b.json.session_id, "02");
   check("COST-02 IP당 하루 3회 (다른 세션이어도)", r4.status === 200 && r5.status === 429, `${r4.status} ${r5.status}`);
 
-  const rid = r1.json.run_id;
+  const rid = r2.json.run_id; // r1 은 r2 를 시작하며 그만둔 업무
   const n1 = await api("POST", `/run/${rid}/npc/park`, { message: "질문 1" });
   const n2 = await api("POST", `/run/${rid}/npc/lee`, { message: "질문 2" });
   const n3 = await api("POST", `/run/${rid}/npc/kang`, { message: "질문 3" });

@@ -23,6 +23,8 @@ export function Select(props: {
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // 진행 중인 업무가 있는데 다른 업무를 고르면 묻는다 (Figma 업무 선택 144:1680)
+  const [confirm, setConfirm] = useState<{ target: string; activeRunId: string } | null>(null);
 
   useEffect(() => {
     api
@@ -34,12 +36,29 @@ export function Select(props: {
       });
   }, [props.sessionId]);
 
-  const start = async (sid: string) => {
+  const isClosedRun = (r: NonNullable<SessionInfo["scenarios"][number]["run"]>) =>
+    r.state === "approved" || r.state === "evaluated" || r.reject_count >= 3;
+  const activeRun = info?.scenarios.map((s) => s.run).find((r) => r && !isClosedRun(r)) ?? null;
+
+  const choose = (sid: string) => {
+    if (activeRun) setConfirm({ target: sid, activeRunId: activeRun.id });
+    else void start(sid);
+  };
+
+  const start = async (sid: string, replace = false) => {
     setBusy(sid);
+    setConfirm(null);
     try {
-      const r = await api.startScenario(sid, props.sessionId);
+      const r = await api.startScenario(sid, props.sessionId, replace);
       props.onStart(r.run_id);
     } catch (e) {
+      // 화면이 모르는 진행 중 업무가 있었으면(다른 탭 등) 서버가 409 로 알려 준다 → 같은 팝업
+      const body = e instanceof ApiError ? (e.body as { code?: string; active?: { run_id: string } } | undefined) : undefined;
+      if (body?.code === "active_run" && body.active) {
+        setConfirm({ target: sid, activeRunId: body.active.run_id });
+        setBusy(null);
+        return;
+      }
       // 하루 이용 한도·체험 분량 소진은 서버 문구를 그대로 보여 준다
       setErr(e instanceof ApiError && e.status !== 500 ? e.message : "시작 실패. 다시 눌러 주세요");
       setBusy(null);
@@ -62,7 +81,11 @@ export function Select(props: {
       <div className="ws-page sk-select-page">
         <div className="sk-page-head">
           <h1 className="sk-display">자격증별 실무 업무</h1>
-          <p>가지고 있는 자격증의 업무를 골라 시작해 보세요.</p>
+          <p>
+            준비 중인 자격증의 업무를 하나 골라 시작해 보세요.
+            <br />
+            리포트는 업무 하나에 대해서만 받을 수 있어요.
+          </p>
         </div>
         {err && <p className="ws-notice flat">{err}</p>}
         {!info && !err && <p className="ws-empty">불러오는 중…</p>}
@@ -86,7 +109,7 @@ export function Select(props: {
                 </div>
                 <p className="sk-caption">업무소요 15~20분 · 첨부 {s.attachments.length}개</p>
                 {!run || closed ? (
-                  <button className="sk-btn block" disabled={busy !== null} onClick={() => start(s.id)}>
+                  <button className="sk-btn block" disabled={busy !== null} onClick={() => choose(s.id)}>
                     {run ? "다시 도전" : busy === s.id ? "배정 중…" : "담당하기"}
                   </button>
                 ) : (
@@ -99,6 +122,22 @@ export function Select(props: {
           })}
         </div>
       </div>
+      {confirm && (
+        <div className="sk-modal-dim" role="dialog" aria-modal="true" aria-labelledby="sk-switch-title">
+          <div className="sk-modal wide">
+            <h2 id="sk-switch-title">하던 업무를 그만둘까요?</h2>
+            <p>다른 업무를 시작하면 지금 업무의 리포트는 받을 수 없어요.</p>
+            <div className="sk-modal-actions">
+              <button className="sk-btn ghost quiet" disabled={busy !== null} onClick={() => start(confirm.target, true)}>
+                그만두고 바꾸기
+              </button>
+              <button className="sk-btn" autoFocus onClick={() => props.onResume(confirm.activeRunId)}>
+                계속하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

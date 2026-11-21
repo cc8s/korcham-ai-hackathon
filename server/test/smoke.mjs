@@ -63,7 +63,7 @@ try {
   check("SES-03 unknown session 404", (await api("GET", "/session/nope")).status === 404);
 
   // SUB-15: 구조화 제출은 팀장 멘트 호출이 실패해도(더미 키) 코드 판정으로 반려 처리, 멘트는 대체문
-  const rid2 = (await api("POST", "/scenario/01/start", { session_id: sid })).json.run_id;
+  const rid2 = (await api("POST", "/scenario/01/start", { session_id: sid, replace: true })).json.run_id;
   await api("PUT", `/run/${rid2}/basket`, { text: "거래처별 합계표, 비중 %" });
   const sub = await api("POST", `/run/${rid2}/submit`, {
     verify_memo: "원본 대조했습니다 (smoke)",
@@ -75,6 +75,16 @@ try {
     sub.status === 200 && sub.json?.decision === "reject" && sub.json?.area === "총매출 불일치" && sub.json?.reject_count === 1 && sub2.review.comment_fallback === true,
     JSON.stringify(sub.json),
   );
+
+  // RUN-01~04: 진행 중인 업무는 하나만 (2026-11-21). rid2 는 반려 1회라 아직 진행 중
+  const busy = await api("POST", "/scenario/02/start", { session_id: sid });
+  check("RUN-01 진행 중 업무가 있으면 다른 업무 시작 409", busy.status === 409 && busy.json?.code === "active_run" && busy.json?.active?.run_id === rid2, busy.text);
+  const swap = await api("POST", "/scenario/02/start", { session_id: sid, replace: true });
+  check("RUN-02 replace=true 면 앞 업무를 그만두고 새로 시작", swap.status === 200 && (await api("GET", `/run/${rid2}`)).json?.run?.state === "abandoned", swap.text);
+  const sessAfter = (await api("GET", `/session/${sid}`)).json;
+  check("RUN-03 그만둔 업무는 배치표에서 미시작(run 없음)", sessAfter.scenarios.find((x) => x.id === "01")?.run === null && sessAfter.scenarios.find((x) => x.id === "02")?.run?.id === swap.json.run_id);
+  const dead = await api("PUT", `/run/${rid2}/basket`, { text: "x" });
+  check("RUN-04 그만둔 업무는 바꾸는 요청 409, 읽기는 됨", dead.status === 409 && dead.json?.code === "abandoned" && (await api("GET", `/run/${rid2}`)).status === 200, dead.text);
 } catch (e) {
   console.error(e);
   fail();

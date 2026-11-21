@@ -16,7 +16,7 @@ export const NPC_DUTY: Record<NpcId, string> = {
   lee: "영업팀 2년차 · 수습 사수",
 };
 
-export type RunState = "assigned" | "working" | "reviewing" | "rejected" | "approved" | "evaluated";
+export type RunState = "assigned" | "working" | "reviewing" | "rejected" | "approved" | "evaluated" | "abandoned";
 
 export interface ScenarioSummary {
   id: string;

@@ -1,5 +1,6 @@
+import { isActive } from "../runState.js";
 import { Router } from "express";
-import { createSession, getSession, listRunsForSession, createRun } from "../db.js";
+import { createSession, getSession, listRunsForSession, createRun, updateRun } from "../db.js";
 import { loadScenarios, getScenario, publicScenarioSummary } from "../scenarios.js";
 import { emit } from "../events.js";
 import { maskPii } from "../pii.js";
@@ -42,7 +43,9 @@ sessionRouter.get("/session/:id", (req, res) => {
   }
   const runs = listRunsForSession(s.id);
   const scenarios = [...loadScenarios().values()].map((sc) => {
-    const run = runs.filter((r) => r.scenario_id === sc.id).at(-1);
+    // 그만둔 도전은 배치표에서 미시작으로 보인다 (다시 담당하면 처음부터)
+    const last = runs.filter((r) => r.scenario_id === sc.id).at(-1);
+    const run = last && last.state !== "abandoned" ? last : undefined;
     return {
       ...publicScenarioSummary(sc),
       run: run
@@ -92,6 +95,20 @@ sessionRouter.post("/scenario/:sid/start", (req, res) => {
   if (runsFromIpToday(ip) >= config.guard.runsPerIpDay || runsForSessionToday(s.id) >= config.guard.runsPerSessionDay) {
     res.status(429).json({ error: DAILY_LIMIT_MESSAGE, code: "daily_runs" });
     return;
+  }
+  // 진행 중인 도전은 하나만. 있으면 409 로 알려 주고, replace=true 면 그 도전을 그만두고 새로 시작
+  const active = listRunsForSession(s.id).find(isActive);
+  if (active) {
+    if (req.body?.replace !== true) {
+      const activeSc = getScenario(active.scenario_id);
+      res.status(409).json({
+        error: "진행 중인 업무가 있어요. 그만두고 바꿀지 먼저 정해 주세요.",
+        code: "active_run",
+        active: { run_id: active.id, scenario_id: active.scenario_id, title: activeSc?.prompts.task_card.title ?? "" },
+      });
+      return;
+    }
+    updateRun(active.id, { state: "abandoned" });
   }
   const run = createRun(s.id, sc.id, ip);
   const card = sc.prompts.task_card;

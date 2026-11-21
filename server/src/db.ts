@@ -82,7 +82,8 @@ export type RunState =
   | "reviewing"
   | "rejected"
   | "approved"
-  | "evaluated";
+  | "evaluated"
+  | "abandoned"; // 다른 업무로 바꾸며 그만둔 도전. 리포트 없음, 배치표에서는 미시작으로 보임
 
 export interface SessionRow {
   id: string;
@@ -143,7 +144,7 @@ export function getSession(id: string): SessionRow | undefined {
 }
 export function listRunsForSession(sessionId: string): RunRow[] {
   return db
-    .prepare("SELECT * FROM run WHERE session_id = ? ORDER BY created_at")
+    .prepare("SELECT * FROM run WHERE session_id = ? ORDER BY created_at, rowid")
     .all(sessionId) as RunRow[];
 }
 

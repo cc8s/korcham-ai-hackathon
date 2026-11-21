@@ -1816,3 +1816,34 @@
     display: none;
   }
 }
+
+/* ---------- 업무 바꾸기 확인 팝업 (Figma 업무 선택 144:1811) ---------- */
+.sk-modal.wide {
+  width: min(374px, calc(100vw - 32px));
+}
+.sk-modal.wide h2 {
+  text-align: center;
+}
+.sk-modal-actions {
+  display: flex;
+  gap: 16px;
+}
+.sk-modal-actions .sk-btn {
+  flex: 1;
+  min-width: 0;
+}
+.sk-btn.ghost.quiet {
+  border-color: var(--sk-line);
+  color: var(--sk-text-4);
+}
+.sk-btn.ghost.quiet:hover:not(:disabled) {
+  color: var(--sk-text-3);
+}
+/* 튜토리얼 가림막 중에도 '업무 목록으로'는 누를 수 있게 (가림막 z-index 40 위로) */
+.sk-side-foot .sk-leave {
+  position: relative;
+  z-index: 41;
+}
+.ws-spot-dim ~ .ws-side .sk-side-foot .sk-leave {
+  color: #fff;
+}
