@@ -890,27 +890,6 @@
 .sk-report {
   background: #f5f6f7;
 }
-.sk-report-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.sk-report-head > b {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 28px;
-  letter-spacing: -0.02em;
-  color: #000;
-}
-.sk-report-task {
-  font-size: 14px;
-  line-height: 22px;
-  letter-spacing: -0.01em;
-  color: var(--sk-text-2);
-}
-.sk-report-head .sk-leave {
-  margin-left: 16px;
-}
 .sk-report-page {
   flex: 1;
   overflow-y: auto;
@@ -1285,16 +1264,10 @@
     flex-direction: column;
     padding: 28px;
   }
-  .sk-report-head .sk-report-task {
-    display: none;
-  }
 }
 @media (max-width: 560px) {
   .sk-report-card {
     padding: 24px 16px;
-  }
-  .sk-report-head .sk-cert {
-    display: none;
   }
 }
 
@@ -1327,4 +1300,58 @@
 }
 .ws-spot-dim ~ .ws-side .sk-side-foot .sk-leave {
   color: #fff;
+}
+
+/* ---------- 리포트 제목 (Figma Frame 125) ---------- */
+.sk-report-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sk-report-title > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.sk-report-title h2 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.02em;
+  color: #000;
+}
+.sk-report-title p {
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: -0.01em;
+  color: var(--sk-text-2);
+}
+
+/* ---------- 리포트 해설 토글 (Figma Frame 228): 14 회색 + 화살표 24, 간격 5. 펼치면 화살표 위로 ---------- */
+.sk-toggle-head {
+  display: inline-flex;
+  align-self: flex-start; /* 글자 폭만큼만 (카드 폭으로 늘어나지 않게) */
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.01em;
+  color: var(--sk-text-3);
+  cursor: pointer;
+}
+.sk-toggle-head:hover {
+  color: var(--sk-text-2);
+}
+.sk-toggle-chev {
+  transition: transform 0.15s ease;
+}
+.sk-toggle-head[aria-expanded="true"] .sk-toggle-chev {
+  transform: scaleY(-1);
+}
+.sk-toggle-body {
+  margin-top: 16px;
 }
