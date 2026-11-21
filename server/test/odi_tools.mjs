@@ -27,7 +27,7 @@ try {
   const spendRows = (rid) => ro.prepare("SELECT COUNT(*) AS n FROM spend WHERE run_id = ? AND kind = 'odi'").get(rid).n;
 
   const sid = (await api("POST", "/session", { nickname: "도구" })).json.session_id;
-  const rid = (await api("POST", "/scenario/01/start", { session_id: sid })).json.run_id;
+  const rid = (await api("POST", "/scenario/01/start", { session_id: sid, replace: true })).json.run_id;
 
   // TOOL-08 기본 요청: 기본값으로 도구 호출, SSE 는 tool(선택) → delta… → done
   const r1 = await api("POST", `/run/${rid}/odi`, { message: "거래처별 합계표 만들어 줘" });
@@ -61,7 +61,7 @@ try {
   // WRN-07 오디 답변에 함정 경고 표현이 있으면 지우지 않고 그대로 보내고, meta.ai_warned 에 기록
   // (mock 답변은 사용자 말을 따라 하므로, T2 키워드에는 안 걸리고 ai_warns 에만 걸리는 말을 보냄)
   check("WRN-07 no warning → no ai_warned", m1.ai_warned === undefined && lastOdiMeta(rid).ai_warned === undefined, JSON.stringify(m1));
-  const ridW = (await api("POST", "/scenario/01/start", { session_id: sid })).json.run_id;
+  const ridW = (await api("POST", "/scenario/01/start", { session_id: sid, replace: true })).json.run_id;
   const rw = await api("POST", `/run/${ridW}/odi`, { message: "같은 곳이 따로 나뉘어 있는지 표로 줘" });
   const tw = deltaText(rw.text);
   const storedW = ro.prepare("SELECT content FROM message WHERE run_id = ? AND agent = 'odi' AND role = 'assistant' ORDER BY id DESC LIMIT 1").get(ridW).content;
@@ -69,7 +69,7 @@ try {
   check("WRN-07 meta.ai_warned = [T2], no suppressed", JSON.stringify(lastOdiMeta(ridW).ai_warned) === '["T2"]' && lastOdiMeta(ridW).suppressed === undefined, JSON.stringify(lastOdiMeta(ridW)));
 
   // 02: vat_summary
-  const rid2 = (await api("POST", "/scenario/02/start", { session_id: sid })).json.run_id;
+  const rid2 = (await api("POST", "/scenario/02/start", { session_id: sid, replace: true })).json.run_id;
   await api("POST", `/run/${rid2}/odi`, { message: "10월 부가세 집계해 줘" });
   const v1 = lastOdiMeta(rid2).tool_calls?.[0];
   check("TOOL-11 02 default: vat_summary, trap numbers", v1?.name === "vat_summary" && v1.defaults_changed === false && v1.summary.매입세액_수입 === 3021700 && v1.summary.매입세액_경비 === 1499000, JSON.stringify(v1));
@@ -78,7 +78,7 @@ try {
   check("TOOL-11 02 declarations flag only", v2?.changed_flags.join(",") === "use_import_declarations" && v2.summary.매입세액_수입 === 3459242 && v2.differs_from_default === true, JSON.stringify(v2));
 
   // TOOL-13 03: order_quantity 기본값은 함정 숫자, 단위 환산만 요청하면 그 옵션만 켜짐
-  const rid3 = (await api("POST", "/scenario/03/start", { session_id: sid })).json.run_id;
+  const rid3 = (await api("POST", "/scenario/03/start", { session_id: sid, replace: true })).json.run_id;
   await api("POST", `/run/${rid3}/odi`, { message: "SKU별 발주량 제안해 줘" });
   const o1 = lastOdiMeta(rid3).tool_calls?.[0];
   check("TOOL-13 03 default: order_quantity, trap numbers", o1?.name === "order_quantity" && o1.defaults_changed === false && o1.summary.발주량_합계 === 1373 && o1.summary.SKU별_발주량["TH-003"] === 278, JSON.stringify(o1));
@@ -94,7 +94,7 @@ try {
     .filter((d) => /^\d{2}_/.test(d) && !fs.existsSync(path.join(scDir, d, "odi_tools.json")))
     .map((d) => d.slice(0, 2))[0];
   if (legacy) {
-    const ridL = (await api("POST", `/scenario/${legacy}/start`, { session_id: sid })).json.run_id;
+    const ridL = (await api("POST", `/scenario/${legacy}/start`, { session_id: sid, replace: true })).json.run_id;
     const rL = await api("POST", `/run/${ridL}/odi`, { message: "초안 만들어 줘" });
     const evL = events(rL.text);
     check(`TOOL-12 non-tool scenario ${legacy} unchanged (delta… → done)`, evL.at(-1) === "done" && evL.slice(0, -1).every((e) => e === "delta"), evL.join(","));

@@ -1,3 +1,4 @@
+import { isClosed } from "../runState.js";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import {
@@ -56,14 +57,16 @@ function resolve(req: Request, res: Response): { run: RunRow; nickname: string; 
     res.status(404).json({ error: "run 없음" });
     return;
   }
+  // 그만둔 도전은 읽기만 된다 (대화·제출·평가 등 바꾸는 요청은 거절)
+  if (run.state === "abandoned" && req.method !== "GET") {
+    res.status(409).json({ error: "그만둔 업무예요. 배치표에서 다시 담당해 주세요.", code: "abandoned" });
+    return;
+  }
   const session = getSession(run.session_id)!;
   const sc = getScenario(run.scenario_id)!;
   return { run, nickname: session.nickname, sc };
 }
 
-function isClosed(run: RunRow): boolean {
-  return run.state === "approved" || run.state === "evaluated" || run.reject_count >= limits.rejects;
-}
 
 function toTurns(runId: string, agent: string): ChatTurn[] {
   return listMessages(runId, agent).map((m) => ({ role: m.role, content: m.content }));

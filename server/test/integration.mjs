@@ -73,7 +73,9 @@ try {
   // PII: 대회 규정 (외부 AI API 에 실제 개인정보 금지). 별도 run 에서 확인 (위 run 은 오디 상한 소진)
   {
     const PHONE = "010-9876-5432";
-    const rp = (await api("POST", "/scenario/02/start", { session_id: sid })).json.run_id;
+    // 위 run 은 아래에서 계속 쓰므로 다른 세션에서 (진행 중 업무는 세션당 하나)
+    const sidP = (await api("POST", "/session", { nickname: "개인정보" })).json.session_id;
+    const rp = (await api("POST", "/scenario/02/start", { session_id: sidP })).json.run_id;
     const o = await api("POST", `/run/${rp}/odi`, { message: `결과는 ${PHONE} 로 문자 줘` });
     const doneP = JSON.parse(o.text.split(/\r?\n/).find((l, i, arr) => arr[i - 1] === "event: done").replace(/^data: /, ""));
     check("PII-05 odi: done 에 가린 종류", doneP.masked?.includes("전화번호") && typeof doneP.notice === "string", JSON.stringify(doneP));
