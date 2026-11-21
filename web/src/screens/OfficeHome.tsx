@@ -15,6 +15,7 @@ export const RUN_STATUS: Record<RunState, { label: string; tone: "" | "info" | "
   rejected: { label: "반려됨", tone: "warn" },
   approved: { label: "완료", tone: "accent" },
   evaluated: { label: "완료", tone: "accent" },
+  abandoned: { label: "중단", tone: "" }, // 그만둔 업무. 배치표에서는 숨겨져 미시작으로 보인다
 };
 
 
