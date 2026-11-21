@@ -164,6 +164,7 @@ export function OdiPanel(props: {
         <div className="ws-compose">
           <textarea
             rows={2}
+            maxLength={4000} // 서버 상한과 같게 (server config.guard)
             value={input}
             placeholder="오디에게 시킬 일을 적어 주세요"
             disabled={streaming !== null}

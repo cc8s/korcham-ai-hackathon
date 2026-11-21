@@ -332,7 +332,7 @@ export function SubmitScreen(props: {
             <section className="ws-card">
               <h3>{isMobile ? "검증 메모 [필수]" : "검증 메모 (필수)"}</h3>
               <p className="ws-fine">무엇을, 어떻게 확인했는지. 메일에는 안 들어가고 평가 담당자만 봅니다. 실제 열람·대화 기록과 대조됩니다.</p>
-              <textarea className="ws-textarea" rows={6} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={MEMO_GUIDE} disabled={busy} />
+              <textarea className="ws-textarea" rows={6} maxLength={4000} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={MEMO_GUIDE} disabled={busy} />
             </section>
             {/* 모바일: 메일·양식·메모를 다 쓴 맨 아래에서 제출 (Figma 제출 179:6908) */}
             {isMobile && (

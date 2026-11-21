@@ -157,6 +157,10 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
     res.status(400).json({ error: "message 필요" });
     return;
   }
+  if (message.length > config.guard.odiMessageChars) {
+    res.status(400).json({ error: `오디에게 보내는 글은 ${config.guard.odiMessageChars.toLocaleString()}자까지예요. 나눠서 보내 주세요.`, code: "too_long" });
+    return;
+  }
   if (isClosed(run)) {
     res.status(409).json({ error: "종료된 시나리오" });
     return;
@@ -346,6 +350,10 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     res.status(400).json({ error: "message 필요" });
     return;
   }
+  if (message.length > config.guard.npcMessageChars) {
+    res.status(400).json({ error: `한 번에 ${config.guard.npcMessageChars.toLocaleString()}자까지 보낼 수 있어요. 짧게 나눠서 물어봐 주세요.`, code: "too_long" });
+    return;
+  }
   // 맞장구("넵", "네 알겠습니다")는 AI 를 부르지 않고 고정 답 (src/npcAck.ts, 2026-11-22 누설 대응)
   if (isAck(message)) {
     const persona = NPC_PERSONA[npc];
@@ -470,6 +478,10 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
   const memo = memoMasked.text;
   if (memo.length < 10) {
     res.status(400).json({ error: "검증 메모는 10자 이상 (무엇을 어떻게 확인했는지)" });
+    return;
+  }
+  if (memo.length > config.guard.memoChars) {
+    res.status(400).json({ error: `검증 메모는 ${config.guard.memoChars.toLocaleString()}자까지예요.`, code: "too_long" });
     return;
   }
   if (!run.basket_text.trim()) {
