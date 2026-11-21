@@ -22,19 +22,15 @@ const josa = (w: string, withB: string, without: string) => {
   return w + (c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 !== 0 ? withB : without);
 };
 
-function ReportTop(props: { cert?: string; title?: string; onDone: () => void }) {
+// 상단바: 로고 + 돌아가기만 (Figma 리포트 평가 112:3003). 리포트 제목은 카드 맨 위로 옮김 (Frame 125)
+function ReportTop(props: { onDone: () => void }) {
   return (
     <header className="sk-top between">
       <img src="/assets/ui/simtern-logo.svg" width={162} height={41} alt="Simtern" />
-      <div className="sk-report-head">
-        <b>AI 활용 역량 리포트</b>
-        {props.cert && <span className="sk-cert">{props.cert}</span>}
-        {props.title && <span className="sk-report-task">{props.title}</span>}
-        <button className="sk-leave" onClick={props.onDone}>
-          <img src="/assets/ui/ic-arrow-left.svg" width={16} height={16} alt="" />
-          업무 목록으로
-        </button>
-      </div>
+      <button className="sk-leave" onClick={props.onDone}>
+        <img src="/assets/ui/ic-arrow-left.svg" width={16} height={16} alt="" />
+        돌아가기
+      </button>
     </header>
   );
 }
@@ -176,9 +172,17 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
 
   return (
     <div className="ws ws-col sk-report">
-      <ReportTop cert={report.scenario.cert} title={report.scenario.title} onDone={props.onDone} />
+      <ReportTop onDone={props.onDone} />
       <div className="sk-report-page">
         <section className="sk-report-card">
+          {/* Figma Frame 125: 제목 20 세미볼드 + 자격증 태그, 아래 업무 제목 14 */}
+          <div className="sk-report-title">
+            <div>
+              <h2>AI 활용 역량 리포트</h2>
+              {report.scenario.cert && <span className="sk-cert">{report.scenario.cert}</span>}
+            </div>
+            <p>{report.scenario.title}</p>
+          </div>
           {report.partial && (
             <p className="sk-report-partial">
               <span className="sk-state warn">부분 리포트</span>
