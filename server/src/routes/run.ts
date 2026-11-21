@@ -1,4 +1,5 @@
 import { isClosed } from "../runState.js";
+import { ACK_REPLY, isAck } from "../npcAck.js";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import {
@@ -335,6 +336,16 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   const message = npcMasked.text;
   if (!message) {
     res.status(400).json({ error: "message 필요" });
+    return;
+  }
+  // 맞장구("넵", "네 알겠습니다")는 AI 를 부르지 않고 고정 답 (src/npcAck.ts, 2026-11-22 누설 대응)
+  if (isAck(message)) {
+    const persona = NPC_PERSONA[npc];
+    const text = ACK_REPLY[npc];
+    addMessage(run.id, npc, "user", message);
+    addMessage(run.id, npc, "assistant", text, { scripted: "ack" });
+    emit({ type: "npc.call.end", run_id: run.id, npc_id: npc, text });
+    res.json({ npc, name: persona.name, text, scripted: true });
     return;
   }
   if (npcCallsForRun(run.id) >= config.guard.npcCallsPerRun) {
