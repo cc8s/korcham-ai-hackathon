@@ -95,6 +95,13 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
   const [owner, setOwner] = useState<NpcId | null>(null);
   const [explain, setExplain] = useState<Explanation | null>(null);
   const [explainErr, setExplainErr] = useState<string | null>(null);
+  // 해설은 노션 토글처럼: 처음 펼칠 때만 불러오고, 다시 누르면 접힘
+  const [explainOpen, setExplainOpen] = useState(false);
+  const toggleExplain = () => {
+    const next = !explainOpen;
+    setExplainOpen(next);
+    if (next && !explain) openExplain();
+  };
   const openExplain = () => {
     if (!props.runId) return;
     setExplainErr(null);
@@ -297,37 +304,47 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
             </ul>
           </div>
 
-          {/* 디자인에 없는 것들은 아래에 같은 톤으로 (2026-11-21 결정): 해설, 자원 기록 */}
-          <div className="sk-report-foot">
-            {props.runId && !explain && (
-              <button className="sk-btn ghost" onClick={openExplain}>
-                해설 보기 (함정 위치와 정답)
+          {/* 디자인에 없는 것들은 아래에 같은 톤으로 (2026-11-21 결정): 해설(Figma Frame 228 토글), 자원 기록 */}
+          {props.runId && (
+            <div className="sk-report-block sk-toggle">
+              {/* Figma Frame 228: 14 회색 글씨 + 화살표. 접힘 ∨ / 펼침 ∧, 내용은 아래로 */}
+              <button className="sk-toggle-head" aria-expanded={explainOpen} aria-controls="sk-explain" onClick={toggleExplain}>
+                해설보기 (함정 위치와 정답)
+                <img className="sk-toggle-chev" src="/assets/ui/ic-chevron-down.svg" width={24} height={24} alt="" />
               </button>
-            )}
-            {explainErr && <p className="sk-fine err">{explainErr}</p>}
-            {explain && (
-              <div className="sk-explain">
-                {explain.traps.map((t) => (
-                  <div className="sk-explain-item" key={t.id}>
-                    <p className="sk-trap-top">
-                      <span className="sk-trap-id">{t.id}</span>
-                      <b>{t.label}</b>
-                      <span className={`sk-state ${t.found ? "accent" : "warn"}`}>{t.found ? "찾음" : "놓침"}</span>
-                    </p>
-                    <p>
-                      <b>어디에</b> {t.where}
-                    </p>
-                    <p>
-                      <b>찾는 법</b> {t.how}
-                    </p>
-                    <p>
-                      <b>숫자 영향</b> {t.impact}
-                    </p>
-                  </div>
-                ))}
-                <p className="sk-fine">해설을 본 뒤 같은 업무에 다시 도전하면 이미 답을 아는 상태라, 그 점수는 참고용으로 봐 주세요.</p>
-              </div>
-            )}
+              {explainOpen && (
+                <div id="sk-explain" className="sk-toggle-body">
+                  {explainErr && <p className="sk-fine err">{explainErr}</p>}
+                  {!explain && !explainErr && <p className="sk-fine">불러오는 중…</p>}
+                  {explain && (
+                    <div className="sk-explain">
+                      {explain.traps.map((t) => (
+                        <div className="sk-explain-item" key={t.id}>
+                          <p className="sk-trap-top">
+                            <span className="sk-trap-id">{t.id}</span>
+                            <b>{t.label}</b>
+                            <span className={`sk-state ${t.found ? "accent" : "warn"}`}>{t.found ? "찾음" : "놓침"}</span>
+                          </p>
+                          <p>
+                            <b>어디에</b> {t.where}
+                          </p>
+                          <p>
+                            <b>찾는 법</b> {t.how}
+                          </p>
+                          <p>
+                            <b>숫자 영향</b> {t.impact}
+                          </p>
+                        </div>
+                      ))}
+                      <p className="sk-fine">해설을 본 뒤 같은 업무에 다시 도전하면 이미 답을 아는 상태라, 그 점수는 참고용으로 봐 주세요.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="sk-report-foot">
             <p className="sk-report-res">
               <span>오디 호출 {report.resources.odi_calls}</span>
               {report.resources.mentor_questions !== undefined && <span>하늘 선배 질문 {report.resources.mentor_questions}</span>}

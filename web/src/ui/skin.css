@@ -1326,3 +1326,32 @@
   letter-spacing: -0.01em;
   color: var(--sk-text-2);
 }
+
+/* ---------- 리포트 해설 토글 (Figma Frame 228): 14 회색 + 화살표 24, 간격 5. 펼치면 화살표 위로 ---------- */
+.sk-toggle-head {
+  display: inline-flex;
+  align-self: flex-start; /* 글자 폭만큼만 (카드 폭으로 늘어나지 않게) */
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.01em;
+  color: var(--sk-text-3);
+  cursor: pointer;
+}
+.sk-toggle-head:hover {
+  color: var(--sk-text-2);
+}
+.sk-toggle-chev {
+  transition: transform 0.15s ease;
+}
+.sk-toggle-head[aria-expanded="true"] .sk-toggle-chev {
+  transform: scaleY(-1);
+}
+.sk-toggle-body {
+  margin-top: 16px;
+}
