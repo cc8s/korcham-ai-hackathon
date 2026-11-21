@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import { NPC_INFO, NPC_DUTY, type NpcId, type SubmissionField, type SubmitResult } from "../types";
 import { Avatar, Icon } from "../ui/kit";
+import { Bnv, mobileNav, useIsMobile, type MobileTab } from "../ui/mobile";
 
 // 입력 중인 숫자를 천 단위 쉼표로. 숫자·소수점·앞쪽 - 만 남김 (붙여 넣은 "580,300,000원" 도 허용)
 function formatNumberInput(raw: string, type: "integer" | "number"): string {
@@ -45,6 +46,9 @@ export function SubmitScreen(props: {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
+  // 모바일(560px 이하): 주소록 대신 받는 사람·참조 줄을 누르면 팀원 목록이 펼쳐짐 (Figma Frame 214, 고르면 닫힘)
+  const isMobile = useIsMobile();
+  const [pick, setPick] = useState<"to" | "cc" | null>(null);
 
   useEffect(() => {
     api.getRun(props.runId).then((r) => {
@@ -131,6 +135,38 @@ export function SubmitScreen(props: {
     }
   };
 
+  const onTab = (t: MobileTab) => {
+    if (t === "submit" || busy) return;
+    mobileNav.pending = t;
+    props.onBack();
+  };
+  const picker = (where: "to" | "cc") =>
+    isMobile &&
+    pick === where && (
+      <div className="sk-m-pick" role="listbox" aria-label={where === "to" ? "받는 사람 고르기" : "참조 고르기"}>
+        {BOOK.map((id) => {
+          const on = (where === "to" ? to : cc).includes(id);
+          return (
+            <button
+              key={id}
+              type="button"
+              role="option"
+              aria-selected={on}
+              className={on ? "on" : ""}
+              onClick={() => {
+                place(id, where);
+                setPick(null);
+              }}
+            >
+              <Avatar who={id} size={34} />
+              <b>{NPC_INFO[id].name}</b>
+              <small>{NPC_INFO[id].role}</small>
+            </button>
+          );
+        })}
+      </div>
+    );
+
   const chip = (id: NpcId, where: "to" | "cc") => (
     <span className="ws-mail-chip" key={id}>
       <Avatar who={id} size={24} />
@@ -142,7 +178,13 @@ export function SubmitScreen(props: {
   );
 
   return (
-    <div className="ws ws-col">
+    <div className="ws ws-col sk-submit">
+      {isMobile ? (
+        // Figma 제출 179:6908: 제목만, 이동은 아래 BNV
+        <header className="sk-m-head">
+          <h1>보고 메일 쓰기</h1>
+        </header>
+      ) : (
       <header className="sk-top between">
         <h1 className="sk-top-title">제출 작성하기</h1>
         <button className="sk-leave" onClick={props.onBack} disabled={busy}>
@@ -150,6 +192,7 @@ export function SubmitScreen(props: {
           돌아가기
         </button>
       </header>
+      )}
       {approved && (
         <div className="sk-modal-dim" role="dialog" aria-modal="true" aria-labelledby="sk-done-title">
           <div className="sk-modal">
@@ -166,17 +209,29 @@ export function SubmitScreen(props: {
           <section className="ws-card ws-mail">
             <div className="ws-mail-row">
               <span>받는 사람</span>
-              <div className="ws-mail-chips">{to.length ? to.map((id) => chip(id, "to")) : <em>오른쪽 주소록에서 추가</em>}</div>
+              <div className="ws-mail-chips">{to.length ? to.map((id) => chip(id, "to")) : isMobile ? null : <em>오른쪽 주소록에서 추가</em>}</div>
+              {isMobile && (
+                <button type="button" className={`sk-m-chev ${pick === "to" ? "open" : ""}`} aria-label="받는 사람 고르기" aria-expanded={pick === "to"} onClick={() => setPick(pick === "to" ? null : "to")} disabled={busy}>
+                  <img src="/assets/ui/ic-chevron-down.svg" width={24} height={24} alt="" />
+                </button>
+              )}
             </div>
+            {picker("to")}
             <div className="ws-mail-row">
               <span>참조</span>
               <div className="ws-mail-chips">{cc.length ? cc.map((id) => chip(id, "cc")) : <em>없음</em>}</div>
+              {isMobile && (
+                <button type="button" className={`sk-m-chev ${pick === "cc" ? "open" : ""}`} aria-label="참조 고르기" aria-expanded={pick === "cc"} onClick={() => setPick(pick === "cc" ? null : "cc")} disabled={busy}>
+                  <img src="/assets/ui/ic-chevron-down.svg" width={24} height={24} alt="" />
+                </button>
+              )}
             </div>
+            {picker("cc")}
             <label className="ws-mail-row">
               <span>제목</span>
               <input className="ws-mail-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} disabled={busy} />
             </label>
-            <textarea className="ws-mail-body" rows={14} value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} disabled={busy} aria-label="본문" />
+            <textarea className="ws-mail-body" rows={14} placeholder={isMobile ? "보고 할 메시지를 작성하세요" : undefined} value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} disabled={busy} aria-label="본문" />
             <div className="ws-mail-attach">
               <span>첨부</span>
               {attached ? (
@@ -202,13 +257,15 @@ export function SubmitScreen(props: {
                 <textarea className="ws-textarea" rows={12} value={basket} onChange={(e) => setBasket(e.target.value)} placeholder="오디 답변을 담거나 직접 작성" disabled={busy} />
               </>
             )}
-            {err && <p className="ws-notice flat">{err}</p>}
-            <button className="ws-btn primary block lg" disabled={busy} onClick={submit}>
-              {busy ? "팀장님이 보는 중…" : "보내기"}
-            </button>
+            {err && !isMobile && <p className="ws-notice flat">{err}</p>}
+            {!isMobile && (
+              <button className="ws-btn primary block lg" disabled={busy} onClick={submit}>
+                {busy ? "팀장님이 보는 중…" : "보내기"}
+              </button>
+            )}
           </section>
           <div className="ws-stack">
-            <section className="ws-card">
+            <section className="ws-card sk-pc-only">
               <h3>주소록</h3>
               <div className="ws-book">
                 {BOOK.map((id) => (
@@ -230,7 +287,7 @@ export function SubmitScreen(props: {
             </section>
             {fields && (
               <section className="ws-card">
-                <h3>보고서 양식 (필수)</h3>
+                <h3>{isMobile ? "보고서 양식 [필수]" : "보고서 양식 (필수)"}</h3>
                 <p className="ws-fine">결과물의 핵심 숫자와 판단을 칸에 옮겨 주세요. 메일에 함께 붙고, 팀장님이 이것부터 대조합니다.</p>
                 <div className="ws-stack">
                   {fields.map((f) =>
@@ -262,7 +319,7 @@ export function SubmitScreen(props: {
                           className="ws-input"
                           inputMode={f.type === "integer" ? "numeric" : "decimal"}
                           value={values[f.id] ?? ""}
-                          placeholder="숫자만"
+                          placeholder={isMobile ? "숫자만 입력하세요." : "숫자만"}
                           onChange={(e) => setValues((v) => ({ ...v, [f.id]: formatNumberInput(e.target.value, f.type === "number" ? "number" : "integer") }))}
                           disabled={busy}
                         />
@@ -273,13 +330,23 @@ export function SubmitScreen(props: {
               </section>
             )}
             <section className="ws-card">
-              <h3>검증 메모 (필수)</h3>
+              <h3>{isMobile ? "검증 메모 [필수]" : "검증 메모 (필수)"}</h3>
               <p className="ws-fine">무엇을, 어떻게 확인했는지. 메일에는 안 들어가고 평가 담당자만 봅니다. 실제 열람·대화 기록과 대조됩니다.</p>
               <textarea className="ws-textarea" rows={6} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={MEMO_GUIDE} disabled={busy} />
             </section>
+            {/* 모바일: 메일·양식·메모를 다 쓴 맨 아래에서 제출 (Figma 제출 179:6908) */}
+            {isMobile && (
+              <>
+                {err && <p className="ws-notice flat">{err}</p>}
+                <button className="ws-btn primary block lg" disabled={busy} onClick={submit}>
+                  {busy ? "팀장님이 보는 중…" : "제출하기"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
+      {isMobile && <Bnv active="submit" onTab={onTab} />}
     </div>
   );
 }

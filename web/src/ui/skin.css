@@ -1563,6 +1563,61 @@
   }
 }
 
+/* ---------- 모바일 제출 (640px 이하, Figma 제출 179:6908 · 받는 사람 고르기 Frame 214) ---------- */
+@media (max-width: 640px) {
+  .sk-submit {
+    padding-bottom: 63px;
+  }
+  .sk-submit .ws-mail-row {
+    position: relative;
+  }
+  .sk-m-chev {
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .sk-m-chev img {
+    transition: transform 0.15s ease;
+  }
+  .sk-m-chev.open img {
+    transform: scaleY(-1);
+  }
+  .sk-m-pick {
+    display: grid;
+    gap: 4px;
+    margin: 4px 0 8px;
+    padding: 12px;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 4px 20px rgb(0 0 0 / 0.1);
+  }
+  .sk-m-pick button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+  }
+  .sk-m-pick button.on {
+    background: var(--sk-fill);
+  }
+  .sk-m-pick b {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--sk-text);
+  }
+  .sk-m-pick small {
+    font-size: 13px;
+    color: var(--sk-text-3);
+  }
+}
+
 /* ---------- 모바일 오디 대화 (640px 이하, Figma 오디대화 166:5943) ---------- */
 @media (max-width: 640px) {
   .sk-m-odi-head {
@@ -1687,5 +1742,83 @@
     color: var(--sk-brand); /* Figma 는 입력 전에도 파랑. 누르면 아무 일 없음 */
     opacity: 1;
     cursor: default;
+  }
+}
+
+/* ---------- 모바일 제출 모양 (640px 이하, Figma 제출 179:6908): 흰 화면 한 장, 좌우 24 ---------- */
+@media (max-width: 640px) {
+  .sk-submit {
+    background: #fff;
+  }
+  .sk-m-head h1 {
+    padding: 40px 24px 12px;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 30px;
+    color: var(--sk-text-2);
+  }
+  .sk-submit .ws-page {
+    padding: 0 24px 32px;
+  }
+  .sk-submit .ws-cols.lean {
+    display: block;
+  }
+  .sk-submit .ws-card {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .sk-submit .ws-stack > .ws-card {
+    margin-top: 36px;
+  }
+  .sk-submit .ws-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--sk-text);
+  }
+  .sk-submit .ws-mail {
+    display: flex;
+    flex-direction: column;
+  }
+  .sk-submit .ws-mail-row {
+    min-height: 61px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  /* 첨부를 본문 위로 (Figma 순서: 받는사람·참조·제목·첨부·본문) */
+  .sk-submit .ws-mail-attach,
+  .sk-submit .ws-mail > .ws-fine,
+  .sk-submit .ws-mail > .ws-textarea {
+    order: 1;
+  }
+  .sk-submit .ws-mail-attach {
+    padding: 20px 10px;
+    border: 0;
+  }
+  .sk-submit .ws-mail-body {
+    order: 2;
+    min-height: 340px;
+    margin-top: 12px;
+    padding: 20px;
+    border: 0;
+    border-radius: 12px;
+    background: #f2f3f5;
+  }
+  .sk-submit .ws-input {
+    height: 48px;
+    border-radius: 8px;
+  }
+  .sk-submit .ws-stack .ws-textarea {
+    min-height: 240px;
+    padding: 20px;
+    border: 0;
+    border-radius: 12px;
+    background: #f2f3f5;
+  }
+  .sk-submit .ws-stack > .ws-btn.primary {
+    margin-top: 24px;
   }
 }
