@@ -6,6 +6,8 @@ import {
   getRun,
   getSession,
   updateRun,
+  reserveOdiCall,
+  releaseOdiCall,
   addMessage,
   listMessages,
   addDataView,
@@ -50,6 +52,8 @@ export const runRouter = Router();
 const ODI_MAX_TOOL_ROUNDS = 3;
 
 const NPC_IDS: NpcId[] = ["kang", "park", "jung", "lee"];
+// run 별로 답을 기다리는 팀원 대화 수 (서버 한 대라 메모리로 충분)
+const npcInFlight = new Map<string, number>();
 
 // run + session + scenario 를 한 번에 해석. 없으면 404 응답하고 undefined
 function resolve(req: Request, res: Response): { run: RunRow; nickname: string; sc: Scenario } | undefined {
@@ -157,11 +161,12 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
     res.status(409).json({ error: "종료된 시나리오" });
     return;
   }
-  if (run.odi_calls_used >= limits.odiCalls) {
-    res.status(429).json({ error: `오디 호출 상한 ${limits.odiCalls}회 소진`, odi_calls_used: run.odi_calls_used });
+  if (!checkBudget(res)) return;
+  // 호출 1회를 먼저 잡는다. 응답이 끝난 뒤 더하면 동시에 보낸 요청이 모두 같은 횟수를 보고 통과한다
+  if (!reserveOdiCall(run.id, limits.odiCalls)) {
+    res.status(429).json({ error: `오디 호출 상한 ${limits.odiCalls}회 소진`, odi_calls_used: limits.odiCalls });
     return;
   }
-  if (!checkBudget(res)) return;
 
   // 사용자 발화 (이전 턴 + 이번). 도구 옵션은 사용자가 실제로 말한 기준만 켠다 (src/tools/index.ts)
   const odiHistory = listMessages(run.id, "odi");
@@ -252,10 +257,8 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
       ...(toolset ? { tool_calls: toolCalls, api_requests: requests } : {}),
       ...(aiWarned.length > 0 ? { ai_warned: aiWarned } : {}),
     });
-    const updated = updateRun(run.id, {
-      odi_calls_used: run.odi_calls_used + 1,
-      ...(run.state === "assigned" ? { state: "working" as const } : {}),
-    });
+    // 횟수는 시작할 때 이미 잡았다 (reserveOdiCall)
+    const updated = run.state === "assigned" ? updateRun(run.id, { state: "working" }) : getRun(run.id)!;
     send("done", {
       odi_calls_used: updated.odi_calls_used,
       odi_calls_limit: limits.odiCalls,
@@ -264,7 +267,12 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
       ...(maskedOdi.length ? { masked: maskedOdi, notice: maskNotice(maskedOdi) } : {}),
     });
   } catch (err) {
-    if (!ac.signal.aborted) send("error", describeLlmError(err));
+    // API 오류로 실패한 호출은 돌려준다. 사용자가 중간에 끊은 호출은 이미 토큰을 썼으므로 차감 유지
+    // (돌려주면 보내고 끊기를 반복해 상한 없이 부를 수 있음)
+    if (!ac.signal.aborted) {
+      releaseOdiCall(run.id);
+      send("error", describeLlmError(err));
+    }
   } finally {
     emit({ type: "odi.call.end", run_id: run.id });
     res.end();
@@ -348,7 +356,8 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     res.json({ npc, name: persona.name, text, scripted: true });
     return;
   }
-  if (npcCallsForRun(run.id) >= config.guard.npcCallsPerRun) {
+  // 대화 수는 응답 뒤에 저장되므로 아직 답을 기다리는 호출까지 센다 (동시 요청으로 상한을 넘지 않게)
+  if (npcCallsForRun(run.id) + (npcInFlight.get(run.id) ?? 0) >= config.guard.npcCallsPerRun) {
     res.status(429).json({ error: "오늘은 팀원들이 바빠요. 지금까지 확인한 내용으로 마무리해 보세요.", code: "npc_calls" });
     return;
   }
@@ -372,6 +381,7 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   const model = npc === "lee" ? models.mentor : models.npc;
 
   emit({ type: "npc.call.begin", run_id: run.id, npc_id: npc });
+  npcInFlight.set(run.id, (npcInFlight.get(run.id) ?? 0) + 1);
   try {
     const out = await chat({
       model,
@@ -397,6 +407,10 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     emit({ type: "npc.call.end", run_id: run.id, npc_id: npc });
     const e = describeLlmError(err);
     res.status(e.status).json({ error: e.message });
+  } finally {
+    const n = (npcInFlight.get(run.id) ?? 1) - 1;
+    if (n > 0) npcInFlight.set(run.id, n);
+    else npcInFlight.delete(run.id);
   }
 });
 

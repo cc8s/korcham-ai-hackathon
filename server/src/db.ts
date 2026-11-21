@@ -177,6 +177,20 @@ export function updateRun(
   return getRun(id)!;
 }
 
+// 오디 호출 1회를 Claude 호출 전에 잡는다. 상한 안이면 true.
+// 읽기와 더하기를 한 문장으로 해서, 동시에 온 요청들이 같은 사용 횟수를 읽고 모두 통과하지 않게 (2026-11-22 점검)
+export function reserveOdiCall(id: string, limit: number): boolean {
+  return (
+    db
+      .prepare("UPDATE run SET odi_calls_used = odi_calls_used + 1, updated_at = datetime('now') WHERE id = ? AND odi_calls_used < ?")
+      .run(id, limit).changes === 1
+  );
+}
+// 실패한 호출은 차감하지 않는다 (04 문서 7절). 잡아 둔 1회를 돌려준다
+export function releaseOdiCall(id: string): void {
+  db.prepare("UPDATE run SET odi_calls_used = MAX(0, odi_calls_used - 1) WHERE id = ?").run(id);
+}
+
 // ---- message ----
 export function addMessage(
   runId: string,
