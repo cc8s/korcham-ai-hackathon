@@ -1844,3 +1844,22 @@
 .sk-display {
   text-wrap: balance;
 }
+
+/* ---------- 채팅창 여백 (팀장·사수·오디 공통): 좌우 20 → 28, 줄 간격 1.7 ---------- */
+.ws-panel-head {
+  padding: 0 16px 0 28px;
+}
+.ws-chat-note {
+  padding: 8px 28px;
+}
+.ws-msgs {
+  padding: 24px 28px;
+  gap: 20px;
+}
+.ws-msg-text,
+.ws-md {
+  line-height: 1.7;
+}
+.ws-compose {
+  margin: 0 28px 24px;
+}
