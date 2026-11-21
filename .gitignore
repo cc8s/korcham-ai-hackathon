@@ -24,3 +24,6 @@ eval/golden/results/
 
 # 반응형 점검 캡처 (npm run test:responsive)
 web/test/out/
+
+# 팀원 대화 누설 측정 결과 (server/test/npc_leak.mjs, 실제 API)
+server/test/out/
