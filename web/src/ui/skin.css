@@ -1822,3 +1822,44 @@
     margin-top: 24px;
   }
 }
+
+/* ---------- 한국어 줄바꿈 (2026-11-22) ----------
+   브라우저는 한글을 글자 단위로 끊을 수 있다고 봐서 "부탁/해요"처럼 단어 중간에서 줄이 바뀐다.
+   keep-all: 띄어쓰기에서만 줄바꿈. break-word: 띄어쓰기 없는 긴 URL·숫자만 넘칠 때 예외로 끊음.
+   pretty: 본문 마지막 줄에 한두 글자만 남는 것 방지. balance: 제목 줄 길이를 고르게 */
+.ws {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+.ws p,
+.ws li,
+.ws-msg-text,
+.ws-md,
+.ws-prose {
+  text-wrap: pretty;
+}
+.ws h1,
+.ws h2,
+.ws h3,
+.sk-display {
+  text-wrap: balance;
+}
+
+/* ---------- 채팅창 여백 (팀장·사수·오디 공통): 좌우 20 → 28, 줄 간격 1.7 ---------- */
+.ws-panel-head {
+  padding: 0 16px 0 28px;
+}
+.ws-chat-note {
+  padding: 8px 28px;
+}
+.ws-msgs {
+  padding: 24px 28px;
+  gap: 20px;
+}
+.ws-msg-text,
+.ws-md {
+  line-height: 1.7;
+}
+.ws-compose {
+  margin: 0 28px 24px;
+}
