@@ -87,3 +87,11 @@ test("LDR-03 맞장구 판정: 맞장구만 있으면 고정 답, 질문이 섞�
   }
   for (const id of ["kang", "park", "jung", "lee"] as const) assert.ok(ACK_REPLY[id].length > 0 && ACK_REPLY[id].length < 30);
 });
+
+// LDR-04: 팀원 공통 규칙에 "확인 방법은 원본 대조까지만, 맞장구엔 짧게"가 있음 (4명 공통)
+test("LDR-04 팀원 공통 규칙: 구체적 확인 항목 금지·맞장구 짧게", () => {
+  assert.match(COMPANY_COMMON, /\[확인 방법을 말할 때\]/);
+  assert.match(COMPANY_COMMON, /구체적인 확인 항목이나 순서는 제시하지 않음/);
+  assert.match(COMPANY_COMMON, /맞장구에는 한 문장으로 짧게/);
+  assert.match(NPC_PERSONA.lee.block, /특정 열·시간대·단위·행을 보라고 짚지 않습니다/);
+});
