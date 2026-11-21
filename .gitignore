@@ -21,3 +21,6 @@ docs/
 
 # 골든셋 LLM 채점 결과: 소개서·문서용 수치, 레포에 안 올림 (2026-11-18)
 eval/golden/results/
+
+# 반응형 점검 캡처 (npm run test:responsive)
+web/test/out/
