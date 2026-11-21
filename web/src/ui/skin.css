@@ -1139,7 +1139,7 @@
 }
 .sk-quota .ws-bar i,
 .sk-quota .ws-bar.warn i {
-  background: var(--sk-navy);
+  background: #fb5000;
 }
 .sk-side-foot {
   display: grid;
