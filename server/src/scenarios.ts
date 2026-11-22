@@ -18,7 +18,7 @@ export interface ScenarioPrompts {
     attachments: string[]; // "data/xxx.csv" 또는 "_shared/xxx.csv"
     deliverable: string;
   };
-  scenario_context_for_npc: string; // 정답·함정 포함. 팀장 LLM 검토(03~05) 전용
+  scenario_context_for_npc: string; // 정답·함정 포함. 팀장 LLM 판정(예비 경로) 전용
   npc_chat_context: string; // 팀장 대화용. 업무 정보만, 함정·정답 없음 (test/unit/prompts.test.ts LDR-01)
   planted_belief_for_odi: string;
   hints: string[];
@@ -31,14 +31,14 @@ export interface ScenarioPrompts {
 }
 
 // scenarios/{NN}_{slug}/odi_tools.json (선택). 있으면 오디가 계산 도구를 쓰고, 함정은 도구 기본값이 담당.
-// 없으면 예전처럼 planted_belief_for_odi 를 프롬프트에 넣는다. scenarios/README.md 참고
+// 없으면 planted_belief_for_odi 를 프롬프트에 넣는 예비 경로 (지금 5개는 모두 도구). scenarios/README.md 참고
 export interface OdiToolsConfig {
   tools: { name: string; sources: Record<string, string> }[];
   // true 면 첨부 원문도 오디 컨텍스트에 넣는다 (기본 false: 숫자는 도구로만)
   include_raw_data?: boolean;
 }
 
-// scenarios/{NN}_{slug}/eval.json. 평가(06 문서) 중 시나리오마다 다른 판정 재료
+// scenarios/{NN}_{slug}/eval.json. 평가 중 시나리오마다 다른 판정 재료
 export interface EvalConfig {
   traps: Record<
     string,
@@ -133,7 +133,7 @@ export function getScenario(id: string): Scenario | undefined {
   return loadScenarios().get(id);
 }
 
-// 사용자에게 보여도 되는 요약 (S6 시나리오 선택용). answer_key·함정·힌트 제외
+// 사용자에게 보여도 되는 요약 (S6 시나리오 선택용). answer_key·함정 제외
 export function publicScenarioSummary(s: Scenario) {
   return {
     id: s.id,

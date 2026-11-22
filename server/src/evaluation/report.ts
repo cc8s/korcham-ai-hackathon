@@ -5,7 +5,7 @@ import type { Evidence } from "./evidence.js";
 import { scoreCode, redundantScore, gradeOf, type CodeScore } from "./score.js";
 import { A_NAMES, NONE, npcQuestions, type Judge } from "./judge.js";
 
-// 06 문서 6절 리포트 JSON. web/src/types.ts 의 Report 와 맞춤
+// 리포트 JSON. web/src/types.ts 의 Report 와 맞춤
 export interface Report {
   run_id: string;
   scenario: { id: string; title: string; cert: string };
@@ -25,7 +25,7 @@ export interface Report {
     C_traps: { score: number; max: 25; traps: CodeScore["C"]["traps"] };
     D_deliverable: { score: number; max: 15; approved: boolean; reject_count: number; format_ok: boolean };
     E_efficiency: { score: number; max: 5; odi_calls: number; redundant_questions: number };
-    // 보고 메일 (2026-11-18). 리포트는 도전 종료 후라 참조 정답·이유(cc_why)도 보여 준다
+    // 보고 메일. 리포트는 도전 종료 후라 참조 정답·이유(cc_why)도 보여 준다
     F_report: {
       score: number;
       max: 10;

@@ -1,5 +1,5 @@
 // 구조화 제출 채점. 시나리오 폴더의 submission.json 이 있으면 코드가 숫자·선택지를 정답과 대조한다.
-// 팀장 LLM 은 이 결과를 받아 멘트만 쓴다 (기획 피드백 2·3). submission.json 이 없는 시나리오는 기존 LLM 검토.
+// 팀장 LLM 은 이 결과를 받아 멘트만 쓴다. submission.json 이 없으면 팀장 LLM 이 판정하는 예비 경로 (지금 5개 시나리오는 모두 있음).
 import type { ScenarioPrompts } from "./scenarios.js";
 
 // 선택 칸의 보기 하나. id 는 API 로 오가는 값, label 은 화면 글자.

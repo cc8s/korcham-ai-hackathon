@@ -48,7 +48,7 @@ try {
   check("P2 odiStream deltas accumulate", acc.startsWith("[mock] 거래처별"), acc);
   check("P2 odiStream done payload", done.odi_calls_used === 1 && done.odi_calls_limit === 15 && done.truncated === false, JSON.stringify(done));
 
-  // P3 NPC + 힌트
+  // P3 팀원 대화 (고정 대사 + 자유 대화)
   const intro = await api.scripted(rid, "lee", "intro");
   check("P3 mentor intro", intro.flow.met_mentor === true && intro.text.includes("박소연"));
   const brief = await api.scripted(rid, "park", "brief");

@@ -1,5 +1,5 @@
 // 스모크: LLM 없이 되는 경로 + 더미 키로 LLM 실패 처리. API 키 불필요.
-// 실행: npm run test:smoke   (07 문서 SES/SCN/NPC-01/SUB-01/ODI-02)
+// 실행: npm run test:smoke   (SES/SCN/NPC-01/SUB-01/ODI-02)
 import { startServer, makeChecker, testPort } from "./_harness.mjs";
 
 const { check, finish, fail } = makeChecker();
@@ -76,7 +76,7 @@ try {
     JSON.stringify(sub.json),
   );
 
-  // RUN-01~04: 진행 중인 업무는 하나만 (2026-11-21). rid2 는 반려 1회라 아직 진행 중
+  // RUN-01~04: 진행 중인 업무는 하나만. rid2 는 반려 1회라 아직 진행 중
   const busy = await api("POST", "/scenario/02/start", { session_id: sid });
   check("RUN-01 진행 중 업무가 있으면 다른 업무 시작 409", busy.status === 409 && busy.json?.code === "active_run" && busy.json?.active?.run_id === rid2, busy.text);
   const swap = await api("POST", "/scenario/02/start", { session_id: sid, replace: true });

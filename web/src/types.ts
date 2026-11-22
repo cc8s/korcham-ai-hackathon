@@ -126,7 +126,7 @@ export interface Explanation {
   traps: { id: string; label: string; found: boolean; where: string; how: string; impact: string }[];
 }
 
-// 06 문서 6절 리포트 JSON
+// 리포트 JSON (server/src/evaluation/report.ts)
 export interface Report {
   run_id: string;
   scenario: { id: string; title: string; cert: string };
@@ -146,7 +146,7 @@ export interface Report {
     C_traps: { score: number; max: number; traps: { id: string; desc: string; found: boolean; path: string; coef: number; score: number; warned_ignored?: boolean }[] };
     D_deliverable: { score: number; max: number; approved: boolean; reject_count: number; format_ok: boolean };
     E_efficiency: { score: number; max: number; odi_calls: number; redundant_questions: number };
-    // 보고 메일 (2026-11-18 추가). 그 전 리포트에는 없음
+    // 보고 메일. 이 기능 전 리포트에는 없음
     F_report?: {
       score: number;
       max: number;

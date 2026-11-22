@@ -30,7 +30,7 @@ def sub(fields, memo, result, basket=None, email=None):
     return d
 
 
-# 2026-11-18 힌트 3단계 제거: 예전 힌트 요청 자리는 이하늘(사수)에게 하는 질문. 감점 없음
+# 힌트 기능은 없앰: 예전 힌트 요청 자리는 이하늘(사수)에게 하는 질문. 감점 없음
 ASK = {"to": "lee", "user": "어디부터 보면 좋을까요?"}
 
 cases = []

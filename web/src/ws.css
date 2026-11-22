@@ -1,4 +1,4 @@
-/* (주)오름 UI. 업무 도구풍: 흰 카드, 1px 선, 강조색은 초록 하나. 글꼴은 Pretendard. 클래스는 모두 ws- 로 시작한다 (ws = workspace) */
+/* 기본 테마. 업무 도구풍: 흰 카드, 1px 선, 글꼴 Pretendard. 클래스는 모두 ws- 로 시작 (ws = workspace). 브랜드 색 등 Figma 디자인은 ui/skin.css 가 덮어쓴다 */
 .ws {
   --bg: #f5f6f7;
   --surface: #ffffff;

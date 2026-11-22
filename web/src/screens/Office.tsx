@@ -41,7 +41,7 @@ export function Office(props: {
   const [panel, setPanel] = useState<Panel>(null);
   const [npc, setNpc] = useState<NpcId>("lee");
   const [dataFile, setDataFile] = useState<string | null>(null);
-  // 모바일(560px 이하): 사이드바 = 홈 탭, 패널 = 전체 화면, 아래 BNV. 메시지 탭은 대화목록 (Figma 166:4603)
+  // 모바일(640px 이하): 사이드바 = 홈 탭, 패널 = 전체 화면, 아래 BNV. 메시지 탭은 대화목록 (Figma 166:4603)
   const isMobile = useIsMobile();
   const [mtab, setMtab] = useState<"home" | "msg">("home");
   const [status, setStatus] = useState<Record<NpcId | "me", CharStatus>>({
@@ -207,7 +207,7 @@ export function Office(props: {
           AI 오디
           <span className="sk-count">{status.me.state === "working" ? "응답 중" : `${odiLeft}회 남음`}</span>
         </button>
-        {/* 모바일 전용: AI 오디 아래 '오늘 업무' 줄 → 업무 화면 (2026-11-22 결정, 첨부 데이터 줄을 대신함) */}
+        {/* 모바일 전용: AI 오디 아래 '오늘 업무' 줄 → 업무 화면 (첨부 데이터 줄을 대신함) */}
         <button className={`sk-nav sk-m-only ${workLocked ? "locked" : ""}`} onClick={() => (workLocked ? nudge() : setPanel("task"))}>
           <img src="/assets/ui/ic-clipboard-gray.svg" width={16} height={16} alt="" />
           오늘 업무
@@ -383,7 +383,7 @@ export function Office(props: {
           </div>
           )}
           {panel === "task" && isMobile && (
-            // 모바일 업무 화면 (2026-11-22 목업): 제목·팀장·마감 / 업무 내용 / 첨부 파일 / 오디와 함께하기
+            // 모바일 업무 화면 (목업 기준): 제목·팀장·마감 / 업무 내용 / 첨부 파일 / 오디와 함께하기
             <div className="ws-panel-body sk-m-task">
               <section>
                 <span className="sk-cert">{CERT_LABEL[info.scenario.id] ?? "수습 과제"}</span>

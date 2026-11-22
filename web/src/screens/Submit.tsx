@@ -19,7 +19,7 @@ function parseNumberInput(text: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// S3 제출 = 담당 팀장에게 보고 메일 보내기 (2026-11-18 회의 결정).
+// S3 제출 = 담당 팀장에게 보고 메일 보내기.
 // 받는 사람·참조(주소록), 제목, 본문, 결과물 첨부는 F축(보고 커뮤니케이션)으로 코드 채점 (server/src/email.ts).
 // 보고서 양식 칸은 메일에 붙는 첨부, 검증 메모는 평가 담당자에게만 가는 기록
 const BOOK: NpcId[] = ["park", "kang", "jung", "lee"];
@@ -46,7 +46,7 @@ export function SubmitScreen(props: {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
-  // 모바일(560px 이하): 주소록 대신 받는 사람·참조 줄을 누르면 팀원 목록이 펼쳐짐 (Figma Frame 214, 고르면 닫힘)
+  // 모바일(640px 이하): 주소록 대신 받는 사람·참조 줄을 누르면 팀원 목록이 펼쳐짐 (Figma Frame 214, 고르면 닫힘)
   const isMobile = useIsMobile();
   const [pick, setPick] = useState<"to" | "cc" | null>(null);
 

@@ -1,6 +1,6 @@
 import type { NpcId } from "../types";
 
-// 새 테마(ws.css)에서 쓰는 작은 부품: 선 아이콘, 이니셜 아바타
+// 작은 부품: 선 아이콘, 아바타 (팀원은 사진, 그 밖은 이니셜)
 
 const PATHS = {
   home: "M4 11.5 12 4l8 7.5M6 10v9h12v-9M10 19v-5h4v5",
@@ -38,7 +38,7 @@ export function Avatar(props: { who: NpcId | "me" | "odi"; name?: string; size?:
   if (props.who === "odi") {
     return <img className="ws-avatar odi-img" style={box} src="/assets/ui/odi-avatar.svg?v=3" alt="" />;
   }
-  // 팀원은 사진 (2026-11-19 Figma UI 적용 테스트, 생성형 이미지)
+  // 팀원은 사진 (Figma UI 적용 테스트, 생성형 이미지)
   if (props.who !== "me") {
     return <img className="ws-avatar photo" style={box} src={`/assets/ui/npc-${props.who}.jpg`} alt="" />;
   }

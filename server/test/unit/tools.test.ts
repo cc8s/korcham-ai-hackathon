@@ -259,7 +259,7 @@ test("TOOL-07 itinerary_kst mock: 막연한 '시차 확인해 줘'는 옵션을 
   assert.deepEqual(mockToolInput(tool, "항공편 시각기준 UTC 인 거 반영해 줘"), { use_event_date_offset: false, use_time_basis_column: true });
 });
 
-// ---- 모델에게 보이는 도구 정의: 옵션 목록 없이 '계산 기준' 문장 하나 (2026-11-18) ----
+// ---- 모델에게 보이는 도구 정의: 옵션 목록 없이 '계산 기준' 문장 하나 ----
 test("TOOL-08 모델용 도구 정의에 교정 옵션 이름·설명이 없다 (criteria 하나), 설명에 함정 단서 없음", () => {
   for (const id of ["01", "02", "03", "05"]) {
     const sc = getScenario(id)!;

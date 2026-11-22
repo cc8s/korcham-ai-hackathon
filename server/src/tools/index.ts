@@ -1,8 +1,8 @@
-// 오디 계산 도구 (기획 피드백 1번: 함정 재현성).
+// 오디 계산 도구 (함정 재현성).
 // 함정을 LLM 프롬프트에 걸지 않고 도구의 기본값으로 구현한다. 오디는 사용자가 요청할 때만 옵션을 켠다.
 // - 같은 옵션이면 매번 같은 숫자 → 정답과 다르면 함정 때문인지 우연한 계산 실수인지 구분할 수 있다
 // - 호출 기록(어떤 옵션으로 다시 계산했고 숫자가 바뀌었나)이 검증 행동의 증거로 남는다
-// 시나리오는 odi_tools.json 이 있을 때만 도구를 쓴다. 없으면 예전 planted_belief 방식 그대로
+// 시나리오는 odi_tools.json 이 있을 때만 도구를 쓴다 (지금 5개 모두). 없으면 planted_belief 예비 경로
 import type Anthropic from "@anthropic-ai/sdk";
 import { readAttachment, type Scenario } from "../scenarios.js";
 import { aggregateSalesTool } from "./sales.js";
@@ -135,7 +135,7 @@ export function odiToolsFor(sc: Scenario, opts?: { userTexts: string[] }): OdiTo
 }
 
 // 계산 기준 문장 → 도구 옵션. 서버가 결정적으로 해석한다 (모델에게 옵션 목록을 보여 주지 않기 위해).
-// "다시 확인/검증" 처럼 무엇을 볼지 특정하지 않은 말은 어떤 옵션도 켜지 않는다 (2026-11-17 결정)
+// "다시 확인/검증" 처럼 무엇을 볼지 특정하지 않은 말은 어떤 옵션도 켜지 않는다
 export const FLAG_PATTERNS: Record<string, RegExp> = {
   dedupe_order_ids: /중복/,
   normalize_customer_names: /정규화|이름\s*정리|표기|띄어쓰기|공백/,

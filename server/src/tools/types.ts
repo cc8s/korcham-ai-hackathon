@@ -19,7 +19,7 @@ export interface OdiTool<I extends Record<string, unknown>, R> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyOdiTool = OdiTool<any, any>;
 
-// 도구 호출 1회의 기록. message.meta.tool_calls 에 쌓여 평가(06 문서)의 발견 증거가 된다
+// 도구 호출 1회의 기록. message.meta.tool_calls 에 쌓여 평가의 발견 증거가 된다
 export interface OdiToolLog {
   name: string;
   input: Record<string, unknown>; // 기본값을 채운 최종 입력

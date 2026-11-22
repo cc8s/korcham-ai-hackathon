@@ -1,4 +1,4 @@
-// 골든셋 LLM 채점 (07 문서 EVL-10). 실제 Claude 를 부르므로 CI 에서는 안 돌린다. 비용 약 $2 (14건 × 3회, Opus)
+// 골든셋 LLM 채점 (EVL-10). 실제 Claude 를 부르므로 CI 에서는 안 돌린다. 비용 약 $2 (14건 × 3회, Opus)
 // 실행: npx tsx test/golden_llm.ts [반복 수=3] [사례 id 접두어...]     예) npx tsx test/golden_llm.ts 1 G01-01
 // 결과: eval/golden/results/<시각>.json + 콘솔 표. 합격선은 cases.json 의 acceptance
 import fs from "node:fs";

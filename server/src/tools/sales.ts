@@ -1,5 +1,5 @@
 // 01 컴활 매출집계: aggregate_sales 도구.
-// 함정을 프롬프트가 아니라 도구 기본값에 둔다 (기획 피드백 1번).
+// 함정을 프롬프트가 아니라 도구 기본값에 둔다.
 //   dedupe_order_ids=false        → 같은 주문번호 3건이 두 번씩 더해짐 (T1, 총매출 584,030,000)
 //   normalize_customer_names=false → "성실 상사"·"마켓 A"가 따로 묶여 12곳 (T2)
 //   둘 다 true                    → answer_key.json 과 같음 (10곳, 580,300,000)
@@ -86,7 +86,7 @@ export function aggregateSales(csvText: string, input: SalesInput): SalesResult 
 
 export const aggregateSalesTool: OdiTool<SalesInput, SalesResult> = {
   name: "aggregate_sales",
-  // 언제 부르는지를 설명에 분명히 둔다 (Opus 계열은 도구를 보수적으로 부름. tool_choice 강제는 400)
+  // 언제 부르는지를 설명에 분명히 둔다 (모델이 도구를 아껴 부를 때가 있고, tool_choice 강제는 Opus 5.5 에서 400)
   description:
     "10월 매출 원본(sales_2026_10.csv)을 거래처별로 집계해 거래처별 합계·건수·비중(%)·거래처 수·총매출을 돌려준다. " +
     "거래처별 합계표, 총매출, 비중, 차트용 숫자처럼 매출 숫자가 필요한 요청이면 직접 계산하지 말고 항상 이 도구를 호출한다.",

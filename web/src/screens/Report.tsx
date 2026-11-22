@@ -9,7 +9,7 @@ const PATH_TAG: Record<string, { label: string; tone: "ok" | "warn" | "none" }> 
   self: { label: "스스로 발견", tone: "ok" },
   ai_warned: { label: "AI 경고 후 발견", tone: "warn" },
   reject: { label: "반려 후 발견", tone: "warn" },
-  // hint1~3 은 2026-11-18 힌트 제거 전 리포트용
+  // hint1~3 은 힌트 기능을 없애기 전에 만든 리포트용
   hint1: { label: "힌트 후 발견", tone: "warn" },
   hint2: { label: "힌트 후 발견", tone: "warn" },
   hint3: { label: "힌트 후 발견", tone: "warn" },
@@ -304,7 +304,7 @@ export function ReportScreen(props: { runId: string | null; report: Report | nul
             </ul>
           </div>
 
-          {/* 디자인에 없는 것들은 아래에 같은 톤으로 (2026-11-21 결정): 해설(Figma Frame 228 토글), 자원 기록 */}
+          {/* 디자인에 없는 것들은 아래에 같은 톤으로: 해설(Figma Frame 228 토글), 자원 기록 */}
           {props.runId && (
             <div className="sk-report-block sk-toggle">
               {/* Figma Frame 228: 14 회색 글씨 + 화살표. 접힘 ∨ / 펼침 ∧, 내용은 아래로 */}
