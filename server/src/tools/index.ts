@@ -137,8 +137,10 @@ export function odiToolsFor(sc: Scenario, opts?: { userTexts: string[] }): OdiTo
 // 계산 기준 문장 → 도구 옵션. 서버가 결정적으로 해석한다 (모델에게 옵션 목록을 보여 주지 않기 위해).
 // "다시 확인/검증" 처럼 무엇을 볼지 특정하지 않은 말은 어떤 옵션도 켜지 않는다
 export const FLAG_PATTERNS: Record<string, RegExp> = {
-  dedupe_order_ids: /중복/,
-  normalize_customer_names: /정규화|이름\s*정리|표기|띄어쓰기|공백/,
+  // 01: 평가의 함정 키워드(eval.json)와 같은 범위. "같은 주문번호가 두 번" 처럼 '중복'이라는 낱말 없이 짚어도 켠다
+  // ("중복"만 보던 때 실제 사용자 요청을 놓쳐 중복이 그대로 계산됨). "두 번째"는 제외
+  dedupe_order_ids: /중복|두\s*번(?!\s*째)|겹치|겹친|같은\s*주문|주문\s*번호.{0,10}(같|동일|겹)/,
+  normalize_customer_names: /정규화|이름\s*정리|표기|띄어쓰기|공백|같은\s*거래처|이름.{0,6}(합치|합쳐|통일)/,
   recheck_vat_rate: /10\s*%|부가세\s*확인|부가세율/,
   // "무슨 근거로?" 같은 질문만으로 켜지지 않게 '근거'는 뺀다. 기준 서류를 짚어야 켬
   use_import_declarations: /신고필증|수입\s*신고|과세\s*가격/,
