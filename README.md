@@ -100,6 +100,7 @@ sequenceDiagram
 <p align="center"><img src=".github/readme/slide-guards.png" alt="LLM 채점을 그대로 믿지 않는 장치" width="840" /></p>
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"pie1": "#3541EF", "pie2": "#FB5000", "pieSectionTextColor": "#ffffff", "pieSectionTextSize": "16px", "pieTitleTextColor": "#8b949e", "pieLegendTextColor": "#8b949e", "pieStrokeColor": "#ffffff", "pieOuterStrokeColor": "#8b949e", "pieOpacity": "1"}}}%%
 pie showData
     title AI 활용 역량 100점 구성
     "코드 채점: 검증 행동·오류 발견·결과물·자원·보고 메일" : 70
