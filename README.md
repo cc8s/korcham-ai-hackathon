@@ -157,10 +157,47 @@ pie showData
 
 | 무엇을 | 어떻게 |
 |---|---|
-| 서버 | 단위 테스트 109개 + 통합 5종 (흐름·제출·비용 방어·오디 도구), PR마다 GitHub Actions에서 LLM을 가짜 응답으로 바꿔 실행 |
-| 평가 일관성 | 기대 점수를 붙인 골든셋 15건 (대한상의 종목별 출제기준 · OECD/EU AI Literacy Framework에 대응), 실제 API로 반복 채점 |
+| 서버 | 단위 테스트 110개 + 통합 5종 (흐름·제출·비용 방어·오디 도구), PR마다 GitHub Actions에서 LLM을 가짜 응답으로 바꿔 실행 |
+| 평가 일관성 | 기대 점수를 붙인 골든셋 15건을 실제 API로 3번씩 채점: 총점 차이 최대 2점, 인용 원문 일치 100%, 정답 유출 0건 (근거 매핑은 아래 「설계 근거」) |
 | 누설 | 팀원 대화 누설 측정 스크립트 (시나리오 5 × 팀원 4, 실제 API) |
 | 화면 | 반응형 자동 점검: 화면 6개 × 창 폭 10개 + 모바일 4화면, 가로 스크롤·잘림·겹침 등 자동 판정 + 격자 캡처 |
+
+---
+
+## 설계 근거
+
+업무 시나리오, 평가 축, 평가 데이터(골든셋)는 공식 문헌을 근거로 만들었습니다.
+
+| 문헌 | 활용 |
+|---|---|
+| 대한상의 5개 종목 출제기준 (대한상공회의소 자격평가사업단, 2026, n.d.) | 시나리오 업무를 종목별 출제기준 항목에 맞춤. 컴활 필기 2027~2029에 신설된 "인공지능(AI) 기초 활용: AI의 한계와 활용 시 유의사항"을 실무 행동으로 평가 |
+| AI 리터러시 프레임워크 (OECD & European Union, 2026) | 평가 축 정의: 지시 품질(Create with AI), 역할 분리·자원(Manage AI), 검증·오류 발견(Engage with AI) |
+| NCS 직업공통능력 (한국산업인력공단, n.d.) | 보고 메일 채점(의사소통능력 > 문서작성능력), AI 활용 축(디지털능력 > AI활용능력) |
+
+골든셋 15건(01 컴활 9건, 02 전산회계 6건)은 사례마다 `basis` 필드에 그 행동이 시험하는 출제기준 항목과 AI 리터러시 역량을 매핑했고, 평가 에이전트(LLM as a Judge)를 이 사례들로 반복 채점해 검증했습니다.
+
+```json
+"basis": {
+  "exam_criteria": ["컴활1급 실기 데이터관리 1.2 기본 데이터 도구(중복된 항목 제거·정렬·필터)",
+                    "컴활1급 실기 데이터계산 1.3 계산 결과의 정확성",
+                    "컴활 필기 2027 AI 기초 활용: AI의 한계와 활용 시 유의사항"],
+  "ailf": ["Engage with AI 3", "Create with AI 3", "Manage AI 3"]
+}
+```
+
+시나리오 첨부 데이터는 정답과 오류 위치를 통제하기 위해 실존 기업·인물이 없는 가상 데이터로 만들었고, 계산 규칙은 부가가치세 10%, 수입신고필증 과세가격, Incoterms FOB, 협회적하약관 ICC(A) 등 실제 기준을 따릅니다.
+
+### 참고문헌
+
+- 대한상공회의소 자격평가사업단. (2026). *2027-2029년 컴퓨터활용능력 출제기준*. https://license.korcham.net
+- 대한상공회의소 자격평가사업단. (n.d.-a). *무역영어 출제기준(2026~)*. 2026년 11월 17일 인출, https://license.korcham.net
+- 대한상공회의소 자격평가사업단. (n.d.-b). *비서 출제기준(2026.1.1~2029.12.31)*. 2026년 11월 17일 인출, https://license.korcham.net
+- 대한상공회의소 자격평가사업단. (n.d.-c). *유통관리사 출제기준(2024~)*. 2026년 11월 17일 인출, https://license.korcham.net
+- 대한상공회의소 자격평가사업단. (n.d.-d). *전산회계운용사 출제기준(2025.1.1~2027.12.31)*. 2026년 11월 17일 인출, https://license.korcham.net
+- 대한상의 "AI 시대 국가기술자격, '직무역량' 중심 개편해야". (2026, 7월 15일). *데일리안*. https://www.dailian.co.kr/news/view/1667300/
+- 500대 기업 신입사원 자격증 1·2위는 '컴활'…내년 AI 소양 평가 신설. (2026, 8월 11일). *아시아경제*. https://view.asiae.co.kr/article/2026081114074775295
+- 한국산업인력공단. (n.d.). *직업공통능력*. 국가직무능력표준. 2026년 11월 18일 인출, https://www.ncs.go.kr/unity/th03/TH0308.do
+- OECD & European Union. (2026). *Empowering learners for the age of AI: An AI literacy framework for primary and secondary education*. https://ailiteracyframework.org/
 
 ---
 
@@ -241,5 +278,6 @@ cd web && npm run test:responsive   # 반응형 점검, CHROME=브라우저 경�
 | AI 생성 이미지 | 팀원 캐릭터 얼굴 4장 | AI 생성 (Google Gemini, Nano Banana) | 팀원 아바타 |
 | 평가 근거 (인용) | 대한상공회의소 종목별 출제기준 (5개 종목) | license.korcham.net, 인용만 | 평가 기준 |
 | 평가 근거 (인용) | OECD/EU AI Literacy Framework | ailiteracyframework.org, CC BY 4.0 | 평가 기준 |
+| 평가 근거 (인용) | NCS 직업공통능력 | ncs.go.kr, 인용만 | 보고 메일 채점 기준 |
 | 참고 | Vercel "interactive 3D event badge" 구조 | 구조만 참고, 코드는 직접 작성 | 3D 사원증 |
 
