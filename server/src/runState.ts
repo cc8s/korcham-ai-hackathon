@@ -7,7 +7,7 @@ export function isClosed(run: RunRow): boolean {
 }
 
 // 진행 중인 도전: 그만두지 않았고 아직 끝나지 않음.
-// 한 세션은 진행 중인 도전을 하나만 가질 수 있다 (2026-11-21 결정, Figma 업무 선택 144:1680)
+// 한 세션은 진행 중인 도전을 하나만 가질 수 있다 (Figma 업무 선택 144:1680)
 export function isActive(run: RunRow): boolean {
   return run.state !== "abandoned" && !isClosed(run);
 }

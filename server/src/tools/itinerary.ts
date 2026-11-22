@@ -1,5 +1,5 @@
 // 05 비서 출장 일정표: itinerary_kst 도구.
-// 함정을 도구 기본값에 둔다 (planted_belief 대신. 기획 피드백 1번).
+// 함정을 도구 기본값에 둔다 (planted_belief 대신).
 //   use_event_date_offset=false → 일정표 작성일(2026-10-23, 아직 서머타임 CEST)의 시차 7시간을 출장 전 일정에 고정 적용.
 //                                  출장(10/27~11/02)은 서머타임 종료(10/25) 뒤라 실제는 8시간 (T2)
 //   use_time_basis_column=false → 항공편 표의 시각기준 열을 안 보고 전부 현지시간으로 간주.

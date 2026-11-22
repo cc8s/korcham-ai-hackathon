@@ -49,7 +49,7 @@ test("GRD-03 01 결정 테이블: 정답 승인, 중복 미제거·정규화 미
   assert.deepEqual(raw.wrong_areas, ["총매출 불일치", "거래처 초과"]);
   assert.deepEqual(raw.trap_caught.map((t) => t.caught), [false, false]);
 
-  // "10곳" 만 맞추고 최솟값은 틀림 → T2 는 미발견 (힌트에 공개된 숫자만으로는 발견 아님)
+  // "10곳" 만 맞추고 최솟값은 틀림 → T2 는 미발견 (시나리오 문구에 나오는 "10곳"만 맞춘 것은 발견 아님)
   const onlyCount = run(s01, { ...ok01, min_customer_sales: 6870000 });
   assert.equal(onlyCount.area, "거래처 초과");
   assert.equal(onlyCount.trap_caught[1].caught, false);

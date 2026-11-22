@@ -3,8 +3,9 @@ import { db } from "./db.js";
 import { config } from "./config.js";
 import type { ChatTurn, Usage } from "./llm.js";
 
-// 공개 링크 비용 방어 (기획 피드백 5번). 마감(11/23)부터 본선(12/7)까지 링크가 열려 있어야 해서
+// 공개 링크 비용 방어. 누구나 여는 링크라 한 사람이 API 비용을 다 쓰지 못하게
 // 1) 서버 전체 하루 지출 상한  2) IP·세션별 하루 시작 수  3) run 당 NPC 대화 수  4) 대화 이력 길이 상한
+// (오디 횟수 선점·동시 대화 집계·글자 수 상한은 routes/run.ts)
 // 날짜는 한국 시간 기준. 상한 숫자는 전부 환경변수로 바꿀 수 있음 (config.guard)
 
 // 1M 토큰당 달러. 2026-11 기준 claude-api 스킬 문서(models.md, prompt-caching.md) 값.
@@ -58,7 +59,7 @@ export function spentToday(): number {
   return row.usd;
 }
 
-// 실측용: 오늘 run 별 지출 (평균 1회 비용을 소개서에 쓰기 위해)
+// 실측용: 오늘 지출 합계·호출 수·run 수 (1회 평균 비용 계산)
 export function spendSummaryToday(): { usd: number; calls: number; runs: number } {
   return db
     .prepare(`SELECT COALESCE(SUM(usd),0) AS usd, COUNT(*) AS calls, COUNT(DISTINCT run_id) AS runs FROM spend WHERE day = ${TODAY}`)

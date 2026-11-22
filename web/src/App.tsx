@@ -8,7 +8,7 @@ import { ReviewScreen } from "./screens/Review";
 import { ReportScreen } from "./screens/Report";
 import type { NpcId, SubmitResult } from "./types";
 
-// 04 문서 1절 흐름: S0 입장 → S1 온보딩 → S6 선택 → S2 오피스 → S3 제출 → S4 검토 → S5 리포트
+// 화면 흐름: S0 입장 → S1 온보딩 → S6 선택 → S2 오피스 → S3 제출 → S4 검토 → S5 리포트
 type Screen = "enter" | "onboarding" | "select" | "office" | "submit" | "review" | "report";
 
 const LS = {

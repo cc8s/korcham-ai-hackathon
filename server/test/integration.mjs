@@ -1,5 +1,5 @@
-// 통합 (LLM_MOCK=1): 오디 상한, SSE 순서, 힌트 단계, 대화 이력, 제출 상태 머신, WS 이벤트.
-// 실행: npm run test:integration   (07 문서 ODI-01/03/04, NPC-02/04, SUB-02/03/04/05, WS-01/02)
+// 통합 (LLM_MOCK=1): 오디 상한, SSE 순서, 힌트 제거(410), 대화 이력, 제출 상태 머신, WS 이벤트.
+// 실행: npm run test:integration   (ODI-01/03/04, NPC-02/04, SUB-02/03/04/05, WS-01/02)
 import WebSocket from "ws";
 import { setTimeout as sleep } from "node:timers/promises";
 import { startServer, makeChecker, testPort } from "./_harness.mjs";

@@ -4,7 +4,7 @@ import type { NpcId } from "../scenarios.js";
 import type { FieldValue } from "../grading.js";
 import type { Email } from "../email.js";
 
-// 평가 입력 (06 문서 2절). DB 에서 모으지만 형태는 순수 데이터라, 골든셋 테스트가 DB 없이 직접 만들 수 있다.
+// 평가 입력. DB 에서 모으지만 형태는 순수 데이터라, 골든셋 테스트가 DB 없이 직접 만들 수 있다.
 // at = 시각(ms). 같은 초에 생긴 기록은 순서를 장담할 수 없으므로 판정은 "이전(<)" 기준으로 한다
 export interface EvOdiTurn {
   at: number;
@@ -17,7 +17,7 @@ export interface EvNpcTurn {
   at: number;
   to: NpcId;
   text: string;
-  hint: boolean; // 이하늘 힌트 요청
+  hint: boolean; // 이하늘(사수)에게 한 질문 (이름은 예전 힌트 기능에서 이어짐)
 }
 export interface EvView {
   at: number;

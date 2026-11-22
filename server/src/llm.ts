@@ -3,8 +3,8 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 import { config } from "./config.js";
 
-// API 키는 ANTHROPIC_API_KEY 환경변수에서만 읽음. 사용자는 키를 입력하지 않음 (01 문서 A안)
-// LLM_MOCK=1 이면 Claude 를 호출하지 않고 규칙 기반 가짜 응답을 돌려줌 (07 문서 9-4, CI 용)
+// API 키는 ANTHROPIC_API_KEY 환경변수에서만 읽음. 사용자는 키를 입력하지 않음
+// LLM_MOCK=1 이면 Claude 를 호출하지 않고 규칙 기반 가짜 응답을 돌려줌 (CI·테스트용)
 export const MOCK = process.env.LLM_MOCK === "1";
 // mock 응답 지연 (ms). 실제 Claude 처럼 응답을 기다리는 동안 동시 요청이 겹치는 경우를 테스트하려고 (test/guard.mjs)
 const MOCK_DELAY_MS = Number(process.env.LLM_MOCK_DELAY_MS ?? 0);
@@ -30,7 +30,7 @@ function toSystem(blocks: SystemBlock[]): Anthropic.TextBlockParam[] {
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
 // 대화 이력 캐시: 마지막 턴에 캐시 지점을 둔다. 다음 호출은 여기까지를 캐시에서 읽어서
-// 이력이 길어져도 입력 비용이 크게 늘지 않는다 (캐시 읽기는 Opus 5.5 기준 입력가의 0.05배).
+// 이력이 길어져도 입력 비용이 크게 늘지 않는다 (캐시 읽기는 입력가의 0.05배).
 // 시스템 프롬프트의 캐시 지점(최대 2개)과 합쳐 4개 제한 안쪽
 function toMessages(turns: ChatTurn[]): Anthropic.MessageParam[] {
   return turns.map((t, i) =>
@@ -127,7 +127,7 @@ const addUsage = (a: Usage, b: Usage): Usage => ({
 // - 도구는 서버에서 실행(client tool). 텍스트 델타는 매 요청마다 그대로 onText 로 흘린다
 // - 요청이 끝날 때마다 onUsage → 호출부가 recordSpend. 중간에 실패해도 이미 쓴 요청은 지출에 남는다
 // - 도구 라운드는 maxToolRounds 까지. 넘으면 마지막 요청은 tool_choice none 으로 글 답변만 받는다
-//   (Opus 5.5 는 tool_choice any/tool 강제가 400. auto·none 만 가능)
+//   (tool_choice any/tool 강제는 Opus 5.5 에서 400 이 나서 auto·none 만 쓴다)
 // - 루프 안에서는 assistant 응답(thinking 블록 포함)을 바꾸지 않고 그대로 다시 보낸다 (preserved thinking).
 //   턴이 끝나면 DB 에는 글만 저장하므로 다음 턴 이력에는 thinking·도구 블록이 없다 (재전송하지 않으니 검사 대상도 없음)
 export type ToolRunner = (name: string, input: unknown) => { content: string; isError: boolean };
@@ -263,7 +263,7 @@ export async function structured<T extends z.ZodType>(args: {
   return { parsed: res.parsed_output as z.infer<T>, usage: usageOf(res) };
 }
 
-// 사용자에게 보여 줄 수 있는 오류 분류 (04 문서 7절 예외 처리)
+// 사용자에게 보여 줄 수 있는 오류 분류
 export function describeLlmError(err: unknown): { status: number; message: string } {
   if (err instanceof Anthropic.RateLimitError) return { status: 503, message: "잠깐만요, 다시 말해 줄래요?" };
   if (err instanceof Anthropic.AuthenticationError) return { status: 500, message: "서버 설정 오류 (API 키)" };

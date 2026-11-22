@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 // 모바일 배치 (Figma 모바일 166:4308 · 대화목록 166:4603 · 오디대화 166:5943 · 제출 179:6908).
 // 640px 이하에서 사무실·제출 화면이 사이드바 + 본문 대신 한 화면 + 아래 탭 막대(BNV)로 바뀐다.
-// 반응형 점검(npm run test:responsive)에서 561~640px 도 제목이 단어 중간에서 꺾여 기준을 640 으로 (2026-11-22)
+// 반응형 점검(npm run test:responsive)에서 561~640px 도 제목이 단어 중간에서 꺾여 기준을 640 으로
 export const MOBILE_QUERY = "(max-width: 640px)";
 
 export function useIsMobile() {

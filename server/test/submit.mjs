@@ -1,5 +1,5 @@
 // 구조화 제출 + 코드 채점 + 정답 마스킹 (LLM_MOCK=1). 실행: npm run test:submit
-// 07 문서 SUB-08~13, MSK-04
+// SUB-08~15, EML-10, MSK-04·05
 import fs from "node:fs";
 import path from "node:path";
 import { startServer, makeChecker, testPort, serverDir } from "./_harness.mjs";
@@ -13,7 +13,7 @@ try {
   srv = await startServer({ port: testPort(8796), dbName: "submit.db", env: { LLM_MOCK: "1" } });
   const { api } = srv;
   const sid = (await api("POST", "/session", { nickname: "제출" })).json.session_id;
-  // 앞 업무를 다 쓰고 다음 업무로 넘어가는 흐름이라 replace (진행 중 업무는 하나만, 2026-11-21)
+  // 앞 업무를 다 쓰고 다음 업무로 넘어가는 흐름이라 replace (진행 중 업무는 하나만)
   const start = async (id) => (await api("POST", `/scenario/${id}/start`, { session_id: sid, replace: true })).json.run_id;
 
   // SUB-08: GET run 에 칸 정의만, 정답·허용오차·함정 없음

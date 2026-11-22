@@ -6,7 +6,7 @@ import type { Scenario } from "../scenarios.js";
 import type { Evidence } from "./evidence.js";
 import { ASK_BACK, type CodeScore } from "./score.js";
 
-// 평가 에이전트 (06 문서 4절 [2]·[3]). A·B-LLM 점수와 인용·코칭 문장만 만든다
+// 평가 에이전트. A·B-LLM 점수와 인용·코칭 문장만 만든다
 
 export const NONE = "해당 없음";
 const Quoted = z.object({ score: z.number(), quote: z.string() });
@@ -50,7 +50,7 @@ function badQuotes(j: Judge, ev: Evidence): string[] {
   return all.filter(([, q]) => !quoteOk(q, ev)).map(([k]) => k);
 }
 
-// 끝까지 로그에 없는 인용은 "해당 없음"으로. 점수는 그대로 둔다 (06 문서 9절)
+// 끝까지 로그에 없는 인용은 "해당 없음"으로. 점수는 그대로 둔다
 function dropBadQuotes(j: Judge, ev: Evidence): Judge {
   const fix = (q: string) => (quoteOk(q, ev) ? q : NONE);
   return {

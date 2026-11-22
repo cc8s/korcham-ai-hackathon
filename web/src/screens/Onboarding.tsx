@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Badge, SimternTop } from "../ui/Badge";
 
-// S1 온보딩: 2장. 사용법은 사무실에서 이하늘(사수)이 알려 준다 (2026-11-18 회의: 온보딩 글이 많아 피로)
+// S1 온보딩: 2장. 사용법은 사무실에서 이하늘(사수)이 알려 준다 (온보딩 글이 많으면 피로해서)
 // 디자인: Figma "UI 적용 테스트 11.19 / 온보딩 출근" 2장
 export function Onboarding({ nickname, onDone }: { nickname: string; onDone: () => void }) {
   const [i, setI] = useState(0);

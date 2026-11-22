@@ -2,11 +2,11 @@ import type { Scenario } from "../scenarios.js";
 import type { Evidence } from "./evidence.js";
 import { scoreEmail, type EmailScore } from "../email.js";
 
-// 코드 채점 (06 문서 3절 B-코드·C·D·E·F). 같은 입력이면 항상 같은 점수. LLM 은 여기 관여하지 않는다
-// 배점 (2026-11-18 회의 결정으로 F축 추가): A 20 · B 25 · C 25 · D 15 · E 5 · F 10 = 100
-// 힌트 3단계는 같은 날 없앰 → C 의 힌트 경로·E 의 힌트 점수 제거. 이하늘에게 묻는 건 감점 없음
+// 코드 채점 (B-코드·C·D·E·F). 같은 입력이면 항상 같은 점수. LLM 은 여기 관여하지 않는다
+// 배점: A 20 · B 25 · C 25 · D 15 · E 5 · F 10 = 100
+// 이하늘(사수)에게 묻는 건 감점 없음 (예전 힌트 경로·힌트 점수는 없앰)
 
-// 오디에게 결과를 확인·수정하라고 한 지시 (06 9절 되묻기 정규식)
+// 오디에게 결과를 확인·수정하라고 한 지시 (되묻기 정규식)
 export const ASK_BACK = /확인|맞아|맞는지|다시|근거|검산|비교|중복|정규화/;
 // 도구 없는 시나리오에서 "오디 답이 실제로 바뀌었다"의 근사: 되묻기 직후 답변에 정정 표현
 const REPLY_CORRECTED = /정정|수정했|수정하면|잘못|틀렸|바로잡|다시 계산한 결과|죄송/;
@@ -19,7 +19,7 @@ const MEMO_SEARCH = /검색/; // "찾아"는 "차이도 찾아" 같은 일반 �
 const MEMO_RECALC = /중복|정규화|띄어쓰기|재계산|다시 계산|검산|10 ?%|정정/;
 
 const REJECT_COEF = 0.5;
-// 오디가 먼저 경고한 함정을 사용자가 확인해 잡은 경우 (샌드박스 원칙 3). 임시값, 사용자 결정 대기
+// 오디가 먼저 경고한 함정을 사용자가 확인해 잡은 경우 (샌드박스 원칙 3). 스스로 찾음(1)과 반려 뒤 찾음(0.5) 사이
 const AI_WARN_COEF = 0.7;
 
 export type TrapPath = "self" | "ai_warned" | "reject" | "none";
@@ -41,7 +41,7 @@ export interface CodeScore {
   D: { approved: boolean; reject_count: number; format_ok: boolean; total: number };
   E_partial: { odi_calls: number; odi_score: number };
   F: EmailScore;
-  // AI 최소 조건 (10 문서 7절 결정 1, 2026-11-18): 오디에게 결과를 고치게 해서 실제로 바뀐 적이 있는가.
+  // AI 최소 조건: 오디에게 결과를 고치게 해서 실제로 바뀐 적이 있는가.
   // 없으면 등급 상한 B
   aiMinMet: boolean;
   durationMin: number;

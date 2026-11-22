@@ -1,5 +1,5 @@
 // 통합 (LLM_MOCK=1): 오디 계산 도구. 도구 호출이 옵션과 함께 기록되고, SSE 는 그대로 delta…→done.
-// 실행: npm run test:odi-tools   (07 문서 TOOL-08~11)
+// 실행: npm run test:odi-tools   (TOOL-08~11)
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";

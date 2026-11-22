@@ -252,7 +252,7 @@ runRouter.post("/run/:rid/odi", async (req, res) => {
     }
     // 이 답변까지의 사용자 발화·도구 옵션 기준으로 아직 안 짚은 함정 중 오디가 경고한 것
     const aiWarned = aiWarnedTraps(sc, out.text, raisedTraps(sc, userTexts, [...pastCalls, ...toolCalls]));
-    // 성공한 호출만 차감. 실패는 차감 안 함 (04 문서 7절). 도구 루프 전체가 1회
+    // 도구 루프 전체가 오디 1회 (횟수는 시작할 때 잡았고, API 오류면 돌려줌)
     // 이력은 글만 저장 (다음 턴에 도구 블록·thinking 은 다시 보내지 않음)
     addMessage(run.id, "odi", "user", message);
     addMessage(run.id, "odi", "assistant", out.text, {
@@ -330,7 +330,7 @@ runRouter.post("/run/:rid/npc/:npc/scripted", (req, res) => {
 });
 
 // POST /run/:rid/npc/:npc { message } → NPC 응답 (비스트리밍)
-// 힌트 3단계는 2026-11-18 회의 결정으로 없앰. 이하늘은 함정을 모르는 사수로 답하고, 묻는 것은 감점하지 않는다
+// 이하늘은 함정을 모르는 사수로 답하고, 묻는 것은 감점하지 않는다 (힌트 기능은 없앰)
 runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
@@ -354,7 +354,7 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
     res.status(400).json({ error: `한 번에 ${config.guard.npcMessageChars.toLocaleString()}자까지 보낼 수 있어요. 짧게 나눠서 물어봐 주세요.`, code: "too_long" });
     return;
   }
-  // 맞장구("넵", "네 알겠습니다")는 AI 를 부르지 않고 고정 답 (src/npcAck.ts, 2026-11-22 누설 대응)
+  // 맞장구("넵", "네 알겠습니다")는 AI 를 부르지 않고 고정 답 (src/npcAck.ts, 누설 대응)
   if (isAck(message)) {
     const persona = NPC_PERSONA[npc];
     const text = ACK_REPLY[npc];
@@ -372,7 +372,7 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   if (!checkBudget(res)) return;
 
   const persona = NPC_PERSONA[npc];
-  // 대화에는 함정·정답이 든 scenario_context_for_npc 를 주지 않는다 (팀장도 마찬가지, 2026-11-19).
+  // 대화에는 함정·정답이 든 scenario_context_for_npc 를 주지 않는다 (팀장도 마찬가지).
   // 팀장은 npc_chat_context(업무 정보만), 이하늘은 과제 정보만. 정답 컨텍스트는 검토 호출에서만 쓴다
   const system: SystemBlock[] = [
     { text: `${COMPANY_COMMON}\n\n${persona.block}`, cache: false },
@@ -422,7 +422,7 @@ runRouter.post("/run/:rid/npc/:npc", async (req, res) => {
   }
 });
 
-// 팀장 검토 구조화 출력 스키마 (04 문서 S4 + 06 문서 trap_caught)
+// 팀장 검토 구조화 출력 스키마 (예비 경로: submission.json 없는 시나리오)
 const ReviewSchema = z.object({
   decision: z.enum(["approve", "reject"]),
   area: z.string().nullable().describe("반려 영역 이름. 승인이면 null"),
@@ -469,7 +469,7 @@ export function commentFallback(lines: string[], memo?: string): string {
 type SubmitOutcome = { review: Record<string, unknown> & { decision: "approve" | "reject"; area: string | null; message: string }; wrongAreas?: string[] };
 
 // POST /run/:rid/submit { verify_memo, fields? } → 채점·검토 → 승인/반려
-// submission.json 이 있으면 fields 를 코드가 채점하고 팀장 LLM 은 멘트만. 없으면 기존 LLM 검토
+// submission.json 이 있으면 fields 를 코드가 채점하고 팀장 LLM 은 멘트만. 없으면 팀장 LLM 이 판정하는 예비 경로
 runRouter.post("/run/:rid/submit", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;
@@ -596,7 +596,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
       wrongAreas: g.wrong_areas,
     };
   } else {
-    // ---- 기존 경로 (submission.json 없는 시나리오): 팀장 LLM 이 판정까지 ----
+    // ---- 예비 경로 (submission.json 없는 시나리오, 지금은 없음): 팀장 LLM 이 판정까지 ----
     subId = addSubmission(run.id, attempt, run.basket_text, memo, undefined, undefined, email ?? undefined);
     updateRun(run.id, { state: "reviewing" });
     emit({ type: "submit", run_id: run.id, npc_id: sc.ownerNpcId });
@@ -672,7 +672,7 @@ runRouter.post("/run/:rid/submit", async (req, res) => {
 // 같은 run 평가가 동시에 두 번 돌면 비용이 두 배라 막는다
 const evaluating = new Set<string>();
 
-// POST /run/:rid/evaluate → 평가 리포트 (06 문서 4절). 한 번 만들면 저장된 걸 돌려줌
+// POST /run/:rid/evaluate → 평가 리포트. 한 번 만들면 저장된 걸 돌려줌
 runRouter.post("/run/:rid/evaluate", async (req, res) => {
   const ctx = resolve(req, res);
   if (!ctx) return;

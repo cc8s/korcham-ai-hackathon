@@ -21,13 +21,13 @@ export const config = {
   scenariosDir: path.resolve(serverRoot, env("SCENARIOS_DIR", "../scenarios")),
   model: {
     main: env("MODEL_MAIN", "claude-opus-5-5"), // 평가 에이전트 (리포트 점수·코칭)
-    // 팀장 검토. 5개 시나리오 모두 구조화 제출이라 판정은 코드가 하고 팀장은 멘트만 쓴다 → 최상위 모델 불필요 (2026-11-18)
+    // 팀장 검토. 5개 시나리오 모두 구조화 제출이라 판정은 코드가 하고 팀장은 멘트만 쓴다 → 최상위 모델 불필요
     review: env("MODEL_REVIEW", "claude-sonnet-5-5"),
-    // 오디. 함정은 도구·데이터에 있고 판정은 사용자 행동으로만 하므로 최상위 모델이 필요 없음.
-    // 2026-11-18 실측: 도구 시나리오에서 Sonnet 은 먼저 경고 0/6 (Opus 7/8), 글 품질은 Haiku 보다 좋음
+    // 오디. 함정은 도구 기본값에 있어 최상위 모델이 필요 없다.
+    // 2026-11-18 실측: 먼저 경고 Sonnet 0/6 · Opus 7/8, 글 품질은 Haiku 보다 좋음
     odi: env("MODEL_ODI", "claude-sonnet-5-5"),
     npc: env("MODEL_NPC", "claude-haiku-5-5"), // 팀장 잡담·질문 응답. 짧고 빨라야 해서 Haiku
-    mentor: env("MODEL_MENTOR", "claude-haiku-5-5"), // 이하늘 힌트
+    mentor: env("MODEL_MENTOR", "claude-haiku-5-5"), // 이하늘(사수) 대화
   },
   // 공개 링크 비용 방어 (src/guard.ts). 날짜는 한국 시간
   guard: {
@@ -39,7 +39,7 @@ export const config = {
     odiHistoryChars: Number(env("ODI_HISTORY_CHARS", "60000")),
     npcHistoryChars: Number(env("NPC_HISTORY_CHARS", "16000")),
     // 한 번에 보내는 글 길이 상한. 이력 상한은 이번 메시지를 항상 남기므로, 이게 없으면
-    // 본문 256KB(한글 약 8만 자)를 한 번에 넣어 하루 지출 상한을 혼자 다 쓸 수 있다 (2026-11-22 점검)
+    // 본문 256KB(한글 약 8만 자)를 한 번에 넣어 하루 지출 상한을 혼자 다 쓸 수 있다
     odiMessageChars: Number(env("ODI_MESSAGE_CHARS", "4000")),
     npcMessageChars: Number(env("NPC_MESSAGE_CHARS", "1000")),
     memoChars: Number(env("MEMO_CHARS", "4000")),

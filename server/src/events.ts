@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "node:http";
 
-// 04 문서 4절: 서버 이벤트 → 픽셀 상태. run 하나당 WS 구독자 집합
+// 서버 이벤트 → 사무실 화면의 팀원 상태. run 하나당 WS 구독자 집합
 export type PixelEvent = {
   type:
     | "scenario.start"

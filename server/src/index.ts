@@ -15,8 +15,7 @@ app.use(cors({ origin: config.corsOrigin.split(",").map((s) => s.trim()) }));
 app.use(express.json({ limit: "256kb" }));
 
 app.get("/health", (req, res) => {
-  // 지출 액수는 공개하지 않고 열림 여부만. your_ip 는 배포 후 TRUST_PROXY 가 맞는지 확인용
-  // (사람마다 다른 IP 가 나와야 함. 모두 같은 값이면 프록시 IP 를 읽는 중이라 IP 한도가 전원에게 걸림)
+  // 지출 액수는 숨기고 열림 여부만. your_ip 는 TRUST_PROXY 확인용 (모두 같은 IP 면 프록시 IP 를 읽는 중)
   res.json({ ok: true, scenarios: [...loadScenarios().keys()], limits, open: spentToday() < config.guard.dailyBudgetUsd, your_ip: clientIp(req) });
 });
 
