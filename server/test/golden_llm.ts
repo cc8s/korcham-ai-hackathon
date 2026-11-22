@@ -31,6 +31,7 @@ interface Run {
   leak: string[];
   mentioned: boolean;
   quoteRetry: boolean;
+  distinctA: number;
   usd: number;
   summary: string;
 }
@@ -52,6 +53,7 @@ async function evalOnce(c: (typeof golden.cases)[number]): Promise<Run> {
     leak: (c.expected.must_not_contain as string[]).filter((w) => txt.includes(w)),
     mentioned: (c.expected.must_mention_any as string[]).some((w) => coaching.includes(w)),
     quoteRetry: out.quoteRetry,
+    distinctA: new Set(rep.axes.A_instruction.items.map((i) => i.quote).filter((q) => q !== NONE)).size,
     usd: out.usages.reduce((s, u) => s + costUsd(models.main, u), 0),
     summary: rep.summary,
   };
@@ -75,7 +77,7 @@ async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Prom
 const jobs = cases.flatMap((c: { id: string }) => Array.from({ length: repeat }, (_, k) => ({ c, k })));
 console.log(`골든셋 ${cases.length}건 × ${repeat}회 = ${jobs.length}회 평가 (모델 ${models.main})`);
 const t0 = Date.now();
-const results = await pool(jobs, 4, async ({ c, k }) => {
+const results = await pool(jobs, Number(process.env.GOLDEN_CONCURRENCY ?? 4), async ({ c, k }) => {
   try {
     const r = await evalOnce(c);
     process.stdout.write(`  ${c.id}#${k + 1} ${r.total}점 ${r.grade}\n`);
@@ -125,6 +127,7 @@ const summary = {
   must_mention: { value: +(all.filter((r) => r.mentioned).length / all.length).toFixed(3), target: acc.must_mention },
   grade_ok: all.length ? +(rows.reduce((a, r) => a + r.grade_ok, 0) / all.length).toFixed(3) : 0,
   quote_retry_rate: +(all.filter((r) => r.quoteRetry).length / all.length).toFixed(3),
+  distinct_A_quotes_avg: +(all.reduce((s, r) => s + r.distinctA, 0) / all.length).toFixed(2),
   usd: +all.reduce((a, r) => a + r.usd, 0).toFixed(3),
   minutes: +((Date.now() - t0) / 60000).toFixed(1),
   failed_calls: results.filter((x) => !x.r).length,
