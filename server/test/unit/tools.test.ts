@@ -288,6 +288,23 @@ test("TOOL-09 criteria 해석: 사용자가 실제로 말한 기준만 켠다 (�
   assert.equal(run("신고필증 기준으로", ["신고필증 기준으로 해 줘"]).input.criteria, "신고필증 기준으로");
 });
 
+test("TOOL-15 01 중복·표기 요청을 '중복' 낱말 없이 말해도 옵션이 켜진다 (실제 사용자 문장)", () => {
+  const sc = getScenario("01")!;
+  // 배포본에서 실패했던 요청: '중복' 없이 "같은 주문번호가 두 번" → 예전에는 dedupe 가 꺼진 채 계산됨
+  const said = "거래처가 12곳으로 나오는데 우리 거래처는 10곳이야. 이름 띄어쓰기만 다른 건 같은 거래처로 합치고, 같은 주문번호가 두 번 들어가 있는지도 확인해서 다시 집계해 줘.";
+  const log = odiToolsFor(sc, { userTexts: [said] })!.run("aggregate_sales", { criteria: said }).log;
+  assert.deepEqual([...log.changed_flags].sort(), ["dedupe_order_ids", "normalize_customer_names"]);
+  assert.equal((log.summary as { 총매출: number }).총매출, 580_300_000);
+  const t = TOOL_REGISTRY["aggregate_sales"];
+  const off = { dedupe_order_ids: false, normalize_customer_names: false };
+  for (const s of ["주문번호가 겹치는 행은 하나만", "같은 주문 두 번 들어간 거 빼고", "주문번호 같은 건 한 번만 세 줘", "중복 주문 빼고"]) {
+    assert.equal(mockToolInput(t, s).dedupe_order_ids, true, s);
+  }
+  for (const s of ["같은 거래처는 합쳐 줘", "거래처 이름 통일해서"]) assert.equal(mockToolInput(t, s).normalize_customer_names, true, s);
+  // 무엇을 고칠지 특정하지 않은 말, '두 번째' 는 안 켜짐
+  for (const s of ["다시 확인해 줘", "검증해 줘", "두 번째 표도 보여 줘", "거래처별 합계표 만들어 줘"]) assert.deepEqual(mockToolInput(t, s), off, s);
+});
+
 test("TOOL-10 모델에게 주는 도구 결과에 옵션 이름이 없다 (적용_옵션 제외, 기록에는 남음)", () => {
   for (const [id, name] of [["01", "aggregate_sales"], ["02", "vat_summary"], ["03", "order_quantity"], ["05", "itinerary_kst"]] as const) {
     const r = odiToolsFor(getScenario(id)!, { userTexts: [] })!.run(name, {});
