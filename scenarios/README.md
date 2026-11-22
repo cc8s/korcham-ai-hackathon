@@ -6,7 +6,7 @@
 scenarios/
 ├── _shared/                 공통 데이터 (거래처, 제품, 상수). 모든 시나리오가 참조
 ├── 01_컴활_매출집계/
-│   ├── README.md            사람용 설명: 업무 카드, 정답, 함정, 반려 기준, 힌트
+│   ├── README.md            사람용 설명: 업무 카드, 정답, 함정, 반려 기준
 │   ├── prompts.json         서버용: task_card, NPC 컨텍스트, 오디 planted_belief, hints, review_rules, traps
 │   ├── answer_key.json      정답. 팀장 검토·평가 에이전트에만 주입. 사용자에게 절대 노출 금지
 │   ├── submission.json      (선택, 지금 01·02·03) 구조화 제출 칸. 서버가 칸 값을 answer_key 와 대조해 채점
@@ -70,7 +70,7 @@ scenarios/
 | tools[].sources | 도구가 읽을 첨부. 키는 도구가 정하고, 값은 `task_card.attachments` 에 있는 경로 |
 | include_raw_data | true 면 원문도 오디 컨텍스트에 넣음. 기본 false (파일명·열·행 수만. 숫자는 도구로만) |
 
-도구 정의(설명·옵션)와 계산은 코드에 있다. 옵션 기본값과 함정의 대응은 `docs/03_NPC_시트.md` 6절. 교정 옵션을 다 켠 결과가 `answer_key.json` 과 같은지는 `server/test/unit/tools.test.ts` 가 확인한다 — 데이터나 정답을 바꾸면 이 테스트를 같이 돌린다.
+도구 정의(설명·옵션)와 계산은 코드에 있다. 옵션 기본값과 함정의 대응은 `server/src/tools/` 의 각 도구 파일 맨 위 주석. 교정 옵션을 다 켠 결과가 `answer_key.json` 과 같은지는 `server/test/unit/tools.test.ts` 가 확인한다 — 데이터나 정답을 바꾸면 이 테스트를 같이 돌린다.
 
 ## eval.json (필수)
 
@@ -101,4 +101,4 @@ scenarios/
 - 환율·부가세·서머타임 종료일은 `_shared/constants.json`
 
 ## 재생성
-`python tools/gen_scenarios.py` 로 생성 (출력은 이 파일 기준 레포 루트의 scenarios/). seed 고정이라 재실행해도 같은 데이터. 데이터를 손으로 고치지 말고 스크립트를 고친 뒤 재생성한다.
+처음 데이터는 `python tools/gen_scenarios.py` 로 만들었다 (seed 고정이라 `data/`·`answer_key.json` 은 재실행해도 같다). 그 뒤 `prompts.json` 과 시나리오 README 는 직접 고쳤고, `submission.json`·`eval.json`·`email.json`·`odi_tools.json` 은 스크립트가 만들지 않는다. 재실행하면 `prompts.json`·README 가 예전 내용으로 덮어써지므로, 데이터를 바꿀 때는 결과를 git diff 로 확인하고 필요한 파일만 남긴다.
